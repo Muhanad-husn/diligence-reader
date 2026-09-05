@@ -82,7 +82,7 @@ on the three gate samples and, from phase 5, the rubric score on sample 1.
 
 | Phase | Milestone | State | Score | Dollars | Spread | Closed |
 |---|---|---|---|---|---|---|
-| 0 Fixtures | Phase 0 | not started | | 0 | | |
+| 0 Fixtures | Phase 0 | done | 100 / 100 / 100 | 0 | 0 | 2026-09-05 |
 | 1 Ingest | Phase 1 | not started | | | | |
 | 2 Notes | Phase 2 | not started | | | | |
 | 3 Map | Phase 3 | not started | | | | |

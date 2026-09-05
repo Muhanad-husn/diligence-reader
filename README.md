@@ -10,4 +10,4 @@ different names, and write a cited findings report with a number.
 - `reference/` holds the RLM's winning trail, the source transcript, the RLM skill, and the
   register of what the first build got wrong.
 
-Status: phase 0 not started. Spend: $0 of $50.
+Status: phase 0 done. Spend: $0 of $50.
