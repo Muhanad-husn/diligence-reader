@@ -17,6 +17,17 @@ phase's tests are parametrised over the three samples and are the specification.
 reviewer or verifier roles, no evidence packets, no fix rounds: one reader reads the pull
 request, and the founder merges or not.
 
+**How an issue is built** (the founder's rules, 2026-09-05):
+1. One git worktree per issue.
+2. Code is written by a dispatched agent: Opus for a hard slice, Sonnet for an easy one.
+3. Prose (briefs, fixture reports, plan text, docs) is written by a dispatched Haiku agent.
+4. Prose gets no mechanical test. Text-only work is read, diffed and fixed by hand.
+5. A coding task starts with its behavioural tests. They are committed red; the builder makes
+   them green with the minimum code; then refactor and retest.
+6. Unblocked issues run concurrently, at most four at a time.
+7. The founder is briefed in concise executive style: no jargon, actionable points, one
+   recommendation.
+
 **The aeo plugin: two lanes and one gate, nothing else.**
 - `/aeo:sprint-plan`, typed by the founder once per phase, when the previous phase's closing
   issue is done. It slices the phase into issues under `plans/phase-N/` and files them on the
@@ -27,9 +38,9 @@ request, and the founder merges or not.
 - Not used, and not to be invoked by description: `/aeo:sprint-start`, `/aeo:fix`,
   `/aeo:review`, `/aeo:verify`, `/aeo:triage`, `red-green-refactor`, `tdd-plan`, `tdd-ci`,
   `safe-pr`, `safe-cleanup`, `worker-dispatch`, `monitor-design`, and the builder, reviewer
-  and verifier agents. A request to build, test or open a pull request is done directly in
-  the session, with a short pull request body: what the artefact is, the three numbers, the
-  tests that passed on the three samples.
+  and verifier agents of the plugin. Building is done by plain dispatched agents under the
+  rules below; the session opens the pull request with a short body: what the artefact is,
+  the three numbers, the tests that passed on the three samples.
 
 **Tracking.** Milestones `Phase 0` to `Phase 7` on GitHub, one issue per slice, labels
 `phase-N`. Every phase ends with a closing issue named `Phase N gate` whose pull request runs
