@@ -1,0 +1,12 @@
+[
+  {
+    "claim": "The CIM claims Northstar Dental Group grew revenue by 18.0% year over year.",
+    "conflicting_evidence": "The revenue workbook shows 2024 revenue of $22.2M and 2025 revenue of $24.8M, which equals 11.7% year-over-year growth.",
+    "expected_resolution": "Flag the discrepancy and use the revenue workbook as the quantitative source of truth unless management reconciles the difference.",
+    "id": "C-001",
+    "sources": [
+      "cim.md",
+      "revenue_summary.xlsx"
+    ]
+  }
+]

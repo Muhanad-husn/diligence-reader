@@ -1,0 +1,156 @@
+{
+  "company": {
+    "description": "A regional dental services organization operating 18 clinics across the Midwest, focused on general dentistry, orthodontics, hygiene, and implants.",
+    "founded_year": 2014,
+    "headquarters": "Columbus, Ohio",
+    "industry": "Dental services organization",
+    "locations": [
+      "Columbus, OH",
+      "Cincinnati, OH",
+      "Dayton, OH",
+      "Indianapolis, IN",
+      "Louisville, KY"
+    ],
+    "name": "Northstar Dental Group"
+  },
+  "customers": [
+    {
+      "annual_revenue_millions": 5.8,
+      "contract_start": "2022-01-01",
+      "name": "Buckeye Family Health Plan",
+      "notes": "Largest payor relationship; reimbursement schedule was last updated in 2023.",
+      "renewal_date": "2026-03-31",
+      "segment": "Insurance payor"
+    },
+    {
+      "annual_revenue_millions": 4.2,
+      "contract_start": "2021-07-01",
+      "name": "Midwest Dental Benefits Network",
+      "notes": "Strong volume but slower-than-average claims payment cycle.",
+      "renewal_date": "2025-12-31",
+      "segment": "Insurance payor"
+    },
+    {
+      "annual_revenue_millions": 2.6,
+      "contract_start": "2023-02-15",
+      "name": "Riverbend Employer Dental Plan",
+      "notes": "Concentrated in Columbus and Dayton locations.",
+      "renewal_date": "2026-02-14",
+      "segment": "Employer plan"
+    },
+    {
+      "annual_revenue_millions": 6.7,
+      "contract_start": "N/A",
+      "name": "Self-Pay and Retail Patients",
+      "notes": "Includes implants, cosmetic dentistry, and out-of-network services.",
+      "renewal_date": "N/A",
+      "segment": "Direct patient revenue"
+    }
+  ],
+  "employees": [
+    {
+      "annual_salary": 265000,
+      "location": "Columbus, OH",
+      "name": "Maya Patel",
+      "role": "Chief Executive Officer",
+      "start_date": "2018-04-02"
+    },
+    {
+      "annual_salary": 220000,
+      "location": "Columbus, OH",
+      "name": "James Whitaker",
+      "role": "Chief Financial Officer",
+      "start_date": "2020-09-14"
+    },
+    {
+      "annual_salary": 185000,
+      "location": "Cincinnati, OH",
+      "name": "Elena Brooks",
+      "role": "VP Operations",
+      "start_date": "2019-06-17"
+    },
+    {
+      "annual_salary": 152000,
+      "location": "Dayton, OH",
+      "name": "Victor Chen",
+      "role": "Director of Revenue Cycle",
+      "start_date": "2021-01-11"
+    },
+    {
+      "annual_salary": 198000,
+      "location": "Indianapolis, IN",
+      "name": "Amara Singh",
+      "role": "Clinical Director",
+      "start_date": "2017-03-20"
+    },
+    {
+      "annual_salary": 128000,
+      "location": "Columbus, OH",
+      "name": "Noah Reynolds",
+      "role": "IT Systems Manager",
+      "start_date": "2022-08-01"
+    }
+  ],
+  "revenue": {
+    "2024_total_millions": 22.2,
+    "2025_total_millions": 24.8,
+    "growth_pct_2024_to_2025": 11.7
+  },
+  "risks": [
+    {
+      "description": "The CIM states 18.0% year-over-year revenue growth, while the generated revenue workbook shows 2024 revenue of $22.2M and 2025 revenue of $24.8M, or 11.7% growth.",
+      "id": "R-001",
+      "severity": "high",
+      "source_documents": [
+        "cim.md",
+        "revenue_summary.xlsx"
+      ],
+      "title": "Revenue growth inconsistency"
+    },
+    {
+      "description": "CloudDent is the system of record for scheduling, claims, and treatment plans. The contract renews on 2025-09-30 and has limited termination flexibility.",
+      "id": "R-002",
+      "severity": "high",
+      "source_documents": [
+        "vendor_agreements/clouddent-practice-systems.md"
+      ],
+      "title": "Practice management software dependency"
+    },
+    {
+      "description": "The two largest insurance payor relationships represent $10.0M of 2025 revenue.",
+      "id": "R-003",
+      "severity": "medium",
+      "source_documents": [
+        "customer_contracts/buckeye-family-health-plan.md",
+        "customer_contracts/midwest-dental-benefits-network.md"
+      ],
+      "title": "Payor concentration"
+    }
+  ],
+  "vendors": [
+    {
+      "annual_spend_millions": 0.48,
+      "name": "CloudDent Practice Systems",
+      "notes": "Single system of record for scheduling, claims, and treatment plans.",
+      "renewal_date": "2025-09-30",
+      "risk_level": "high",
+      "service": "Practice management software"
+    },
+    {
+      "annual_spend_millions": 1.35,
+      "name": "SmileSupply Distribution",
+      "notes": "Primary supplies vendor; 72% of consumables sourced through this vendor.",
+      "renewal_date": "2026-06-30",
+      "risk_level": "medium",
+      "service": "Dental supplies and consumables"
+    },
+    {
+      "annual_spend_millions": 0.72,
+      "name": "ClearView Revenue Cycle Services",
+      "notes": "Handles outsourced billing workflows for insurance payors.",
+      "renewal_date": "2025-11-15",
+      "risk_level": "medium",
+      "service": "Claims processing and denial management"
+    }
+  ]
+}

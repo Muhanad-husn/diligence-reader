@@ -1,0 +1,666 @@
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R /F3 5 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/Contents 10 0 R /MediaBox [ 0 0 612 792 ] /Parent 9 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+5 0 obj
+<<
+/BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding /Name /F3 /Subtype /Type1 /Type /Font
+>>
+endobj
+6 0 obj
+<<
+/Contents 11 0 R /MediaBox [ 0 0 612 792 ] /Parent 9 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+7 0 obj
+<<
+/PageMode /UseNone /Pages 9 0 R /Type /Catalog
+>>
+endobj
+8 0 obj
+<<
+/Author (VistaPort Media Inc.) /CreationDate (D:20260107000000+00'00') /Creator (Project Atlas generator) /Keywords () /ModDate (D:20260107000000+00'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (Project Atlas data room) /Title (AURORA \204 Phase 1 Technical Findings \(DRAFT, Privileged\)) /Trapped /False
+>>
+endobj
+9 0 obj
+<<
+/Count 2 /Kids [ 4 0 R 6 0 R ] /Type /Pages
+>>
+endobj
+10 0 obj
+<<
+/Length 9186
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+.623529 .701961 .784314 RG
+.5 w
+n 54 47.52 m 558 47.52 l S
+BT /F1 6.6 Tf 7.92 TL ET
+.419608 .466667 .521569 rg
+BT 1 0 0 1 54 36 Tm (CONFIDENTIAL \227 Project Atlas \227 DR-069 \227 VistaPort Media Inc. \227 Subject to NDA & clean-team protocol.) Tj T* ET
+BT 1 0 0 1 537.0846 36 Tm (Page 1) Tj T* ET
+Q
+q
+1 0 0 1 60 712 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 3 Tm /F2 17 Tf 20 TL 1.812 0 Td (AURORA \227 Phase 1 Technical Findings \(DRAFT, Privileged\)) Tj T* -1.812 0 Td ET
+Q
+Q
+q
+1 0 0 1 60 693 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.5 Tm /F1 10.5 Tf 13 TL (AURORA \227 Phase 1 Technical Findings \(DRAFT\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 684 cm
+Q
+q
+1 0 0 1 54 598.8 cm
+q
+.917647 .941176 .964706 rg
+n 0 85.2 504 -85.2 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 5 72.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Document ID) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 72.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (DR-069) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 58.4 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Prepared by / owner) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 58.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Renata Castellano) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 44.2 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Date) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 44.2 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (12 November 2025) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 30 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Classification) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 30 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Strictly Confidential \227 Project Atlas) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 15.8 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Classification) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 15.8 cm
+q
+BT 1 0 0 1 0 2.4 Tm 11 TL /F1 8.6 Tf 0 0 0 rg (DRAFT \227 Privileged & Confidential) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 1.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Prepared by) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 1.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (IronLake Forensics) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.121569 .227451 .372549 RG
+.6 w
+n 0 85.2 m 504 85.2 l S
+n 0 0 m 504 0 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 590.8 cm
+Q
+q
+1 0 0 1 60 532 cm
+q
+BT 1 0 0 1 0 43.1 Tm 13.2 TL /F2 9.7 Tf 0 0 0 rg (DRAFT \227 PRIVILEGED & CONFIDENTIAL \227 PREPARED AT THE DIRECTION OF COUNSEL \227 ATTORNEY) Tj T* (WORK PRODUCT.) Tj /F1 9.7 Tf ( This memorandum records preliminary, work-in-progress technical findings of the AURORA) Tj T* (workstream. It is a draft prepared for the purpose of obtaining legal advice and is not a final conclusion. Findings) Tj T* (are subject to revision as the investigation continues.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 54 458 cm
+q
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 0 56.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Workstream) Tj T* ET
+Q
+Q
+q
+1 0 0 1 136.8 56.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (AURORA \(Phase 1 technical findings\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 0 42.8 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Prepared by) Tj T* ET
+Q
+Q
+q
+1 0 0 1 136.8 42.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Renata Castellano, Engagement Lead, IronLake Forensics) Tj T* ET
+Q
+Q
+q
+1 0 0 1 0 29 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (For) Tj T* ET
+Q
+Q
+q
+1 0 0 1 136.8 29 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Priya Raman, General Counsel \(counsel\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 0 15.2 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Status) Tj T* ET
+Q
+Q
+q
+1 0 0 1 136.8 15.2 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (DRAFT \227 privileged \227 not for distribution) Tj T* ET
+Q
+Q
+q
+1 0 0 1 0 1.4 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Period under review) Tj T* ET
+Q
+Q
+q
+1 0 0 1 136.8 1.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (October\226November 2025) Tj T* ET
+Q
+Q
+q
+Q
+Q
+Q
+q
+1 0 0 1 60 454 cm
+Q
+q
+1 0 0 1 60 429 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (1. Summary of preliminary findings) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 357 cm
+q
+BT 1 0 0 1 0 56.3 Tm 13.2 TL /F1 9.7 Tf 0 0 0 rg (Forensic review of Kestrel object-store access logs identified ) Tj /F2 9.7 Tf (anomalous bulk reads) Tj /F1 9.7 Tf ( of the object) Tj T* /F2 9.7 Tf (legacy_uap_backup_2021.tar.gz) Tj /F1 9.7 Tf ( during the period ) Tj /F2 9.7 Tf (18-20 October 2025) Tj /F1 9.7 Tf ( \(earliest activity in the ) Tj /F2 9.7 Tf (18 October 2025) Tj /F1 9.7 Tf  T* (window\). The access pattern is inconsistent with any scheduled restore or analytics job. On the present evidence,) Tj T* (a ) Tj /F2 9.7 Tf (bulk export is probable) Tj /F1 9.7 Tf (; the read volume and egress are consistent with retrieval of the object in substantial) Tj T* (part.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 337.8 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 337.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (5 distinct anomalous bulk-read events across the window.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 318.6 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 318.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Peak/cumulative egress on the legacy backup prefix of approximately 1,840 GB flagged by detection content.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 299.4 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 299.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL -0.125587 Tw (Source IPs resolve to 3 foreign autonomous systems \(ASNs\) not associated with any known restore operation.) Tj T* 0 Tw ET
+Q
+Q
+q
+1 0 0 1 60 280.2 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 280.2 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Reads originated from principals/accounts not present in the documented restore schedule.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 255.2 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (2. Contents of the affected object) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 209.6 cm
+q
+BT 1 0 0 1 0 29.9 Tm 13.2 TL /F1 9.7 Tf 0 0 0 rg (The object ) Tj /F2 9.7 Tf (legacy_uap_backup_2021.tar.gz) Tj /F1 9.7 Tf ( is a 2021-era backup of the legacy Unified Account Profile store) Tj T* (\() Tj /F2 9.7 Tf (legacy_uap) Tj /F1 9.7 Tf (\). Based on inventory metadata and sampling, the backup contained approximately ) Tj /F2 9.7 Tf (912.8m) Tj /F1 9.7 Tf ( historical) Tj T* (profile records, of which approximately ) Tj /F2 9.7 Tf (286m) Tj /F1 9.7 Tf ( correspond to accounts active within the preceding 24 months.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 54 91.2 cm
+q
+.121569 .227451 .372549 rg
+n 0 113.4 504 -15.6 re f*
+1 1 1 rg
+n 0 97.8 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 82.4 504 -15.4 re f*
+1 1 1 rg
+n 0 67 504 -25.8 re f*
+.94902 .964706 .980392 rg
+n 0 41.2 504 -25.8 re f*
+1 1 1 rg
+n 0 15.4 504 -15.4 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 4 100.3 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Attribute) Tj T* ET
+Q
+Q
+q
+1 0 0 1 175.36 100.3 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Preliminary assessment) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 84.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Total historical profile records) Tj T* ET
+Q
+Q
+q
+1 0 0 1 175.36 84.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (~912.8m \(912,800,000\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 69.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Active within 24 months) Tj T* ET
+Q
+Q
+q
+1 0 0 1 175.36 69.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (~286m \(286,000,000\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 54.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Record fields present) Tj T* ET
+Q
+Q
+q
+1 0 0 1 175.36 43.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (names, usernames, email addresses, recovery email addresses, phone numbers, dates) Tj T* (of birth, salted password hashes, password-reset tokens, security-question hashes) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 28.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Legacy SMB accounts \(special concern\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 175.36 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (~8.4m legacy small-business accounts with improperly encrypted security-question) Tj T* (answers \(legacy small-business accounts\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Payment / bank data) Tj T* ET
+Q
+Q
+q
+1 0 0 1 175.36 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (No raw payment card numbers or bank account data were contained in the backup.) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.4 w
+n 0 113.4 m 504 113.4 l S
+n 0 0 m 504 0 l S
+n 0 0 m 0 113.4 l S
+n 504 0 m 504 113.4 l S
+n 0 97.8 m 504 97.8 l S
+n 0 82.4 m 504 82.4 l S
+n 0 67 m 504 67 l S
+n 0 41.2 m 504 41.2 l S
+n 0 15.4 m 504 15.4 l S
+n 171.36 0 m 171.36 113.4 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 86.2 cm
+Q
+q
+1 0 0 1 60 61.2 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (3. Authentication exposure \227 cookie-forging feasibility) Tj T* ET
+Q
+Q
+ 
+endstream
+endobj
+11 0 obj
+<<
+/Length 4199
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+.623529 .701961 .784314 RG
+.5 w
+n 54 47.52 m 558 47.52 l S
+BT /F1 6.6 Tf 7.92 TL ET
+.419608 .466667 .521569 rg
+BT 1 0 0 1 54 36 Tm (CONFIDENTIAL \227 Project Atlas \227 DR-069 \227 VistaPort Media Inc. \227 Subject to NDA & clean-team protocol.) Tj T* ET
+BT 1 0 0 1 537.0846 36 Tm (Page 2) Tj T* ET
+Q
+q
+1 0 0 1 60 666 cm
+q
+BT 1 0 0 1 0 56.3 Tm -0.036823 Tw 13.2 TL /F1 9.7 Tf 0 0 0 rg (The VPAuth legacy session-signing key \(kid=vpauth-legacy-2019\) has ) Tj /F2 9.7 Tf (not been rotated since 2019) Tj /F1 9.7 Tf (. Because this) Tj T* 0 Tw (long-lived key remains in the legacy validation path, an actor in possession of the key \(or of material sufficient to) Tj T* (derive valid signatures\) could ) Tj /F2 9.7 Tf (forge session cookies) Tj /F1 9.7 Tf ( accepted by the legacy VPAuth path. Abnormal) Tj T* (token-validation patterns observed during the window are consistent with \227 though not, on present evidence,) Tj T* (conclusive of \227 session forging. We observed on the order of 41,500 suspected forged/replayed session events.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 641 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (4. Data categories and sensitivity) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 608.6 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 19.4 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 608.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 16.7 Tm /F1 9.7 Tf 13.2 TL (Identifiers and contact data: names, usernames, email and recovery-email addresses, phone numbers, dates) Tj T* (of birth.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 589.4 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 589.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Authentication material: salted password hashes and password-reset tokens.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 557 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 19.4 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 557 cm
+q
+BT 1 0 0 1 6 16.7 Tm 13.2 TL /F1 9.7 Tf 0 0 0 rg (Knowledge-based recovery: security-question hashes; and, for the legacy SMB cohort, ~8.4m records whose) Tj T* (security-question answers were ) Tj /F2 9.7 Tf (improperly encrypted) Tj /F1 9.7 Tf (.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 537.8 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 537.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (No raw payment-card numbers or bank-account data were contained in the backup.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 512.8 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (5. Preliminary conclusions \(draft \227 subject to revision\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 493.6 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 1.2 Tm (1) Tj T* ET
+Q
+q
+1 0 0 1 76 493.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Anomalous bulk reads of the legacy_uap backup occurred during 18\22620 October 2025.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 474.4 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 1.2 Tm (2) Tj T* ET
+Q
+q
+1 0 0 1 76 474.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (On the present evidence, bulk export is probable; scope of any onward use is not yet established.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 442 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 14.4 Tm (3) Tj T* ET
+Q
+q
+1 0 0 1 76 442 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 16.7 Tm /F1 9.7 Tf 13.2 TL -0.00866 Tw (The unrotated legacy signing key materially increases authentication risk and should be rotated and retired as) Tj T* 0 Tw (a priority.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 422.8 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 1.2 Tm (4) Tj T* ET
+Q
+q
+1 0 0 1 76 422.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Further work is required before any of the above can be stated as a definitive finding.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 394.8 cm
+q
+.419608 .466667 .521569 rg
+BT 1 0 0 1 0 13.6 Tm /F3 8.4 Tf 11 TL (DRAFT. Privileged and confidential. Prepared at the direction of counsel as attorney work product. Not a final report; figures and) Tj T* (conclusions are preliminary and subject to change. IronLake Forensics \227 AURORA workstream.) Tj T* ET
+Q
+Q
+ 
+endstream
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000061 00000 n 
+0000000112 00000 n 
+0000000219 00000 n 
+0000000331 00000 n 
+0000000525 00000 n 
+0000000640 00000 n 
+0000000834 00000 n 
+0000000902 00000 n 
+0000001252 00000 n 
+0000001317 00000 n 
+0000010555 00000 n 
+trailer
+<<
+/ID 
+[<d484ffb21132ab4f19fb82895ec27743><d484ffb21132ab4f19fb82895ec27743>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 8 0 R
+/Root 7 0 R
+/Size 12
+>>
+startxref
+14806
+%%EOF

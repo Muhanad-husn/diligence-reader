@@ -1,0 +1,716 @@
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R /F3 5 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/Contents 10 0 R /MediaBox [ 0 0 612 792 ] /Parent 9 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+5 0 obj
+<<
+/BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding /Name /F3 /Subtype /Type1 /Type /Font
+>>
+endobj
+6 0 obj
+<<
+/Contents 11 0 R /MediaBox [ 0 0 612 792 ] /Parent 9 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+7 0 obj
+<<
+/PageMode /UseNone /Pages 9 0 R /Type /Catalog
+>>
+endobj
+8 0 obj
+<<
+/Author (VistaPort Media Inc.) /CreationDate (D:20260107000000+00'00') /Creator (Project Atlas generator) /Keywords () /ModDate (D:20260107000000+00'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (Project Atlas data room) /Title (Security Team Attrition Memo) /Trapped /False
+>>
+endobj
+9 0 obj
+<<
+/Count 2 /Kids [ 4 0 R 6 0 R ] /Type /Pages
+>>
+endobj
+10 0 obj
+<<
+/Length 9690
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+.623529 .701961 .784314 RG
+.5 w
+n 54 47.52 m 558 47.52 l S
+BT /F1 6.6 Tf 7.92 TL ET
+.419608 .466667 .521569 rg
+BT 1 0 0 1 54 36 Tm (CONFIDENTIAL \227 Project Atlas \227 DR-095 \227 VistaPort Media Inc. \227 Subject to NDA & clean-team protocol.) Tj T* ET
+BT 1 0 0 1 537.0846 36 Tm (Page 1) Tj T* ET
+Q
+q
+1 0 0 1 60 712 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 3 Tm /F2 17 Tf 20 TL 125.5635 0 Td (Security Team Attrition Memo) Tj T* -125.5635 0 Td ET
+Q
+Q
+q
+1 0 0 1 60 693 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.5 Tm /F1 10.5 Tf 13 TL (VistaPort Media \227 Security Organisation Attrition Memo) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 684 cm
+Q
+q
+1 0 0 1 54 598.8 cm
+q
+.917647 .941176 .964706 rg
+n 0 85.2 504 -85.2 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 5 72.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Document ID) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 72.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (DR-095) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 58.4 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Prepared by / owner) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 58.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Sandra Lin) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 44.2 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Date) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 44.2 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (6 January 2026) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 30 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Classification) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 30 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Strictly Confidential \227 Project Atlas) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 15.8 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Function) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 15.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Human Resources) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 1.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Distribution) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 1.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Compensation Committee; GC) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.121569 .227451 .372549 RG
+.6 w
+n 0 85.2 m 504 85.2 l S
+n 0 0 m 504 0 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 590.8 cm
+Q
+q
+1 0 0 1 60 545.2 cm
+q
+BT 1 0 0 1 0 29.9 Tm 13.2 TL /F2 9.7 Tf 0 0 0 rg (HUMAN RESOURCES \227 CONFIDENTIAL MEMORANDUM.) Tj /F1 9.7 Tf ( This memorandum summarises recent voluntary) Tj T* -0.0917 Tw (attrition within the information-security organisation, the principal themes from exit interviews, and the retention and) Tj T* 0 Tw (backfill actions in hand. It is provided for diligence in response to a question on senior departures.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 54 485 cm
+q
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 0 42.8 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (To) Tj T* ET
+Q
+Q
+q
+1 0 0 1 136.8 42.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Compensation Committee; Office of the General Counsel) Tj T* ET
+Q
+Q
+q
+1 0 0 1 0 29 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (From) Tj T* ET
+Q
+Q
+q
+1 0 0 1 136.8 29 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Sandra Lin, Chief Human Resources Officer) Tj T* ET
+Q
+Q
+q
+1 0 0 1 0 15.2 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Re) Tj T* ET
+Q
+Q
+q
+1 0 0 1 136.8 15.2 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Voluntary attrition \227 Information Security organisation, Q4 FY2025) Tj T* ET
+Q
+Q
+q
+1 0 0 1 0 1.4 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Date) Tj T* ET
+Q
+Q
+q
+1 0 0 1 136.8 1.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (6 January 2026) Tj T* ET
+Q
+Q
+q
+Q
+Q
+Q
+q
+1 0 0 1 60 481 cm
+Q
+q
+1 0 0 1 60 456 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (1. Summary) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 384 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 56.3 Tm /F1 9.7 Tf 13.2 TL -0.016393 Tw (Between December 2025 and early January 2026 the security organisation experienced an elevated level of senior) Tj T* 0 Tw (voluntary attrition relative to its historical run-rate. The Chief Information Security Officer, Owen Bell, resigned with) Tj T* (effect from December 2025, and three senior security engineers gave notice over the following weeks. The) Tj T* (departures are concentrated in the authentication and key-management teams. The affected roles are designated) Tj T* (key for retention purposes \(see DR-094\) and are being actively backfilled.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 359 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (2. Departures) Tj T* ET
+Q
+Q
+q
+1 0 0 1 54 236.2 cm
+q
+.121569 .227451 .372549 rg
+n 0 118.8 504 -15.6 re f*
+1 1 1 rg
+n 0 103.2 504 -36.2 re f*
+.94902 .964706 .980392 rg
+n 0 67 504 -25.8 re f*
+1 1 1 rg
+n 0 41.2 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 25.8 504 -25.8 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 4 105.7 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Role) Tj T* ET
+Q
+Q
+q
+1 0 0 1 175.36 105.7 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Tenure) Tj T* ET
+Q
+Q
+q
+1 0 0 1 235.84 105.7 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Notice given) Tj T* ET
+Q
+Q
+q
+1 0 0 1 306.4 105.7 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Effective) Tj T* ET
+Q
+Q
+q
+1 0 0 1 366.88 105.7 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Replacement status) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 90.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Chief Information Security Officer \(O. Bell\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 175.36 90.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (5y 4m) Tj T* ET
+Q
+Q
+q
+1 0 0 1 235.84 90.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Dec 2025) Tj T* ET
+Q
+Q
+q
+1 0 0 1 306.4 90.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Dec 2025) Tj T* ET
+Q
+Q
+q
+1 0 0 1 366.88 69.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 22.9 Tm /F1 8.3 Tf 10.4 TL (Interim cover by Head of Security) Tj T* (Engineering; external search) Tj T* (opened) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 43.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (Principal Security Engineer \227) Tj T* (Authentication) Tj T* ET
+Q
+Q
+q
+1 0 0 1 175.36 54.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (6y 1m) Tj T* ET
+Q
+Q
+q
+1 0 0 1 235.84 54.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Dec 2025) Tj T* ET
+Q
+Q
+q
+1 0 0 1 306.4 54.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Jan 2026) Tj T* ET
+Q
+Q
+q
+1 0 0 1 366.88 43.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (Backfill requisition opened; interim) Tj T* (contractor engaged) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 28.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Staff Security Engineer \227 Key Management) Tj T* ET
+Q
+Q
+q
+1 0 0 1 175.36 28.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (4y 7m) Tj T* ET
+Q
+Q
+q
+1 0 0 1 235.84 28.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Dec 2025) Tj T* ET
+Q
+Q
+q
+1 0 0 1 306.4 28.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Jan 2026) Tj T* ET
+Q
+Q
+q
+1 0 0 1 366.88 28.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Backfill requisition opened) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 2.5 cm
+q
+BT 1 0 0 1 0 12.5 Tm 10.4 TL /F1 8.3 Tf 0 0 0 rg (Senior Security Engineer \227 Detection &) Tj T* (Response) Tj T* ET
+Q
+Q
+q
+1 0 0 1 175.36 12.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (3y 9m) Tj T* ET
+Q
+Q
+q
+1 0 0 1 235.84 12.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Jan 2026) Tj T* ET
+Q
+Q
+q
+1 0 0 1 306.4 12.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Feb 2026) Tj T* ET
+Q
+Q
+q
+1 0 0 1 366.88 12.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Backfill requisition opened) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.4 w
+n 0 118.8 m 504 118.8 l S
+n 0 0 m 504 0 l S
+n 0 0 m 0 118.8 l S
+n 504 0 m 504 118.8 l S
+n 0 103.2 m 504 103.2 l S
+n 0 67 m 504 67 l S
+n 0 41.2 m 504 41.2 l S
+n 0 25.8 m 504 25.8 l S
+n 171.36 0 m 171.36 118.8 l S
+n 231.84 0 m 231.84 118.8 l S
+n 302.4 0 m 302.4 118.8 l S
+n 362.88 0 m 362.88 118.8 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 231.2 cm
+Q
+q
+1 0 0 1 60 206.2 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (3. Exit-interview themes) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 147.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 43.1 Tm /F1 9.7 Tf 13.2 TL (Exit interviews were conducted by HR business partners. Themes are summarised below in aggregated,) Tj T* (anonymised form consistent with our exit-interview protocol. The most frequently cited themes related to workload,) Tj T* (role scope and ways of working; a recurring secondary theme concerned internal alignment on the handling of an) Tj T* (operational matter.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 115 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 19.4 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 115 cm
+q
+BT 1 0 0 1 6 16.7 Tm 13.2 TL /F2 9.7 Tf 0 0 0 rg (Workload and on-call burden) Tj /F1 9.7 Tf ( during the autumn operational period, including the \223Trust Reset\224) Tj T* (credential-hygiene programme, was the most cited factor.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 95.8 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 95.8 cm
+q
+BT 1 0 0 1 6 3.5 Tm 13.2 TL /F2 9.7 Tf 0 0 0 rg (Career progression and scope) Tj /F1 9.7 Tf ( following organisational changes.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 63.4 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 19.4 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 63.4 cm
+q
+BT 1 0 0 1 6 16.7 Tm 13.2 TL /F2 9.7 Tf 0 0 0 rg (Internal alignment.) Tj /F1 9.7 Tf ( Several leavers expressed concerns about how the October account-integrity event was) Tj T* (characterised internally, and about the degree of cross-functional alignment between Security, Legal and) Tj T* ET
+Q
+Q
+ 
+endstream
+endobj
+11 0 obj
+<<
+/Length 3984
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+.623529 .701961 .784314 RG
+.5 w
+n 54 47.52 m 558 47.52 l S
+BT /F1 6.6 Tf 7.92 TL ET
+.419608 .466667 .521569 rg
+BT 1 0 0 1 54 36 Tm (CONFIDENTIAL \227 Project Atlas \227 DR-095 \227 VistaPort Media Inc. \227 Subject to NDA & clean-team protocol.) Tj T* ET
+BT 1 0 0 1 537.0846 36 Tm (Page 2) Tj T* ET
+Q
+q
+1 0 0 1 74 705.6 cm
+q
+BT 1 0 0 1 6 16.7 Tm 13.2 TL /F1 9.7 Tf 0 0 0 rg (Finance on the response. Leavers described a difference of professional judgement rather than any specific) Tj T* (allegation.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 686.4 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 686.4 cm
+q
+BT 1 0 0 1 6 3.5 Tm 13.2 TL /F2 9.7 Tf 0 0 0 rg (Compensation and external opportunities) Tj /F1 9.7 Tf ( in a competitive security-talent market.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 647.4 cm
+q
+.419608 .466667 .521569 rg
+BT 1 0 0 1 0 24.6 Tm /F3 8.4 Tf 11 TL -0.0015 Tw (The \223AURORA\224 review and the related \223Trust Reset\224 programme were referenced by a minority of leavers as the period during which) Tj T* 0 Tw (the alignment concerns arose. HR did not receive any formal grievance, whistleblower report or allegation of wrongdoing through the) Tj T* (speak-up channel in connection with these departures.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 622.4 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (4. Assessment) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 537.2 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 69.5 Tm /F1 9.7 Tf 13.2 TL (HR\222s assessment is that the attrition reflects a combination of an intense operational period, a competitive external) Tj T* (market and individual career decisions, compounded by the uncertainty customarily associated with a sale) Tj T* (process. While the concentration of departures in the authentication and key-management teams is notable, we) Tj T* (have not identified a systemic people-management issue. The internal-alignment theme is being noted to the) Tj T* (General Counsel for awareness; it is a matter of professional judgement on the handling of the October event) Tj T* (rather than a conduct concern.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 512.2 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (5. Actions in hand) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 493 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 1.2 Tm (1) Tj T* ET
+Q
+q
+1 0 0 1 76 493 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Interim leadership cover in place; external CISO search initiated.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 473.8 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 1.2 Tm (2) Tj T* ET
+Q
+q
+1 0 0 1 76 473.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Backfill requisitions opened for all four roles; two interim specialists engaged.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 441.4 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 14.4 Tm (3) Tj T* ET
+Q
+q
+1 0 0 1 76 441.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 16.7 Tm /F1 9.7 Tf 13.2 TL (Targeted retention awards extended to remaining senior security engineers under the Key Employee) Tj T* (Retention Plan \(DR-094\).) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 422.2 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 1.2 Tm (4) Tj T* ET
+Q
+q
+1 0 0 1 76 422.2 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Knowledge-transfer plan for authentication and key-management runbooks before effective dates.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 403 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 1.2 Tm (5) Tj T* ET
+Q
+q
+1 0 0 1 76 403 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Pulse check of the remaining security organisation scheduled for Q1 FY2026.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 375 cm
+q
+BT 1 0 0 1 0 13.6 Tm 11 TL /F3 8.4 Tf .419608 .466667 .521569 rg (Prepared by the Office of the Chief Human Resources Officer. Exit-interview data is aggregated and anonymised. Confidential \227) Tj T* (Project Atlas \227 subject to NDA & clean-team protocol.) Tj T* ET
+Q
+Q
+ 
+endstream
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000061 00000 n 
+0000000112 00000 n 
+0000000219 00000 n 
+0000000331 00000 n 
+0000000525 00000 n 
+0000000640 00000 n 
+0000000834 00000 n 
+0000000902 00000 n 
+0000001220 00000 n 
+0000001285 00000 n 
+0000011027 00000 n 
+trailer
+<<
+/ID 
+[<7f93ca9ac132a44ef4c570485ca08bca><7f93ca9ac132a44ef4c570485ca08bca>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 8 0 R
+/Root 7 0 R
+/Size 12
+>>
+startxref
+15063
+%%EOF

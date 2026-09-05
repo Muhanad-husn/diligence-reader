@@ -1,0 +1,37 @@
+- id: Q-001
+  question: What was Northstar Dental Group's 2025 revenue?
+  expected_answer: $24.8M
+  answer_type: numeric
+  required_sources:
+  - revenue_summary.xlsx
+- id: Q-002
+  question: What was Northstar Dental Group's year-over-year revenue growth from 2024
+    to 2025?
+  expected_answer: 11.7% based on $22.2M in 2024 revenue and $24.8M in 2025 revenue.
+  answer_type: numeric
+  required_sources:
+  - revenue_summary.xlsx
+- id: Q-003
+  question: Is there a contradiction in reported revenue growth?
+  expected_answer: Yes. The CIM claims 18.0% year-over-year revenue growth, but the
+    revenue workbook indicates 11.7%.
+  answer_type: contradiction
+  required_sources:
+  - cim.md
+  - revenue_summary.xlsx
+- id: Q-004
+  question: Which vendor creates the highest operational dependency risk?
+  expected_answer: CloudDent Practice Systems, because it is the system of record
+    for scheduling, claims, and treatment plans and renews on 2025-09-30.
+  answer_type: risk
+  required_sources:
+  - vendor_agreements/clouddent-practice-systems.md
+  - risks/risk_register.md
+- id: Q-005
+  question: Which customers or payors create concentration risk?
+  expected_answer: Buckeye Family Health Plan and Midwest Dental Benefits Network
+    together represent $10.0M of 2025 revenue.
+  answer_type: risk
+  required_sources:
+  - customer_contracts/buckeye-family-health-plan.md
+  - customer_contracts/midwest-dental-benefits-network.md

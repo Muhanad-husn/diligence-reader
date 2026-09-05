@@ -1,0 +1,693 @@
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R /F3 4 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding /Name /F3 /Subtype /Type1 /Type /Font
+>>
+endobj
+5 0 obj
+<<
+/Contents 10 0 R /MediaBox [ 0 0 612 792 ] /Parent 9 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+6 0 obj
+<<
+/Contents 11 0 R /MediaBox [ 0 0 612 792 ] /Parent 9 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+7 0 obj
+<<
+/PageMode /UseNone /Pages 9 0 R /Type /Catalog
+>>
+endobj
+8 0 obj
+<<
+/Author (VistaPort Media Inc.) /CreationDate (D:20260107000000+00'00') /Creator (Project Atlas generator) /Keywords () /ModDate (D:20260107000000+00'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (Project Atlas data room) /Title (AtlasID \204 Data Map) /Trapped /False
+>>
+endobj
+9 0 obj
+<<
+/Count 2 /Kids [ 5 0 R 6 0 R ] /Type /Pages
+>>
+endobj
+10 0 obj
+<<
+/Length 10143
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+.623529 .701961 .784314 RG
+.5 w
+n 54 47.52 m 558 47.52 l S
+BT /F1 6.6 Tf 7.92 TL ET
+.419608 .466667 .521569 rg
+BT 1 0 0 1 54 36 Tm (CONFIDENTIAL \227 Project Atlas \227 DR-051 \227 VistaPort Media Inc. \227 Subject to NDA & clean-team protocol.) Tj T* ET
+BT 1 0 0 1 537.0846 36 Tm (Page 1) Tj T* ET
+Q
+q
+1 0 0 1 60 712 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 3 Tm /F2 17 Tf 20 TL 165.709 0 Td (AtlasID \227 Data Map) Tj T* -165.709 0 Td ET
+Q
+Q
+q
+1 0 0 1 60 693 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.5 Tm /F1 10.5 Tf 13 TL (VistaPort Media Inc. \227 Product Data and Technology) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 684 cm
+Q
+q
+1 0 0 1 54 598.8 cm
+q
+.917647 .941176 .964706 rg
+n 0 85.2 504 -85.2 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 5 72.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Document ID) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 72.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (DR-051) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 58.4 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Prepared by / owner) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 58.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Grace Okafor) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 44.2 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Date) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 44.2 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (8 December 2025) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 30 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Classification) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 30 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Strictly Confidential \227 Project Atlas) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 15.8 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Function) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 15.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Privacy Engineering) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 1.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Scope) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 1.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (AtlasID identity graph \227 production data flows) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.121569 .227451 .372549 RG
+.6 w
+n 0 85.2 m 504 85.2 l S
+n 0 0 m 504 0 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 590.8 cm
+Q
+q
+1 0 0 1 60 545.2 cm
+q
+BT 1 0 0 1 0 29.9 Tm 13.2 TL /F1 9.7 Tf 0 0 0 rg (This data map documents the identity attributes that flow into the ) Tj /F2 9.7 Tf (AtlasID) Tj /F1 9.7 Tf ( identity graph, their sources, sensitivity) Tj T* (and downstream consumers. It is maintained by Privacy Engineering and used for records-of-processing and) Tj T* (data-protection impact assessments. It is descriptive of current production data flows.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 520.2 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (1. Source systems) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 501 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 501 cm
+q
+BT 1 0 0 1 6 3.5 Tm 13.2 TL /F2 9.7 Tf 0 0 0 rg (AtlasID) Tj /F1 9.7 Tf ( \227 current identity graph and cross-property account linkage and match service.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 455.4 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 32.6 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 455.4 cm
+q
+BT 1 0 0 1 6 29.9 Tm 13.2 TL /F2 9.7 Tf 0 0 0 rg (legacy_uap) Tj /F1 9.7 Tf ( \227 legacy Unified Account Profile store holding pre-2022 identity/profile data; scheduled for) Tj T* -0.063577 Tw (decommission. Selected attributes from legacy_uap have historically been migrated into, and continue to feed,) Tj T* 0 Tw (AtlasID linkage.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 423 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 19.4 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 423 cm
+q
+BT 1 0 0 1 6 16.7 Tm 13.2 TL /F2 9.7 Tf 0 0 0 rg (VPAuth / SSOBridge) Tj /F1 9.7 Tf ( \227 authentication and single sign-on, providing the authenticated-user key used to) Tj T* (resolve identities.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 398 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (2. legacy_uap attribute inventory) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 365.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 16.7 Tm /F1 9.7 Tf 13.2 TL (The legacy_uap store contains the following account-profile attributes. Several are directly linked into AtlasID for) Tj T* (matching and addressability \(see consumer column\).) Tj T* ET
+Q
+Q
+q
+1 0 0 1 54 211.2 cm
+q
+.121569 .227451 .372549 rg
+n 0 149.4 504 -26.2 re f*
+1 1 1 rg
+n 0 123.2 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 107.8 504 -15.4 re f*
+1 1 1 rg
+n 0 92.4 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 77 504 -15.4 re f*
+1 1 1 rg
+n 0 61.6 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 46.2 504 -15.4 re f*
+1 1 1 rg
+n 0 30.8 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 15.4 504 -15.4 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 4 136.3 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Attribute) Tj T* ET
+Q
+Q
+q
+1 0 0 1 145.12 136.3 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Sensitivity) Tj T* ET
+Q
+Q
+q
+1 0 0 1 235.84 125.7 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 12.8 Tm /F2 8.4 Tf 10.6 TL (Feeds AtlasID) Tj T* (matching?) Tj T* ET
+Q
+Q
+q
+1 0 0 1 336.64 136.3 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Downstream consumer) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 110.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Names) Tj T* ET
+Q
+Q
+q
+1 0 0 1 145.12 110.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Personal data) Tj T* ET
+Q
+Q
+q
+1 0 0 1 235.84 110.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Yes) Tj T* ET
+Q
+Q
+q
+1 0 0 1 336.64 110.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (AtlasID linkage; ad addressability) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 94.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Usernames) Tj T* ET
+Q
+Q
+q
+1 0 0 1 145.12 94.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Personal data) Tj T* ET
+Q
+Q
+q
+1 0 0 1 235.84 94.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Yes) Tj T* ET
+Q
+Q
+q
+1 0 0 1 336.64 94.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (AtlasID linkage; SSOBridge) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 79.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Email addresses) Tj T* ET
+Q
+Q
+q
+1 0 0 1 145.12 79.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Personal data) Tj T* ET
+Q
+Q
+q
+1 0 0 1 235.84 79.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Yes) Tj T* ET
+Q
+Q
+q
+1 0 0 1 336.64 79.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (AtlasID match key; ad addressability) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 64.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Recovery email addresses) Tj T* ET
+Q
+Q
+q
+1 0 0 1 145.12 64.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Personal data) Tj T* ET
+Q
+Q
+q
+1 0 0 1 235.84 64.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Yes) Tj T* ET
+Q
+Q
+q
+1 0 0 1 336.64 64.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (AtlasID match key \(secondary\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Phone numbers) Tj T* ET
+Q
+Q
+q
+1 0 0 1 145.12 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Personal data) Tj T* ET
+Q
+Q
+q
+1 0 0 1 235.84 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Yes) Tj T* ET
+Q
+Q
+q
+1 0 0 1 336.64 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (AtlasID match key; ad addressability) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Dates of birth) Tj T* ET
+Q
+Q
+q
+1 0 0 1 145.12 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Personal data) Tj T* ET
+Q
+Q
+q
+1 0 0 1 235.84 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Partial) Tj T* ET
+Q
+Q
+q
+1 0 0 1 336.64 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Age-gating; segment eligibility) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Salted password hashes) Tj T* ET
+Q
+Q
+q
+1 0 0 1 145.12 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Credential \(hashed\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 235.84 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (No) Tj T* ET
+Q
+Q
+q
+1 0 0 1 336.64 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Authentication only \(VPAuth\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Security-question data) Tj T* ET
+Q
+Q
+q
+1 0 0 1 145.12 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Credential / sensitive) Tj T* ET
+Q
+Q
+q
+1 0 0 1 235.84 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (No) Tj T* ET
+Q
+Q
+q
+1 0 0 1 336.64 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Account recovery only) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.4 w
+n 0 149.4 m 504 149.4 l S
+n 0 0 m 504 0 l S
+n 0 0 m 0 149.4 l S
+n 504 0 m 504 149.4 l S
+n 0 123.2 m 504 123.2 l S
+n 0 107.8 m 504 107.8 l S
+n 0 92.4 m 504 92.4 l S
+n 0 77 m 504 77 l S
+n 0 61.6 m 504 61.6 l S
+n 0 46.2 m 504 46.2 l S
+n 0 30.8 m 504 30.8 l S
+n 0 15.4 m 504 15.4 l S
+n 141.12 0 m 141.12 149.4 l S
+n 231.84 0 m 231.84 149.4 l S
+n 332.64 0 m 332.64 149.4 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 206.2 cm
+Q
+q
+1 0 0 1 60 178.2 cm
+q
+.419608 .466667 .521569 rg
+BT 1 0 0 1 0 13.6 Tm /F3 8.4 Tf 11 TL (Password hashes and security-question data are credential material used for authentication and recovery only; they are not used for) Tj T* (matching or addressability.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 153.2 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (3. Why legacy_uap matters to current value) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 94.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 43.1 Tm /F1 9.7 Tf 13.2 TL (Although legacy_uap is a legacy store earmarked for decommission, a meaningful share of AtlasID match keys) Tj T* (\(email, recovery email and phone\) trace their lineage to legacy_uap records. These keys underpin logged-in) Tj T* (addressability and personalisation. The integrity and confidentiality of legacy_uap data therefore remains relevant) Tj T* (to the current identity graph and to ad addressability until the migration and decommission are complete.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 69.4 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (4. Downstream consumers of AtlasID) Tj T* ET
+Q
+Q
+ 
+endstream
+endobj
+11 0 obj
+<<
+/Length 1863
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+.623529 .701961 .784314 RG
+.5 w
+n 54 47.52 m 558 47.52 l S
+BT /F1 6.6 Tf 7.92 TL ET
+.419608 .466667 .521569 rg
+BT 1 0 0 1 54 36 Tm (CONFIDENTIAL \227 Project Atlas \227 DR-051 \227 VistaPort Media Inc. \227 Subject to NDA & clean-team protocol.) Tj T* ET
+BT 1 0 0 1 537.0846 36 Tm (Page 2) Tj T* ET
+Q
+q
+1 0 0 1 60 718.8 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 718.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (LumenX Ad Exchange \227 addressable audience resolution and segment eligibility.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 699.6 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 699.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Personalisation models \227 logged-in identity match and content/ad ranking.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 680.4 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 680.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (VistaMail and content properties \227 cross-property single-view and preferences.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 655.4 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (5. Governance) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 609.8 cm
+q
+BT 1 0 0 1 0 29.9 Tm 13.2 TL /F1 9.7 Tf 0 0 0 rg (Attribute-level retention, consent and minimisation are governed by the Data Retention & Deletion Policy \(DR-052\)) Tj T* (and the Consent Management framework \(DR-053\). Migration of remaining linked attributes out of legacy_uap is) Tj T* (tracked under the decommission plan \(DR-057\).) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 592.8 cm
+q
+.419608 .466667 .521569 rg
+BT 1 0 0 1 0 2.6 Tm /F3 8.4 Tf 11 TL (Maintained by Grace Okafor, Chief Privacy Officer. Confidential \227 Privacy Engineering.) Tj T* ET
+Q
+Q
+ 
+endstream
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000061 00000 n 
+0000000112 00000 n 
+0000000219 00000 n 
+0000000331 00000 n 
+0000000446 00000 n 
+0000000640 00000 n 
+0000000834 00000 n 
+0000000902 00000 n 
+0000001213 00000 n 
+0000001278 00000 n 
+0000011474 00000 n 
+trailer
+<<
+/ID 
+[<3d3374e23b057698819332df2ca3db6e><3d3374e23b057698819332df2ca3db6e>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 8 0 R
+/Root 7 0 R
+/Size 12
+>>
+startxref
+13389
+%%EOF

@@ -1,0 +1,968 @@
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R /F3 5 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/Contents 10 0 R /MediaBox [ 0 0 612 792 ] /Parent 9 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+5 0 obj
+<<
+/BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding /Name /F3 /Subtype /Type1 /Type /Font
+>>
+endobj
+6 0 obj
+<<
+/Contents 11 0 R /MediaBox [ 0 0 612 792 ] /Parent 9 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+7 0 obj
+<<
+/PageMode /UseNone /Pages 9 0 R /Type /Catalog
+>>
+endobj
+8 0 obj
+<<
+/Author (VistaPort Media Inc.) /CreationDate (D:20260107000000+00'00') /Creator (Project Atlas generator) /Keywords () /ModDate (D:20260107000000+00'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (Project Atlas data room) /Title (Day 1 Readiness Plan) /Trapped /False
+>>
+endobj
+9 0 obj
+<<
+/Count 2 /Kids [ 4 0 R 6 0 R ] /Type /Pages
+>>
+endobj
+10 0 obj
+<<
+/Length 10434
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+.623529 .701961 .784314 RG
+.5 w
+n 54 47.52 m 558 47.52 l S
+BT /F1 6.6 Tf 7.92 TL ET
+.419608 .466667 .521569 rg
+BT 1 0 0 1 54 36 Tm (CONFIDENTIAL \227 Project Atlas \227 DR-097 \227 VistaPort Media Inc. \227 Subject to NDA & clean-team protocol.) Tj T* ET
+BT 1 0 0 1 537.0846 36 Tm (Page 1) Tj T* ET
+Q
+q
+1 0 0 1 60 712 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 3 Tm /F2 17 Tf 20 TL 158.127 0 Td (Day 1 Readiness Plan) Tj T* -158.127 0 Td ET
+Q
+Q
+q
+1 0 0 1 60 693 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.5 Tm /F1 10.5 Tf 13 TL (Project Atlas \227 Day-1 Integration Readiness Plan) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 684 cm
+Q
+q
+1 0 0 1 54 598.8 cm
+q
+.917647 .941176 .964706 rg
+n 0 85.2 504 -85.2 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 5 72.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Document ID) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 72.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (DR-097) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 58.4 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Prepared by / owner) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 58.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Aaron Klein) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 44.2 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Date) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 44.2 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (20 January 2026) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 30 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Classification) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 30 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Strictly Confidential \227 Project Atlas) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 15.8 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Owner) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 15.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Aaron Klein, VP Corporate Development) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 1.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Prepared for) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 1.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Joint Integration Steering Committee) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.121569 .227451 .372549 RG
+.6 w
+n 0 85.2 m 504 85.2 l S
+n 0 0 m 504 0 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 590.8 cm
+Q
+q
+1 0 0 1 60 532 cm
+q
+BT 1 0 0 1 0 43.1 Tm 13.2 TL /F1 9.7 Tf 0 0 0 rg (Confidential integration planning document. This Day-1 Readiness Plan sets out the workstreams, owners and) Tj T* (critical-path items required to operate ) Tj /F2 9.7 Tf (VistaPort Media Inc.) Tj /F1 9.7 Tf ( as part of Northstar Mobile Holdings plc from) Tj T* (completion \(\223Day-1\224\), together with the priority actions for the first 100 days. Prepared by the Integration) Tj T* (Management Office \(IMO\).) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 507 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (1. Approach and governance) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 448.2 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 43.1 Tm /F1 9.7 Tf 13.2 TL (Integration is organised into functional workstreams reporting to the IMO. Each workstream has a named lead, a) Tj T* (Day-1 \223must-have\224 checklist and a Day-100 stabilisation plan. Items are prioritised P1 \(critical for Day-1\), P2 \(early) Tj T* (post-close\) or P3 \(stabilisation\). This plan is indicative and subject to regulatory clearance and the definitive) Tj T* (agreement.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 54 388 cm
+q
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 0 42.8 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Integration lead) Tj T* ET
+Q
+Q
+q
+1 0 0 1 136.8 42.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Aaron Klein, VP Corporate Development) Tj T* ET
+Q
+Q
+q
+1 0 0 1 0 29 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Steering) Tj T* ET
+Q
+Q
+q
+1 0 0 1 136.8 29 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Joint Integration Steering Committee \(buyer + seller\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 0 15.2 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Cadence) Tj T* ET
+Q
+Q
+q
+1 0 0 1 136.8 15.2 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Weekly IMO; bi-weekly steering) Tj T* ET
+Q
+Q
+q
+1 0 0 1 0 1.4 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Target Day-1) Tj T* ET
+Q
+Q
+q
+1 0 0 1 136.8 1.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Subject to clearance and signing) Tj T* ET
+Q
+Q
+q
+Q
+Q
+Q
+q
+1 0 0 1 60 384 cm
+Q
+q
+1 0 0 1 60 359 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (2. Workstream summary and priorities) Tj T* ET
+Q
+Q
+q
+1 0 0 1 54 96.2 cm
+q
+.121569 .227451 .372549 rg
+n 0 258.8 504 -26.2 re f*
+1 1 1 rg
+n 0 232.6 504 -25.8 re f*
+.94902 .964706 .980392 rg
+n 0 206.8 504 -25.8 re f*
+1 1 1 rg
+n 0 181 504 -46.6 re f*
+.94902 .964706 .980392 rg
+n 0 134.4 504 -46.6 re f*
+1 1 1 rg
+n 0 87.8 504 -25.8 re f*
+.94902 .964706 .980392 rg
+n 0 62 504 -25.8 re f*
+1 1 1 rg
+n 0 36.2 504 -36.2 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 4 245.7 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Workstream) Tj T* ET
+Q
+Q
+q
+1 0 0 1 110.1053 245.7 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Lead \(seller side\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 207.3684 245.7 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Priority) Tj T* ET
+Q
+Q
+q
+1 0 0 1 260.4211 235.1 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 12.8 Tm /F2 8.4 Tf 10.6 TL (Day-1) Tj T* (status) Tj T* ET
+Q
+Q
+q
+1 0 0 1 313.4737 245.7 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Key Day-1 items) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 219.7 cm
+q
+BT 1 0 0 1 0 2.1 Tm 10.4 TL /F1 8.3 Tf 0 0 0 rg (Legal entity & TSA) Tj T* ET
+Q
+Q
+q
+1 0 0 1 110.1053 209.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (Priya Raman, General) Tj T* (Counsel) Tj T* ET
+Q
+Q
+q
+1 0 0 1 207.3684 219.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (P1) Tj T* ET
+Q
+Q
+q
+1 0 0 1 260.4211 219.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (On track) Tj T* ET
+Q
+Q
+q
+1 0 0 1 313.4737 209.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (Transitional services agreement; entity readiness;) Tj T* (signing authorities) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 193.9 cm
+q
+BT 1 0 0 1 0 2.1 Tm 10.4 TL /F1 8.3 Tf 0 0 0 rg (Finance & treasury) Tj T* ET
+Q
+Q
+q
+1 0 0 1 110.1053 183.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (Daniel Cho, Chief) Tj T* (Financial Officer) Tj T* ET
+Q
+Q
+q
+1 0 0 1 207.3684 193.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (P1) Tj T* ET
+Q
+Q
+q
+1 0 0 1 260.4211 193.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (On track) Tj T* ET
+Q
+Q
+q
+1 0 0 1 313.4737 183.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (Cash management, banking, reporting calendar,) Tj T* (opening balance sheet) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 168.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (User communications) Tj T* ET
+Q
+Q
+q
+1 0 0 1 110.1053 157.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (Maya Hart, VP Product,) Tj T* (Identity and Mail) Tj T* ET
+Q
+Q
+q
+1 0 0 1 207.3684 157.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (P1 \227) Tj T* (Critical) Tj T* ET
+Q
+Q
+q
+1 0 0 1 260.4211 168.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Attention) Tj T* ET
+Q
+Q
+q
+1 0 0 1 313.4737 136.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 33.3 Tm /F1 8.3 Tf 10.4 TL (Day-1 user-facing messaging; coordinated) Tj T* (account/credential communications; support) Tj T* (scripting and capacity \(links to support runbook,) Tj T* (DR-058\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 111.1 cm
+q
+BT 1 0 0 1 0 12.5 Tm 10.4 TL /F1 8.3 Tf 0 0 0 rg (Authentication / VPAuth) Tj T* (migration & key rotation) Tj T* ET
+Q
+Q
+q
+1 0 0 1 110.1053 111.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (Raj Malhotra, VP) Tj T* (Engineering, Platform) Tj T* ET
+Q
+Q
+q
+1 0 0 1 207.3684 111.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (P1 \227) Tj T* (Critical) Tj T* ET
+Q
+Q
+q
+1 0 0 1 260.4211 121.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Attention) Tj T* ET
+Q
+Q
+q
+1 0 0 1 313.4737 90.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 33.3 Tm /F1 8.3 Tf 10.4 TL (VPAuth authentication-platform migration;) Tj T* (session-signing key rotation and HSM onboarding;) Tj T* (SSOBridge federation continuity; legacy_uap) Tj T* (decommission acceleration) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 74.9 cm
+q
+BT 1 0 0 1 0 2.1 Tm 10.4 TL /F1 8.3 Tf 0 0 0 rg (Advertising & commercial) Tj T* ET
+Q
+Q
+q
+1 0 0 1 110.1053 64.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (Thomas Vale, SVP) Tj T* (Global Advertising) Tj T* ET
+Q
+Q
+q
+1 0 0 1 207.3684 74.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (P1) Tj T* ET
+Q
+Q
+q
+1 0 0 1 260.4211 74.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (On track) Tj T* ET
+Q
+Q
+q
+1 0 0 1 313.4737 64.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (LumenX continuity; top-advertiser) Tj T* (communications; IO continuity) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 49.1 cm
+q
+BT 1 0 0 1 0 2.1 Tm 10.4 TL /F1 8.3 Tf 0 0 0 rg (Product & engineering) Tj T* ET
+Q
+Q
+q
+1 0 0 1 110.1053 38.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (Maya Hart, VP Product,) Tj T* (Identity and Mail) Tj T* ET
+Q
+Q
+q
+1 0 0 1 207.3684 49.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (P2) Tj T* ET
+Q
+Q
+q
+1 0 0 1 260.4211 49.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (On track) Tj T* ET
+Q
+Q
+q
+1 0 0 1 313.4737 49.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Roadmap alignment; AtlasID integration planning) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 23.3 cm
+q
+BT 1 0 0 1 0 2.1 Tm 10.4 TL /F1 8.3 Tf 0 0 0 rg (People & HR) Tj T* ET
+Q
+Q
+q
+1 0 0 1 110.1053 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 22.9 Tm /F1 8.3 Tf 10.4 TL (Sandra Lin, Chief) Tj T* (Human Resources) Tj T* (Officer) Tj T* ET
+Q
+Q
+q
+1 0 0 1 207.3684 23.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (P1) Tj T* ET
+Q
+Q
+q
+1 0 0 1 260.4211 23.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Attention) Tj T* ET
+Q
+Q
+q
+1 0 0 1 313.4737 12.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (Retention award confirmations; security backfill) Tj T* (\(DR-095\); org design) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.4 w
+n 0 258.8 m 504 258.8 l S
+n 0 0 m 0 258.8 l S
+n 504 0 m 504 258.8 l S
+n 0 0 m 504 0 l S
+n 0 232.6 m 504 232.6 l S
+n 0 206.8 m 504 206.8 l S
+n 0 181 m 504 181 l S
+n 0 134.4 m 504 134.4 l S
+n 0 87.8 m 504 87.8 l S
+n 0 62 m 504 62 l S
+n 0 36.2 m 504 36.2 l S
+n 106.1053 0 m 106.1053 258.8 l S
+n 203.3684 0 m 203.3684 258.8 l S
+n 256.4211 0 m 256.4211 258.8 l S
+n 309.4737 0 m 309.4737 258.8 l S
+Q
+Q
+Q
+ 
+endstream
+endobj
+11 0 obj
+<<
+/Length 7998
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+.623529 .701961 .784314 RG
+.5 w
+n 54 47.52 m 558 47.52 l S
+BT /F1 6.6 Tf 7.92 TL ET
+.419608 .466667 .521569 rg
+BT 1 0 0 1 54 36 Tm (CONFIDENTIAL \227 Project Atlas \227 DR-097 \227 VistaPort Media Inc. \227 Subject to NDA & clean-team protocol.) Tj T* ET
+BT 1 0 0 1 537.0846 36 Tm (Page 2) Tj T* ET
+Q
+q
+1 0 0 1 54 618 cm
+q
+.121569 .227451 .372549 rg
+n 0 114 504 -26.2 re f*
+1 1 1 rg
+n 0 87.8 504 -46.6 re f*
+.94902 .964706 .980392 rg
+n 0 41.2 504 -15.4 re f*
+1 1 1 rg
+n 0 25.8 504 -25.8 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 4 100.9 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Workstream) Tj T* ET
+Q
+Q
+q
+1 0 0 1 110.1053 100.9 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Lead \(seller side\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 207.3684 100.9 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Priority) Tj T* ET
+Q
+Q
+q
+1 0 0 1 260.4211 90.3 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 12.8 Tm /F2 8.4 Tf 10.6 TL (Day-1) Tj T* (status) Tj T* ET
+Q
+Q
+q
+1 0 0 1 313.4737 100.9 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Key Day-1 items) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 74.9 cm
+q
+BT 1 0 0 1 0 2.1 Tm 10.4 TL /F1 8.3 Tf 0 0 0 rg (Security & risk) Tj T* ET
+Q
+Q
+q
+1 0 0 1 110.1053 74.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Interim Security Lead) Tj T* ET
+Q
+Q
+q
+1 0 0 1 207.3684 64.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (P1 \227) Tj T* (Critical) Tj T* ET
+Q
+Q
+q
+1 0 0 1 260.4211 74.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Attention) Tj T* ET
+Q
+Q
+q
+1 0 0 1 313.4737 43.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 33.3 Tm /F1 8.3 Tf 10.4 TL (Security operating-model continuity; control) Tj T* (ownership during leadership transition;) Tj T* (key-management and backup-retention) Tj T* (remediation tracking) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 28.3 cm
+q
+BT 1 0 0 1 0 2.1 Tm 10.4 TL /F1 8.3 Tf 0 0 0 rg (IT & infrastructure) Tj T* ET
+Q
+Q
+q
+1 0 0 1 110.1053 28.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (VP IT) Tj T* ET
+Q
+Q
+q
+1 0 0 1 207.3684 28.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (P2) Tj T* ET
+Q
+Q
+q
+1 0 0 1 260.4211 28.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (On track) Tj T* ET
+Q
+Q
+q
+1 0 0 1 313.4737 28.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL -0.062997 Tw (Cloud account structure; identity federation; tooling) Tj T* 0 Tw ET
+Q
+Q
+q
+1 0 0 1 4 12.9 cm
+q
+BT 1 0 0 1 0 2.1 Tm 10.4 TL /F1 8.3 Tf 0 0 0 rg (Data & analytics) Tj T* ET
+Q
+Q
+q
+1 0 0 1 110.1053 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (Raj Malhotra, VP) Tj T* (Engineering, Platform) Tj T* ET
+Q
+Q
+q
+1 0 0 1 207.3684 12.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (P2) Tj T* ET
+Q
+Q
+q
+1 0 0 1 260.4211 12.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (On track) Tj T* ET
+Q
+Q
+q
+1 0 0 1 313.4737 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (Snowcap continuity; metrics reporting; data-map) Tj T* (alignment) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.4 w
+n 0 114 m 504 114 l S
+n 0 87.8 m 0 114 l S
+n 0 0 m 0 87.8 l S
+n 504 87.8 m 504 114 l S
+n 504 0 m 504 87.8 l S
+n 0 0 m 504 0 l S
+n 0 87.8 m 504 87.8 l S
+n 106.1053 87.8 m 106.1053 114 l S
+n 203.3684 87.8 m 203.3684 114 l S
+n 256.4211 87.8 m 256.4211 114 l S
+n 309.4737 87.8 m 309.4737 114 l S
+n 0 41.2 m 504 41.2 l S
+n 0 25.8 m 504 25.8 l S
+n 106.1053 0 m 106.1053 87.8 l S
+n 203.3684 0 m 203.3684 87.8 l S
+n 256.4211 0 m 256.4211 87.8 l S
+n 309.4737 0 m 309.4737 87.8 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 613 cm
+Q
+q
+1 0 0 1 60 588 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (3. Critical-path items \(P1 \227 Critical\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 542.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 29.9 Tm /F1 9.7 Tf 13.2 TL (The following items are on the Day-1 critical path and require buyer-side resourcing and joint planning ahead of) Tj T* (close. Two relate to the authentication estate and to user communications, where the seller has work already in) Tj T* (flight that must be completed and handed over cleanly:) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 470.4 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 54 Tm (1) Tj T* ET
+Q
+q
+1 0 0 1 76 470.4 cm
+q
+BT 1 0 0 1 6 56.3 Tm 13.2 TL /F2 9.7 Tf 0 0 0 rg (Authentication / VPAuth migration & key rotation.) Tj /F1 9.7 Tf ( Complete the migration of the VPAuth authentication) Tj T* (platform and the rotation of legacy session-signing keys onto the HSM, and accelerate decommission of the) Tj T* (legacy_uap profile store. The seller has pulled this work forward into the current programme; continuity of) Tj T* (in-flight sessions must be preserved during rotation. Treated as critical for Day-1 to avoid re-authentication) Tj T* (friction post-close.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 424.8 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 27.6 Tm (2) Tj T* ET
+Q
+q
+1 0 0 1 76 424.8 cm
+q
+BT 1 0 0 1 6 29.9 Tm 13.2 TL /F2 9.7 Tf 0 0 0 rg (User communications.) Tj /F1 9.7 Tf ( Establish a coordinated Day-1 user-communications capability, including credential) Tj T* (and account-security messaging, with support capacity sized for elevated contact volumes \(the seller\222s) Tj T* (user-notification runbook, DR-058, provides the template and throughput limits\).) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 379.2 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 27.6 Tm (3) Tj T* ET
+Q
+q
+1 0 0 1 76 379.2 cm
+q
+BT 1 0 0 1 6 29.9 Tm 13.2 TL /F2 9.7 Tf 0 0 0 rg (Security leadership continuity.) Tj /F1 9.7 Tf ( Confirm interim security leadership and control ownership through the) Tj T* (integration, given recent senior departures \(DR-095\), and ensure the key-management and backup-retention) Tj T* (remediation items remain owned and tracked.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 346.8 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 14.4 Tm (4) Tj T* ET
+Q
+q
+1 0 0 1 76 346.8 cm
+q
+BT 1 0 0 1 6 16.7 Tm -0.006262 Tw 13.2 TL /F2 9.7 Tf 0 0 0 rg (Top-advertiser continuity.) Tj /F1 9.7 Tf ( Joint outreach to the largest advertisers to confirm service continuity and contract) Tj T* 0 Tw (assignment through change of control.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 318.8 cm
+q
+.419608 .466667 .521569 rg
+BT 1 0 0 1 0 13.6 Tm /F3 8.4 Tf 11 TL (The authentication / key-rotation and user-communications items are carried as critical because they are part-completed seller) Tj T* (programmes that must transition cleanly; they are presented here as integration/modernisation deliverables.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 293.8 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (4. Day-100 stabilisation) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 274.6 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 274.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Confirm run-rate cost efficiencies and reporting integration.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 255.4 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 255.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Complete authentication-platform migration and retire legacy components on the agreed schedule.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 236.2 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 236.2 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Stand up the combined security operating model and close out open remediation items.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 217 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 217 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Confirm advertiser retention and synergy realisation against the integration synergy model \(DR-096\).) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 189 cm
+q
+.419608 .466667 .521569 rg
+BT 1 0 0 1 0 13.6 Tm /F3 8.4 Tf 11 TL (Prepared by the Integration Management Office. Indicative and subject to clearance, the definitive agreement and clean-team) Tj T* (constraints. Confidential \227 Project Atlas.) Tj T* ET
+Q
+Q
+ 
+endstream
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000061 00000 n 
+0000000112 00000 n 
+0000000219 00000 n 
+0000000331 00000 n 
+0000000525 00000 n 
+0000000640 00000 n 
+0000000834 00000 n 
+0000000902 00000 n 
+0000001212 00000 n 
+0000001277 00000 n 
+0000011764 00000 n 
+trailer
+<<
+/ID 
+[<85b2a861a2db4a9cb82560a0253962fc><85b2a861a2db4a9cb82560a0253962fc>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 8 0 R
+/Root 7 0 R
+/Size 12
+>>
+startxref
+19814
+%%EOF

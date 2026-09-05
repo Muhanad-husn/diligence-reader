@@ -1,0 +1,24 @@
+[project]
+name = "rlm"
+version = "0.0.0"
+description = "Reproducible, cheap, general replacement for a recursive language model on a diligence data room"
+requires-python = ">=3.12"
+dependencies = [
+    "pdftext>=0.7,<0.8",
+    "openpyxl>=3.1,<4",
+    "httpx>=0.28,<0.29",
+    "pyyaml>=6,<7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rlm"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

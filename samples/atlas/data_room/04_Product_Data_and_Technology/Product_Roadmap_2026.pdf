@@ -1,0 +1,894 @@
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R /F3 4 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding /Name /F3 /Subtype /Type1 /Type /Font
+>>
+endobj
+5 0 obj
+<<
+/Contents 10 0 R /MediaBox [ 0 0 612 792 ] /Parent 9 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+6 0 obj
+<<
+/Contents 11 0 R /MediaBox [ 0 0 612 792 ] /Parent 9 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+7 0 obj
+<<
+/PageMode /UseNone /Pages 9 0 R /Type /Catalog
+>>
+endobj
+8 0 obj
+<<
+/Author (VistaPort Media Inc.) /CreationDate (D:20260107000000+00'00') /Creator (Project Atlas generator) /Keywords () /ModDate (D:20260107000000+00'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (Project Atlas data room) /Title (Product Roadmap 2026) /Trapped /False
+>>
+endobj
+9 0 obj
+<<
+/Count 2 /Kids [ 5 0 R 6 0 R ] /Type /Pages
+>>
+endobj
+10 0 obj
+<<
+/Length 11242
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+.623529 .701961 .784314 RG
+.5 w
+n 54 47.52 m 558 47.52 l S
+BT /F1 6.6 Tf 7.92 TL ET
+.419608 .466667 .521569 rg
+BT 1 0 0 1 54 36 Tm (CONFIDENTIAL \227 Project Atlas \227 DR-047 \227 VistaPort Media Inc. \227 Subject to NDA & clean-team protocol.) Tj T* ET
+BT 1 0 0 1 537.0846 36 Tm (Page 1) Tj T* ET
+Q
+q
+1 0 0 1 60 712 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 3 Tm /F2 17 Tf 20 TL 151.531 0 Td (Product Roadmap 2026) Tj T* -151.531 0 Td ET
+Q
+Q
+q
+1 0 0 1 60 693 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.5 Tm /F1 10.5 Tf 13 TL (VistaPort Media Inc. \227 Product Data and Technology) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 684 cm
+Q
+q
+1 0 0 1 54 598.8 cm
+q
+.917647 .941176 .964706 rg
+n 0 85.2 504 -85.2 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 5 72.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Document ID) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 72.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (DR-047) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 58.4 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Prepared by / owner) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 58.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Maya Hart) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 44.2 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Date) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 44.2 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (12 January 2026) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 30 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Classification) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 30 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Strictly Confidential \227 Project Atlas) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 15.8 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Function) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 15.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Product) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 1.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Cycle) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 1.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (FY2026 annual plan) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.121569 .227451 .372549 RG
+.6 w
+n 0 85.2 m 504 85.2 l S
+n 0 0 m 504 0 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 590.8 cm
+Q
+q
+1 0 0 1 60 532 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 43.1 Tm /F1 9.7 Tf 13.2 TL (Internal product roadmap for FY2026, prepared by Product for review with the Executive Committee. Themes:) Tj T* (deepen logged-in engagement, extend the AtlasID identity graph, modernise VistaMail and the accounts platform,) Tj T* -0.092393 Tw (and grow mobile and international monetisation. Priorities are scored on reach, revenue impact and platform-health) Tj T* 0 Tw (contribution.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 515 cm
+q
+.419608 .466667 .521569 rg
+BT 1 0 0 1 0 2.6 Tm /F3 8.4 Tf 11 TL (Roadmap is directional and subject to quarterly re-planning. Dates are target windows, not commitments.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 490 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (1. Strategic themes for 2026) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 457.6 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 19.4 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 457.6 cm
+q
+BT 1 0 0 1 6 16.7 Tm 13.2 TL /F2 9.7 Tf 0 0 0 rg (Identity & addressability:) Tj /F1 9.7 Tf ( grow first-party, consented audiences via AtlasID as third-party identifiers decline;) Tj T* (improve cross-property match rates.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 438.4 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 438.4 cm
+q
+BT 1 0 0 1 6 3.5 Tm 13.2 TL /F2 9.7 Tf 0 0 0 rg (Mail modernisation:) Tj /F1 9.7 Tf ( next-generation VistaMail experience, spam/abuse defences and faster mobile sync.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 406 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 19.4 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 406 cm
+q
+BT 1 0 0 1 6 16.7 Tm 13.2 TL /F2 9.7 Tf 0 0 0 rg (Platform health:) Tj /F1 9.7 Tf ( accelerate retirement of legacy account infrastructure and strengthen authentication and) Tj T* (session management.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 386.8 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 386.8 cm
+q
+BT 1 0 0 1 6 3.5 Tm 13.2 TL /F2 9.7 Tf 0 0 0 rg (Mobile & international:) Tj /F1 9.7 Tf ( improve mobile retention and expand monetisation in priority APAC and EU markets.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 361.8 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (2. Prioritised initiatives) Tj T* ET
+Q
+Q
+q
+1 0 0 1 54 208.6 cm
+q
+.121569 .227451 .372549 rg
+n 0 149.2 504 -15.6 re f*
+1 1 1 rg
+n 0 133.6 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 118.2 504 -15.4 re f*
+1 1 1 rg
+n 0 102.8 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 87.4 504 -25.8 re f*
+1 1 1 rg
+n 0 61.6 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 46.2 504 -15.4 re f*
+1 1 1 rg
+n 0 30.8 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 15.4 504 -15.4 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 4 136.1 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Initiative) Tj T* ET
+Q
+Q
+q
+1 0 0 1 209.7143 136.1 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Theme) Tj T* ET
+Q
+Q
+q
+1 0 0 1 292 136.1 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Priority) Tj T* ET
+Q
+Q
+q
+1 0 0 1 338.2857 136.1 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Target window) Tj T* ET
+Q
+Q
+q
+1 0 0 1 441.1429 136.1 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Status) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 120.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (AtlasID graph expansion \(consented signals\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 209.7143 120.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Identity) Tj T* ET
+Q
+Q
+q
+1 0 0 1 292 120.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (P1) Tj T* ET
+Q
+Q
+q
+1 0 0 1 338.2857 120.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Q1\226Q2 2026) Tj T* ET
+Q
+Q
+q
+1 0 0 1 441.1429 120.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Planned) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 105.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (VistaMail modernisation \(mobile sync, UX\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 209.7143 105.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Mail) Tj T* ET
+Q
+Q
+q
+1 0 0 1 292 105.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (P1) Tj T* ET
+Q
+Q
+q
+1 0 0 1 338.2857 105.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Q1\226Q3 2026) Tj T* ET
+Q
+Q
+q
+1 0 0 1 441.1429 105.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (In design) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 89.9 cm
+q
+BT 1 0 0 1 0 2.1 Tm 10.4 TL /F1 8.3 Tf 0 0 0 rg (VPAuth migration & session-signing key rotation) Tj T* ET
+Q
+Q
+q
+1 0 0 1 209.7143 89.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Platform health) Tj T* ET
+Q
+Q
+q
+1 0 0 1 292 89.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (P1) Tj T* ET
+Q
+Q
+q
+1 0 0 1 338.2857 89.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Q1 2026 \(pulled forward\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 441.1429 89.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Accelerated) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 74.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (legacy_uap decommission \(accelerated\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 209.7143 74.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Platform health) Tj T* ET
+Q
+Q
+q
+1 0 0 1 292 74.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (P1) Tj T* ET
+Q
+Q
+q
+1 0 0 1 338.2857 64.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (Q1\226Q2 2026 \(pulled) Tj T* (forward\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 441.1429 74.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Accelerated) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 48.7 cm
+q
+BT 1 0 0 1 0 2.1 Tm 10.4 TL /F1 8.3 Tf 0 0 0 rg (Backup encryption & retention redesign) Tj T* ET
+Q
+Q
+q
+1 0 0 1 209.7143 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Platform health) Tj T* ET
+Q
+Q
+q
+1 0 0 1 292 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (P2) Tj T* ET
+Q
+Q
+q
+1 0 0 1 338.2857 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Q2 2026) Tj T* ET
+Q
+Q
+q
+1 0 0 1 441.1429 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Planned) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 33.3 cm
+q
+BT 1 0 0 1 0 2.1 Tm 10.4 TL /F1 8.3 Tf 0 0 0 rg (Mobile retention & re-onboarding flow) Tj T* ET
+Q
+Q
+q
+1 0 0 1 209.7143 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Mobile) Tj T* ET
+Q
+Q
+q
+1 0 0 1 292 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (P2) Tj T* ET
+Q
+Q
+q
+1 0 0 1 338.2857 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Q2 2026) Tj T* ET
+Q
+Q
+q
+1 0 0 1 441.1429 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Planned) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Personalisation model refresh \(addressability\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 209.7143 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Identity) Tj T* ET
+Q
+Q
+q
+1 0 0 1 292 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (P2) Tj T* ET
+Q
+Q
+q
+1 0 0 1 338.2857 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Q2\226Q3 2026) Tj T* ET
+Q
+Q
+q
+1 0 0 1 441.1429 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Planned) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (APAC monetisation expansion) Tj T* ET
+Q
+Q
+q
+1 0 0 1 209.7143 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (International) Tj T* ET
+Q
+Q
+q
+1 0 0 1 292 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (P3) Tj T* ET
+Q
+Q
+q
+1 0 0 1 338.2857 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (H2 2026) Tj T* ET
+Q
+Q
+q
+1 0 0 1 441.1429 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Scoping) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.4 w
+n 0 149.2 m 504 149.2 l S
+n 0 0 m 504 0 l S
+n 0 0 m 0 149.2 l S
+n 504 0 m 504 149.2 l S
+n 0 133.6 m 504 133.6 l S
+n 0 118.2 m 504 118.2 l S
+n 0 102.8 m 504 102.8 l S
+n 0 87.4 m 504 87.4 l S
+n 0 61.6 m 504 61.6 l S
+n 0 46.2 m 504 46.2 l S
+n 0 30.8 m 504 30.8 l S
+n 0 15.4 m 504 15.4 l S
+n 205.7143 0 m 205.7143 149.2 l S
+n 288 0 m 288 149.2 l S
+n 334.2857 0 m 334.2857 149.2 l S
+n 437.1429 0 m 437.1429 149.2 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 203.6 cm
+Q
+q
+1 0 0 1 60 182.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2 Tm /F2 11 Tf 13 TL (2.1 Notes on platform-health items) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 97.4 cm
+q
+BT 1 0 0 1 0 69.5 Tm 13.2 TL /F1 9.7 Tf 0 0 0 rg (The ) Tj /F2 9.7 Tf (VPAuth migration & session-signing key rotation) Tj /F1 9.7 Tf ( and the ) Tj /F2 9.7 Tf (legacy_uap decommission \(accelerated\)) Tj /F1 9.7 Tf  T* (initiatives have been pulled forward from later in the plan into Q1\226Q2 2026. Both are sequenced ahead of feature) Tj T* (work to reduce carrying cost of legacy components, simplify the authentication estate and unblock the AtlasID) Tj T* -0.015486 Tw (migration. The decommission completes the long-running retirement of the legacy_uap profile store and the secure) Tj T* 0 Tw (disposal of its remaining backups. Engineering capacity has been re-allocated accordingly; see the capex and IT) Tj T* (modernisation plan \(DR-028\) for the associated investment.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 72.4 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (3. Dependencies and sequencing) Tj T* ET
+Q
+Q
+ 
+endstream
+endobj
+11 0 obj
+<<
+/Length 3635
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+.623529 .701961 .784314 RG
+.5 w
+n 54 47.52 m 558 47.52 l S
+BT /F1 6.6 Tf 7.92 TL ET
+.419608 .466667 .521569 rg
+BT 1 0 0 1 54 36 Tm (CONFIDENTIAL \227 Project Atlas \227 DR-047 \227 VistaPort Media Inc. \227 Subject to NDA & clean-team protocol.) Tj T* ET
+BT 1 0 0 1 537.0846 36 Tm (Page 2) Tj T* ET
+Q
+q
+1 0 0 1 60 718.8 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 718.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (AtlasID expansion depends on completion of the legacy_uap migration of remaining linked attributes.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 699.6 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 699.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (VPAuth migration must precede broad SSOBridge changes to avoid session disruption.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 680.4 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 680.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Personalisation refresh depends on a stabilised logged-in addressable pool.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 655.4 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (4. Success measures) Tj T* ET
+Q
+Q
+q
+1 0 0 1 54 574.2 cm
+q
+.121569 .227451 .372549 rg
+n 0 77.2 504 -15.6 re f*
+1 1 1 rg
+n 0 61.6 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 46.2 504 -15.4 re f*
+1 1 1 rg
+n 0 30.8 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 15.4 504 -15.4 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 4 64.1 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Measure) Tj T* ET
+Q
+Q
+q
+1 0 0 1 205.6 64.1 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Baseline) Tj T* ET
+Q
+Q
+q
+1 0 0 1 356.8 64.1 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (2026 target) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Total MAU) Tj T* ET
+Q
+Q
+q
+1 0 0 1 205.6 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (615m) Tj T* ET
+Q
+Q
+q
+1 0 0 1 356.8 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Growth vs FY25 exit) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Mobile MAU) Tj T* ET
+Q
+Q
+q
+1 0 0 1 205.6 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (408m) Tj T* ET
+Q
+Q
+q
+1 0 0 1 356.8 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Growth vs FY25 exit) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Logged-in identity match rate) Tj T* ET
+Q
+Q
+q
+1 0 0 1 205.6 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Recovering) Tj T* ET
+Q
+Q
+q
+1 0 0 1 356.8 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Restore to pre-Q4 level) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Legacy components retired) Tj T* ET
+Q
+Q
+q
+1 0 0 1 205.6 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Partial) Tj T* ET
+Q
+Q
+q
+1 0 0 1 356.8 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (legacy_uap fully decommissioned) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.4 w
+n 0 77.2 m 504 77.2 l S
+n 0 0 m 504 0 l S
+n 0 0 m 0 77.2 l S
+n 504 0 m 504 77.2 l S
+n 0 61.6 m 504 61.6 l S
+n 0 46.2 m 504 46.2 l S
+n 0 30.8 m 504 30.8 l S
+n 0 15.4 m 504 15.4 l S
+n 201.6 0 m 201.6 77.2 l S
+n 352.8 0 m 352.8 77.2 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 569.2 cm
+Q
+q
+1 0 0 1 60 552.2 cm
+q
+.419608 .466667 .521569 rg
+BT 1 0 0 1 0 2.6 Tm /F3 8.4 Tf 11 TL (Prepared by Maya Hart, VP Product, Identity and Mail. Confidential \227 Product planning.) Tj T* ET
+Q
+Q
+ 
+endstream
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000061 00000 n 
+0000000112 00000 n 
+0000000219 00000 n 
+0000000331 00000 n 
+0000000446 00000 n 
+0000000640 00000 n 
+0000000834 00000 n 
+0000000902 00000 n 
+0000001212 00000 n 
+0000001277 00000 n 
+0000012572 00000 n 
+trailer
+<<
+/ID 
+[<8bb9ef4a6856985d48f8980a75a94c7e><8bb9ef4a6856985d48f8980a75a94c7e>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 8 0 R
+/Root 7 0 R
+/Size 12
+>>
+startxref
+16259
+%%EOF

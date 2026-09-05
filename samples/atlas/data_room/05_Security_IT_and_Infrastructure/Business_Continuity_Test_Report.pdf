@@ -1,0 +1,759 @@
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R /F3 4 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding /Name /F3 /Subtype /Type1 /Type /Font
+>>
+endobj
+5 0 obj
+<<
+/Contents 9 0 R /MediaBox [ 0 0 612 792 ] /Parent 8 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+6 0 obj
+<<
+/PageMode /UseNone /Pages 8 0 R /Type /Catalog
+>>
+endobj
+7 0 obj
+<<
+/Author (VistaPort Media Inc.) /CreationDate (D:20260107000000+00'00') /Creator (Project Atlas generator) /Keywords () /ModDate (D:20260107000000+00'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (Project Atlas data room) /Title (Business Continuity & DR Test Report) /Trapped /False
+>>
+endobj
+8 0 obj
+<<
+/Count 1 /Kids [ 5 0 R ] /Type /Pages
+>>
+endobj
+9 0 obj
+<<
+/Length 11704
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+.623529 .701961 .784314 RG
+.5 w
+n 54 47.52 m 558 47.52 l S
+BT /F1 6.6 Tf 7.92 TL ET
+.419608 .466667 .521569 rg
+BT 1 0 0 1 54 36 Tm (CONFIDENTIAL \227 Project Atlas \227 DR-077 \227 VistaPort Media Inc. \227 Subject to NDA & clean-team protocol.) Tj T* ET
+BT 1 0 0 1 537.0846 36 Tm (Page 1) Tj T* ET
+Q
+q
+1 0 0 1 60 712 cm
+q
+BT 1 0 0 1 0 3 Tm 91.096 0 Td 20 TL /F2 17 Tf .121569 .227451 .372549 rg (Business Continuity & DR Test Report) Tj T* -91.096 0 Td ET
+Q
+Q
+q
+1 0 0 1 60 693 cm
+q
+BT 1 0 0 1 0 2.5 Tm 13 TL /F1 10.5 Tf .203922 .286275 .368627 rg (Business Continuity & DR \227 Test Report) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 684 cm
+Q
+q
+1 0 0 1 54 598.8 cm
+q
+.917647 .941176 .964706 rg
+n 0 85.2 504 -85.2 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 5 72.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Document ID) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 72.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (DR-077) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 58.4 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Prepared by / owner) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 58.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Owen Bell) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 44.2 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Date) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 44.2 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (18 November 2025) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 30 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Classification) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 30 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Strictly Confidential \227 Project Atlas) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 15.8 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Test type) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 15.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Annual BC/DR exercise) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 1.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Result) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 1.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Satisfactory) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.121569 .227451 .372549 RG
+.6 w
+n 0 85.2 m 504 85.2 l S
+n 0 0 m 504 0 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 590.8 cm
+Q
+q
+1 0 0 1 60 545.2 cm
+q
+BT 1 0 0 1 0 29.9 Tm -0.0529 Tw 13.2 TL /F1 9.7 Tf 0 0 0 rg (Report on the annual business-continuity and disaster-recovery \(BC/DR\) test of ) Tj /F2 9.7 Tf (VistaPort Media Inc.) Tj /F1 9.7 Tf ( conducted in) Tj T* 0 Tw (November 2025. The exercise validated recovery procedures for core production services against documented) Tj T* (recovery objectives. Results were satisfactory with minor action items.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 520.2 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (1. Scope and objectives) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 501 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 501 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Validate failover of core production services across availability zones.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 481.8 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 481.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Confirm recovery of identity, advertising and communications services within objectives.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 462.6 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 462.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Test backup restoration integrity for in-scope production datasets.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 443.4 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 443.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Exercise the crisis-management and communications runbooks.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 418.4 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (2. Test scenarios and results) Tj T* ET
+Q
+Q
+q
+1 0 0 1 54 306.4 cm
+q
+.121569 .227451 .372549 rg
+n 0 108 504 -15.6 re f*
+1 1 1 rg
+n 0 92.4 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 77 504 -15.4 re f*
+1 1 1 rg
+n 0 61.6 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 46.2 504 -15.4 re f*
+1 1 1 rg
+n 0 30.8 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 15.4 504 -15.4 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 4 94.9 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Scenario) Tj T* ET
+Q
+Q
+q
+1 0 0 1 198.7273 94.9 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (RTO target) Tj T* ET
+Q
+Q
+q
+1 0 0 1 278.9091 94.9 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (RTO actual) Tj T* ET
+Q
+Q
+q
+1 0 0 1 359.0909 94.9 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (RPO target) Tj T* ET
+Q
+Q
+q
+1 0 0 1 439.2727 94.9 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Result) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 79.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Primary region failover \(compute\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 198.7273 79.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (2h) Tj T* ET
+Q
+Q
+q
+1 0 0 1 278.9091 79.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (1h 41m) Tj T* ET
+Q
+Q
+q
+1 0 0 1 359.0909 79.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (15m) Tj T* ET
+Q
+Q
+q
+1 0 0 1 439.2727 79.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Pass) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 64.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Identity service \(AtlasID\) recovery) Tj T* ET
+Q
+Q
+q
+1 0 0 1 198.7273 64.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (1h) Tj T* ET
+Q
+Q
+q
+1 0 0 1 278.9091 64.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (52m) Tj T* ET
+Q
+Q
+q
+1 0 0 1 359.0909 64.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (5m) Tj T* ET
+Q
+Q
+q
+1 0 0 1 439.2727 64.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Pass) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Advertising platform \(LumenX\) recovery) Tj T* ET
+Q
+Q
+q
+1 0 0 1 198.7273 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (2h) Tj T* ET
+Q
+Q
+q
+1 0 0 1 278.9091 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (1h 58m) Tj T* ET
+Q
+Q
+q
+1 0 0 1 359.0909 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (15m) Tj T* ET
+Q
+Q
+q
+1 0 0 1 439.2727 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Pass) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Email service \(VistaMail\) recovery) Tj T* ET
+Q
+Q
+q
+1 0 0 1 198.7273 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (3h) Tj T* ET
+Q
+Q
+q
+1 0 0 1 278.9091 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (2h 24m) Tj T* ET
+Q
+Q
+q
+1 0 0 1 359.0909 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (30m) Tj T* ET
+Q
+Q
+q
+1 0 0 1 439.2727 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Pass) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Warehouse \(Snowcap\) restore) Tj T* ET
+Q
+Q
+q
+1 0 0 1 198.7273 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (4h) Tj T* ET
+Q
+Q
+q
+1 0 0 1 278.9091 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (3h 36m) Tj T* ET
+Q
+Q
+q
+1 0 0 1 359.0909 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (1h) Tj T* ET
+Q
+Q
+q
+1 0 0 1 439.2727 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Pass) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Backup integrity restore test) Tj T* ET
+Q
+Q
+q
+1 0 0 1 198.7273 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (n/a) Tj T* ET
+Q
+Q
+q
+1 0 0 1 278.9091 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (n/a) Tj T* ET
+Q
+Q
+q
+1 0 0 1 359.0909 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (n/a) Tj T* ET
+Q
+Q
+q
+1 0 0 1 439.2727 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Pass \(sampled\)) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.4 w
+n 0 108 m 504 108 l S
+n 0 0 m 504 0 l S
+n 0 0 m 0 108 l S
+n 504 0 m 504 108 l S
+n 0 92.4 m 504 92.4 l S
+n 0 77 m 504 77 l S
+n 0 61.6 m 504 61.6 l S
+n 0 46.2 m 504 46.2 l S
+n 0 30.8 m 504 30.8 l S
+n 0 15.4 m 504 15.4 l S
+n 194.7273 0 m 194.7273 108 l S
+n 274.9091 0 m 274.9091 108 l S
+n 355.0909 0 m 355.0909 108 l S
+n 435.2727 0 m 435.2727 108 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 301.4 cm
+Q
+q
+1 0 0 1 60 276.4 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (3. Observations) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 230.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 29.9 Tm /F1 9.7 Tf 13.2 TL (All in-scope services recovered within their recovery-time and recovery-point objectives. Backup restoration tests) Tj T* (for in-scope production datasets completed successfully on a sampled basis. The crisis-management bridge was) Tj T* (established within the target window and runbooks were followed.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 205.8 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (4. Action items) Tj T* ET
+Q
+Q
+q
+1 0 0 1 54 140 cm
+q
+.121569 .227451 .372549 rg
+n 0 61.8 504 -15.6 re f*
+1 1 1 rg
+n 0 46.2 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 30.8 504 -15.4 re f*
+1 1 1 rg
+n 0 15.4 504 -15.4 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 4 48.7 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Item) Tj T* ET
+Q
+Q
+q
+1 0 0 1 276.16 48.7 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Owner) Tj T* ET
+Q
+Q
+q
+1 0 0 1 356.8 48.7 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Priority) Tj T* ET
+Q
+Q
+q
+1 0 0 1 427.36 48.7 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Due) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Update one stale DNS failover record identified during the test) Tj T* ET
+Q
+Q
+q
+1 0 0 1 276.16 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Infra) Tj T* ET
+Q
+Q
+q
+1 0 0 1 356.8 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Low) Tj T* ET
+Q
+Q
+q
+1 0 0 1 427.36 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (15 January 2026) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Refresh the contact tree for two on-call rotations) Tj T* ET
+Q
+Q
+q
+1 0 0 1 276.16 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (IT Ops) Tj T* ET
+Q
+Q
+q
+1 0 0 1 356.8 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Low) Tj T* ET
+Q
+Q
+q
+1 0 0 1 427.36 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (10 January 2026) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Automate one manual restore-validation step) Tj T* ET
+Q
+Q
+q
+1 0 0 1 276.16 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Infra) Tj T* ET
+Q
+Q
+q
+1 0 0 1 356.8 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Medium) Tj T* ET
+Q
+Q
+q
+1 0 0 1 427.36 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (1 February 2026) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.4 w
+n 0 61.8 m 504 61.8 l S
+n 0 0 m 504 0 l S
+n 0 0 m 0 61.8 l S
+n 504 0 m 504 61.8 l S
+n 0 46.2 m 504 46.2 l S
+n 0 30.8 m 504 30.8 l S
+n 0 15.4 m 504 15.4 l S
+n 272.16 0 m 272.16 61.8 l S
+n 352.8 0 m 352.8 61.8 l S
+n 423.36 0 m 423.36 61.8 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 135 cm
+Q
+q
+1 0 0 1 60 110 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (5. Conclusion) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 77.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 16.7 Tm /F1 9.7 Tf 13.2 TL -0.044469 Tw (The Company met its recovery objectives for all tested scenarios. The BC/DR programme is assessed as effective.) Tj T* 0 Tw (Action items are minor and tracked to closure.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 60.6 cm
+q
+.419608 .466667 .521569 rg
+BT 1 0 0 1 0 2.6 Tm /F3 8.4 Tf 11 TL (Prepared by the Office of the CISO. Next scheduled BC/DR test: Q4 2026.) Tj T* ET
+Q
+Q
+ 
+endstream
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000061 00000 n 
+0000000112 00000 n 
+0000000219 00000 n 
+0000000331 00000 n 
+0000000446 00000 n 
+0000000639 00000 n 
+0000000707 00000 n 
+0000001033 00000 n 
+0000001092 00000 n 
+trailer
+<<
+/ID 
+[<8226512fc3f4f34b90df4c5728f26a14><8226512fc3f4f34b90df4c5728f26a14>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 7 0 R
+/Root 6 0 R
+/Size 10
+>>
+startxref
+12848
+%%EOF

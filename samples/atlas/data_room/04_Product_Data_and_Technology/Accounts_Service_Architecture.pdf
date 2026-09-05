@@ -1,0 +1,665 @@
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R /F3 5 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/Contents 10 0 R /MediaBox [ 0 0 612 792 ] /Parent 9 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+5 0 obj
+<<
+/BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding /Name /F3 /Subtype /Type1 /Type /Font
+>>
+endobj
+6 0 obj
+<<
+/Contents 11 0 R /MediaBox [ 0 0 612 792 ] /Parent 9 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+7 0 obj
+<<
+/PageMode /UseNone /Pages 9 0 R /Type /Catalog
+>>
+endobj
+8 0 obj
+<<
+/Author (VistaPort Media Inc.) /CreationDate (D:20260107000000+00'00') /Creator (Project Atlas generator) /Keywords () /ModDate (D:20260107000000+00'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (Project Atlas data room) /Title (Accounts Service Architecture) /Trapped /False
+>>
+endobj
+9 0 obj
+<<
+/Count 2 /Kids [ 4 0 R 6 0 R ] /Type /Pages
+>>
+endobj
+10 0 obj
+<<
+/Length 9571
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+.623529 .701961 .784314 RG
+.5 w
+n 54 47.52 m 558 47.52 l S
+BT /F1 6.6 Tf 7.92 TL ET
+.419608 .466667 .521569 rg
+BT 1 0 0 1 54 36 Tm (CONFIDENTIAL \227 Project Atlas \227 DR-056 \227 VistaPort Media Inc. \227 Subject to NDA & clean-team protocol.) Tj T* ET
+BT 1 0 0 1 537.0846 36 Tm (Page 1) Tj T* ET
+Q
+q
+1 0 0 1 60 712 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 3 Tm /F2 17 Tf 20 TL 122.24 0 Td (Accounts Service Architecture) Tj T* -122.24 0 Td ET
+Q
+Q
+q
+1 0 0 1 60 693 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.5 Tm /F1 10.5 Tf 13 TL (VistaPort Media Inc. \227 Product Data and Technology) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 684 cm
+Q
+q
+1 0 0 1 54 598.8 cm
+q
+.917647 .941176 .964706 rg
+n 0 85.2 504 -85.2 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 5 72.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Document ID) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 72.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (DR-056) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 58.4 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Prepared by / owner) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 58.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Nina Petrov) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 44.2 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Date) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 44.2 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (15 September 2025) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 30 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Classification) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 30 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Strictly Confidential \227 Project Atlas) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 15.8 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Function) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 15.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Security / Platform Engineering) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 1.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Doc type) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 1.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Architecture reference) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.121569 .227451 .372549 RG
+.6 w
+n 0 85.2 m 504 85.2 l S
+n 0 0 m 504 0 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 590.8 cm
+Q
+q
+1 0 0 1 60 545.2 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 29.9 Tm /F1 9.7 Tf 13.2 TL -0.103693 Tw (This document describes the architecture of VistaPort's authentication, session and account services as at the date) Tj T* 0 Tw (of writing. It is an engineering reference for the Platform team and is used for onboarding and change review. It) Tj T* (does not describe any incident.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 520.2 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (1. Component overview) Tj T* ET
+Q
+Q
+q
+1 0 0 1 54 392.4 cm
+q
+.121569 .227451 .372549 rg
+n 0 123.8 504 -15.6 re f*
+1 1 1 rg
+n 0 108.2 504 -25.8 re f*
+.94902 .964706 .980392 rg
+n 0 82.4 504 -25.8 re f*
+1 1 1 rg
+n 0 56.6 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 41.2 504 -25.8 re f*
+1 1 1 rg
+n 0 15.4 504 -15.4 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 4 110.7 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Component) Tj T* ET
+Q
+Q
+q
+1 0 0 1 114.88 110.7 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Responsibility) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 95.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (VPAuth) Tj T* ET
+Q
+Q
+q
+1 0 0 1 114.88 84.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (Authentication and session-token service; issues and validates session cookies signed with the active) Tj T* (signing key set.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 69.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (SSOBridge) Tj T* ET
+Q
+Q
+q
+1 0 0 1 114.88 59.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (Single sign-on federation across VistaPort properties; relies on VPAuth for the authenticated-user) Tj T* (assertion.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 43.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (AtlasID) Tj T* ET
+Q
+Q
+q
+1 0 0 1 114.88 43.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Identity graph and cross-property account linkage / match service.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 28.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (legacy_uap) Tj T* ET
+Q
+Q
+q
+1 0 0 1 114.88 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (Legacy Unified Account Profile store \(pre-2022 identity/profile data\); feeds remaining linked attributes) Tj T* (into AtlasID; scheduled for decommission.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Snowcap) Tj T* ET
+Q
+Q
+q
+1 0 0 1 114.88 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Analytics warehouse holding auth and engagement event tables.) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.4 w
+n 0 123.8 m 504 123.8 l S
+n 0 0 m 504 0 l S
+n 0 0 m 0 123.8 l S
+n 504 0 m 504 123.8 l S
+n 0 108.2 m 504 108.2 l S
+n 0 82.4 m 504 82.4 l S
+n 0 56.6 m 504 56.6 l S
+n 0 41.2 m 504 41.2 l S
+n 0 15.4 m 504 15.4 l S
+n 110.88 0 m 110.88 123.8 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 387.4 cm
+Q
+q
+1 0 0 1 60 362.4 cm
+q
+BT 1 0 0 1 0 2.5 Tm 15 TL /F2 12.5 Tf .121569 .227451 .372549 rg (2. Authentication & session flow) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 343.2 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 1.2 Tm (1) Tj T* ET
+Q
+q
+1 0 0 1 76 343.2 cm
+q
+BT 1 0 0 1 6 3.5 Tm 13.2 TL /F1 9.7 Tf 0 0 0 rg (A user authenticates against ) Tj /F2 9.7 Tf (VPAuth) Tj /F1 9.7 Tf (, which verifies the credential against the account store.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 310.8 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 14.4 Tm (2) Tj T* ET
+Q
+q
+1 0 0 1 76 310.8 cm
+q
+BT 1 0 0 1 6 16.7 Tm 13.2 TL /F1 9.7 Tf 0 0 0 rg (VPAuth issues a ) Tj /F2 9.7 Tf (session cookie) Tj /F1 9.7 Tf ( signed with the current signing key. Each signed cookie carries a key) Tj T* (identifier \(kid\) so that validators know which key to use.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 278.4 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 14.4 Tm (3) Tj T* ET
+Q
+q
+1 0 0 1 76 278.4 cm
+q
+BT 1 0 0 1 6 16.7 Tm 13.2 TL /F1 9.7 Tf 0 0 0 rg (Properties and ) Tj /F2 9.7 Tf (SSOBridge) Tj /F1 9.7 Tf ( validate the session cookie's signature on each request; a valid signature) Tj T* (establishes the authenticated session.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 246 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 14.4 Tm (4) Tj T* ET
+Q
+q
+1 0 0 1 76 246 cm
+q
+BT 1 0 0 1 6 16.7 Tm 13.2 TL /F1 9.7 Tf 0 0 0 rg (Identity resolution for personalisation and addressability is performed by ) Tj /F2 9.7 Tf (AtlasID) Tj /F1 9.7 Tf ( using the authenticated-user) Tj T* (key.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 221 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (3. Session-cookie signing and key management) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 175.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 29.9 Tm /F1 9.7 Tf 13.2 TL (Session cookies are signed using an HMAC/asymmetric signing key referenced by a key identifier \(kid\). The) Tj T* -0.038485 Tw (validator trusts any cookie whose signature verifies against a key in the active key set. The active set is intended to) Tj T* 0 Tw (include the current key plus, for backward compatibility during migrations, one or more legacy keys.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 54 87.8 cm
+q
+.121569 .227451 .372549 rg
+n 0 82.6 504 -15.6 re f*
+1 1 1 rg
+n 0 67 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 51.6 504 -36.2 re f*
+1 1 1 rg
+n 0 15.4 504 -15.4 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 4 69.5 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Key id \(kid\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 114.88 69.5 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Role) Tj T* ET
+Q
+Q
+q
+1 0 0 1 225.76 69.5 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Rotation policy) Tj T* ET
+Q
+Q
+q
+1 0 0 1 356.8 69.5 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Notes) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 54.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (vpauth-current) Tj T* ET
+Q
+Q
+q
+1 0 0 1 114.88 54.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Active signing key) Tj T* ET
+Q
+Q
+q
+1 0 0 1 225.76 54.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Rotate every 12 months) Tj T* ET
+Q
+Q
+q
+1 0 0 1 356.8 54.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Primary key for newly issued cookies) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 38.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (vpauth-legacy-2019) Tj T* ET
+Q
+Q
+q
+1 0 0 1 114.88 28.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (Legacy validation key \(NOT) Tj T* (used to sign new cookies\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 225.76 38.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Overdue \227 unrotated since 2019) Tj T* ET
+Q
+Q
+q
+1 0 0 1 356.8 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 22.9 Tm /F1 8.3 Tf 10.4 TL (Retained in the active set for backward) Tj T* (compatibility only; pending) Tj T* (rotation/retirement) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (vpauth-mobile) Tj T* ET
+Q
+Q
+q
+1 0 0 1 114.88 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Mobile session key) Tj T* ET
+Q
+Q
+q
+1 0 0 1 225.76 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Rotate every 12 months) Tj T* ET
+Q
+Q
+q
+1 0 0 1 356.8 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Mobile clients) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.4 w
+n 0 82.6 m 504 82.6 l S
+n 0 0 m 504 0 l S
+n 0 0 m 0 82.6 l S
+n 504 0 m 504 82.6 l S
+n 0 67 m 504 67 l S
+n 0 51.6 m 504 51.6 l S
+n 0 15.4 m 504 15.4 l S
+n 110.88 0 m 110.88 82.6 l S
+n 221.76 0 m 221.76 82.6 l S
+n 352.8 0 m 352.8 82.6 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 82.8 cm
+Q
+ 
+endstream
+endobj
+11 0 obj
+<<
+/Length 2557
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+.623529 .701961 .784314 RG
+.5 w
+n 54 47.52 m 558 47.52 l S
+BT /F1 6.6 Tf 7.92 TL ET
+.419608 .466667 .521569 rg
+BT 1 0 0 1 54 36 Tm (CONFIDENTIAL \227 Project Atlas \227 DR-056 \227 VistaPort Media Inc. \227 Subject to NDA & clean-team protocol.) Tj T* ET
+BT 1 0 0 1 537.0846 36 Tm (Page 2) Tj T* ET
+Q
+q
+1 0 0 1 60 699 cm
+q
+.419608 .466667 .521569 rg
+BT 1 0 0 1 0 24.6 Tm /F3 8.4 Tf 11 TL (Rotation policy: signing keys should be rotated on a fixed cadence and any key retained only for backward compatibility should be) Tj T* (retired promptly once the dependent migration completes. Trust in a signed cookie is only as strong as the confidentiality of the) Tj T* (signing key referenced by its kid.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 674 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (4. legacy_uap and migration) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 615.2 cm
+q
+BT 1 0 0 1 0 43.1 Tm 13.2 TL /F1 9.7 Tf 0 0 0 rg (The ) Tj /F2 9.7 Tf (legacy_uap) Tj /F1 9.7 Tf ( store predates the current account platform and continues to feed selected attributes into AtlasID) Tj T* (during migration. Decommissioning legacy_uap and retiring the associated legacy signing key \(kid) Tj T* /F3 9.7 Tf (vpauth-legacy-2019) Tj /F1 9.7 Tf (\) are tracked under the platform-health roadmap \(DR-047\) and the decommission plan) Tj T* (\(DR-057\).) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 590.2 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (5. Dependencies) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 571 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 571 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (SSOBridge depends on VPAuth signature validation; key-set changes must be coordinated.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 551.8 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 551.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (AtlasID depends on legacy_uap lineage for a subset of match keys until migration completes.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 532.6 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 532.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Analytics \(Snowcap\) ingests auth/session events for monitoring and reconciliation.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 515.6 cm
+q
+.419608 .466667 .521569 rg
+BT 1 0 0 1 0 2.6 Tm /F3 8.4 Tf 11 TL (Prepared by Nina Petrov, Head of Security Engineering. Engineering reference \227 confidential.) Tj T* ET
+Q
+Q
+ 
+endstream
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000061 00000 n 
+0000000112 00000 n 
+0000000219 00000 n 
+0000000331 00000 n 
+0000000525 00000 n 
+0000000640 00000 n 
+0000000834 00000 n 
+0000000902 00000 n 
+0000001221 00000 n 
+0000001286 00000 n 
+0000010909 00000 n 
+trailer
+<<
+/ID 
+[<c4e38053e13b0e247b6a163051d499b4><c4e38053e13b0e247b6a163051d499b4>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 8 0 R
+/Root 7 0 R
+/Size 12
+>>
+startxref
+13518
+%%EOF

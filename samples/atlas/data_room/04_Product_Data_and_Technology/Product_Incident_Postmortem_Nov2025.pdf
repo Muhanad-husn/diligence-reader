@@ -1,0 +1,831 @@
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R /F3 4 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding /Name /F3 /Subtype /Type1 /Type /Font
+>>
+endobj
+5 0 obj
+<<
+/Contents 10 0 R /MediaBox [ 0 0 612 792 ] /Parent 9 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+6 0 obj
+<<
+/Contents 11 0 R /MediaBox [ 0 0 612 792 ] /Parent 9 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+7 0 obj
+<<
+/PageMode /UseNone /Pages 9 0 R /Type /Catalog
+>>
+endobj
+8 0 obj
+<<
+/Author (VistaPort Media Inc.) /CreationDate (D:20260107000000+00'00') /Creator (Project Atlas generator) /Keywords () /ModDate (D:20260107000000+00'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (Project Atlas data room) /Title (Product Incident Postmortem \204 November 2025 Login Friction) /Trapped /False
+>>
+endobj
+9 0 obj
+<<
+/Count 2 /Kids [ 5 0 R 6 0 R ] /Type /Pages
+>>
+endobj
+10 0 obj
+<<
+/Length 9236
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+.623529 .701961 .784314 RG
+.5 w
+n 54 47.52 m 558 47.52 l S
+BT /F1 6.6 Tf 7.92 TL ET
+.419608 .466667 .521569 rg
+BT 1 0 0 1 54 36 Tm (CONFIDENTIAL \227 Project Atlas \227 DR-060 \227 VistaPort Media Inc. \227 Subject to NDA & clean-team protocol.) Tj T* ET
+BT 1 0 0 1 537.0846 36 Tm (Page 1) Tj T* ET
+Q
+q
+1 0 0 1 60 692 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 23 Tm /F2 17 Tf 20 TL 25.425 0 Td (Product Incident Postmortem \227 November 2025 Login) Tj T* 189.4055 0 Td (Friction) Tj T* -214.8305 0 Td ET
+Q
+Q
+q
+1 0 0 1 60 673 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.5 Tm /F1 10.5 Tf 13 TL (VistaPort Media Inc. \227 Product Data and Technology) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 664 cm
+Q
+q
+1 0 0 1 54 578.8 cm
+q
+.917647 .941176 .964706 rg
+n 0 85.2 504 -85.2 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 5 72.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Document ID) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 72.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (DR-060) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 58.4 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Prepared by / owner) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 58.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Maya Hart) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 44.2 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Date) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 44.2 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (28 November 2025) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 30 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Classification) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 30 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Strictly Confidential \227 Project Atlas) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 15.8 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Incident) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 15.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (NQ-17) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 1.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Type) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 1.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Login friction / availability) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.121569 .227451 .372549 RG
+.6 w
+n 0 85.2 m 504 85.2 l S
+n 0 0 m 504 0 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 570.8 cm
+Q
+q
+1 0 0 1 60 525.2 cm
+q
+BT 1 0 0 1 0 29.9 Tm 13.2 TL /F1 9.7 Tf 0 0 0 rg (Blameless postmortem for the elevated login-friction and support-load incident observed during November 2025,) Tj T* (tracked under incident code ) Tj /F2 9.7 Tf (NQ-17) Tj /F1 9.7 Tf (. This is an availability / user-experience postmortem covering login success,) Tj T* (reset-completion and support impact. It is not a security-incident report.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 54 451.2 cm
+q
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 0 56.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Incident code) Tj T* ET
+Q
+Q
+q
+1 0 0 1 136.8 56.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (NQ-17) Tj T* ET
+Q
+Q
+q
+1 0 0 1 0 42.8 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Classification) Tj T* ET
+Q
+Q
+q
+1 0 0 1 136.8 42.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Login friction / availability \227 user experience) Tj T* ET
+Q
+Q
+q
+1 0 0 1 0 29 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Severity) Tj T* ET
+Q
+Q
+q
+1 0 0 1 136.8 29 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (SEV-2 \(degraded experience, no service outage\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 0 15.2 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Primary systems) Tj T* ET
+Q
+Q
+q
+1 0 0 1 136.8 15.2 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (VPAuth, Trust Reset console, VistaMail sign-in) Tj T* ET
+Q
+Q
+q
+1 0 0 1 0 1.4 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Window) Tj T* ET
+Q
+Q
+q
+1 0 0 1 136.8 1.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Weeks commencing 3 November 2025 to 24 November 2025) Tj T* ET
+Q
+Q
+q
+Q
+Q
+Q
+q
+1 0 0 1 60 447.2 cm
+Q
+q
+1 0 0 1 60 422.2 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (1. Summary) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 350.2 cm
+q
+BT 1 0 0 1 0 56.3 Tm 13.2 TL /F1 9.7 Tf 0 0 0 rg (During November 2025, users experienced elevated login friction: increased password-reset prompts, higher) Tj T* (login-failure rates and longer sign-in times, with a corresponding spike in support contacts. The root cause was the) Tj T* (planned ) Tj /F2 9.7 Tf (credential-hygiene resets and session invalidation) Tj /F1 9.7 Tf ( carried out under the Trust Reset programme,) Tj T* -0.076088 Tw (which required a very large population to reset passwords and re-authenticate within a short window. There was no) Tj T* 0 Tw (service outage.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 325.2 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (2. Impact) Tj T* ET
+Q
+Q
+q
+1 0 0 1 54 218.2 cm
+q
+.121569 .227451 .372549 rg
+n 0 103 504 -15.6 re f*
+1 1 1 rg
+n 0 87.4 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 72 504 -15.4 re f*
+1 1 1 rg
+n 0 56.6 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 41.2 504 -15.4 re f*
+1 1 1 rg
+n 0 25.8 504 -25.8 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 4 89.9 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Metric) Tj T* ET
+Q
+Q
+q
+1 0 0 1 205.6 89.9 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Value) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 74.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Accounts forced to reset) Tj T* ET
+Q
+Q
+q
+1 0 0 1 205.6 74.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (~286m) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 59.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Active sessions invalidated) Tj T* ET
+Q
+Q
+q
+1 0 0 1 205.6 59.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (~511m) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 43.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Peak login-failure rate) Tj T* ET
+Q
+Q
+q
+1 0 0 1 205.6 43.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (5.1% \(week of 10 November 2025\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 28.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Peak weekly password-reset volume) Tj T* ET
+Q
+Q
+q
+1 0 0 1 205.6 28.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (31.2m \(week of 3 November 2025\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 12.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Engagement effect) Tj T* ET
+Q
+Q
+q
+1 0 0 1 205.6 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (Short-term decline in email WAU and mobile MAU; partial recovery by period) Tj T* (end) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.4 w
+n 0 103 m 504 103 l S
+n 0 0 m 504 0 l S
+n 0 0 m 0 103 l S
+n 504 0 m 504 103 l S
+n 0 87.4 m 504 87.4 l S
+n 0 72 m 504 72 l S
+n 0 56.6 m 504 56.6 l S
+n 0 41.2 m 504 41.2 l S
+n 0 25.8 m 504 25.8 l S
+n 201.6 0 m 201.6 103 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 213.2 cm
+Q
+q
+1 0 0 1 60 185.2 cm
+q
+.419608 .466667 .521569 rg
+BT 1 0 0 1 0 13.6 Tm /F3 8.4 Tf 11 TL (Counts are operational measures of the reset/invalidation programme and reconcile to the user metrics dashboard \(DR-048\) and) Tj T* (VistaMail KPIs \(DR-050\).) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 160.2 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (3. Timeline) Tj T* ET
+Q
+Q
+q
+1 0 0 1 54 63.6 cm
+q
+.121569 .227451 .372549 rg
+n 0 92.6 504 -15.6 re f*
+1 1 1 rg
+n 0 77 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 61.6 504 -15.4 re f*
+1 1 1 rg
+n 0 46.2 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 30.8 504 -15.4 re f*
+1 1 1 rg
+n 0 15.4 504 -15.4 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 4 79.5 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Date) Tj T* ET
+Q
+Q
+q
+1 0 0 1 114.88 79.5 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Event) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 64.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (3 November 2025) Tj T* ET
+Q
+Q
+q
+1 0 0 1 114.88 64.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Trust Reset wave 1 begins; forced resets and session invalidation start.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (5 November 2025) Tj T* ET
+Q
+Q
+q
+1 0 0 1 114.88 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Login-failure rate and reset volume rise; support queues lengthen.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (10 November 2025) Tj T* ET
+Q
+Q
+q
+1 0 0 1 114.88 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Wave 2 \(main population\); peak reset volume and login-failure rate.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (17 November 2025) Tj T* ET
+Q
+Q
+q
+1 0 0 1 114.88 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Reminder waves; load begins to ease as non-actioners complete resets.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (28 November 2025) Tj T* ET
+Q
+Q
+q
+1 0 0 1 114.88 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Metrics trending back toward baseline; postmortem opened.) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.4 w
+n 0 92.6 m 504 92.6 l S
+n 0 0 m 504 0 l S
+n 0 0 m 0 92.6 l S
+n 504 0 m 504 92.6 l S
+n 0 77 m 504 77 l S
+n 0 61.6 m 504 61.6 l S
+n 0 46.2 m 504 46.2 l S
+n 0 30.8 m 504 30.8 l S
+n 0 15.4 m 504 15.4 l S
+n 110.88 0 m 110.88 92.6 l S
+Q
+Q
+Q
+ 
+endstream
+endobj
+11 0 obj
+<<
+/Length 5041
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+.623529 .701961 .784314 RG
+.5 w
+n 54 47.52 m 558 47.52 l S
+BT /F1 6.6 Tf 7.92 TL ET
+.419608 .466667 .521569 rg
+BT 1 0 0 1 54 36 Tm (CONFIDENTIAL \227 Project Atlas \227 DR-060 \227 VistaPort Media Inc. \227 Subject to NDA & clean-team protocol.) Tj T* ET
+BT 1 0 0 1 537.0846 36 Tm (Page 2) Tj T* ET
+Q
+q
+1 0 0 1 60 727 cm
+Q
+q
+1 0 0 1 60 702 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (4. Root cause) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 630 cm
+q
+BT 1 0 0 1 0 56.3 Tm 13.2 TL /F1 9.7 Tf 0 0 0 rg (The proximate cause of the friction was the ) Tj /F2 9.7 Tf (planned credential-hygiene resets plus session invalidation) Tj /F1 9.7 Tf  T* (executed under Trust Reset. Invalidating a very large number of sessions simultaneously forced near-concurrent) Tj T* (re-authentication and password resets, which mechanically increased login-failure rates \(mistyped or forgotten) Tj T* (passwords\), reset volumes and support contacts. The friction was an expected by-product of the programme's) Tj T* (scale and compression, not a defect in VPAuth or VistaMail.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 605 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (5. What went well / what didn't) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 585.8 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 585.8 cm
+q
+BT 1 0 0 1 6 3.5 Tm 13.2 TL /F2 9.7 Tf 0 0 0 rg (Well:) Tj /F1 9.7 Tf ( no outage; VPAuth and sign-in remained available throughout.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 566.6 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 566.6 cm
+q
+BT 1 0 0 1 6 3.5 Tm 13.2 TL /F2 9.7 Tf 0 0 0 rg (Well:) Tj /F1 9.7 Tf ( suppression and reminder logic eventually smoothed the tail.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 547.4 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 547.4 cm
+q
+BT 1 0 0 1 6 3.5 Tm 13.2 TL /F2 9.7 Tf 0 0 0 rg (Didn't:) Tj /F1 9.7 Tf ( waves were compressed, concentrating support load.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 528.2 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 528.2 cm
+q
+BT 1 0 0 1 6 3.5 Tm 13.2 TL /F2 9.7 Tf 0 0 0 rg (Didn't:) Tj /F1 9.7 Tf ( engagement recovery was slower than modelled.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 503.2 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (6. Action items) Tj T* ET
+Q
+Q
+q
+1 0 0 1 54 422 cm
+q
+.121569 .227451 .372549 rg
+n 0 77.2 504 -15.6 re f*
+1 1 1 rg
+n 0 61.6 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 46.2 504 -15.4 re f*
+1 1 1 rg
+n 0 30.8 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 15.4 504 -15.4 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 4 64.1 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Action) Tj T* ET
+Q
+Q
+q
+1 0 0 1 225.76 64.1 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Owner) Tj T* ET
+Q
+Q
+q
+1 0 0 1 407.2 64.1 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Status) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Smooth future reset waves over a longer window) Tj T* ET
+Q
+Q
+q
+1 0 0 1 225.76 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Maya Hart, VP Product, Identity and Mail) Tj T* ET
+Q
+Q
+q
+1 0 0 1 407.2 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Planned) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Improve self-service reset to cut support contacts) Tj T* ET
+Q
+Q
+q
+1 0 0 1 225.76 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Raj Malhotra, VP Engineering, Platform) Tj T* ET
+Q
+Q
+q
+1 0 0 1 407.2 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (In progress) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Re-onboarding flow to restore logged-in engagement) Tj T* ET
+Q
+Q
+q
+1 0 0 1 225.76 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Maya Hart, VP Product, Identity and Mail) Tj T* ET
+Q
+Q
+q
+1 0 0 1 407.2 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Planned) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Complete VPAuth migration to simplify session handling) Tj T* ET
+Q
+Q
+q
+1 0 0 1 225.76 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Nina Petrov, Head of Security Engineering) Tj T* ET
+Q
+Q
+q
+1 0 0 1 407.2 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Roadmapped \(DR-047\)) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.4 w
+n 0 77.2 m 504 77.2 l S
+n 0 0 m 504 0 l S
+n 0 0 m 0 77.2 l S
+n 504 0 m 504 77.2 l S
+n 0 61.6 m 504 61.6 l S
+n 0 46.2 m 504 46.2 l S
+n 0 30.8 m 504 30.8 l S
+n 0 15.4 m 504 15.4 l S
+n 221.76 0 m 221.76 77.2 l S
+n 403.2 0 m 403.2 77.2 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 417 cm
+Q
+q
+1 0 0 1 60 400 cm
+q
+.419608 .466667 .521569 rg
+BT 1 0 0 1 0 2.6 Tm /F3 8.4 Tf 11 TL (Blameless postmortem. Authored by Maya Hart, VP Product, Identity and Mail. Incident NQ-17 \227 login friction / availability.) Tj T* ET
+Q
+Q
+ 
+endstream
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000061 00000 n 
+0000000112 00000 n 
+0000000219 00000 n 
+0000000331 00000 n 
+0000000446 00000 n 
+0000000640 00000 n 
+0000000834 00000 n 
+0000000902 00000 n 
+0000001253 00000 n 
+0000001318 00000 n 
+0000010606 00000 n 
+trailer
+<<
+/ID 
+[<ce636f9ae8b696c2da7f4893b86ebb44><ce636f9ae8b696c2da7f4893b86ebb44>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 8 0 R
+/Root 7 0 R
+/Size 12
+>>
+startxref
+15699
+%%EOF

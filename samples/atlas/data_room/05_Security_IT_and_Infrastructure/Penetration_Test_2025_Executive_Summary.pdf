@@ -1,0 +1,766 @@
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R /F3 4 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding /Name /F3 /Subtype /Type1 /Type /Font
+>>
+endobj
+5 0 obj
+<<
+/Contents 10 0 R /MediaBox [ 0 0 612 792 ] /Parent 9 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+6 0 obj
+<<
+/Contents 11 0 R /MediaBox [ 0 0 612 792 ] /Parent 9 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+7 0 obj
+<<
+/PageMode /UseNone /Pages 9 0 R /Type /Catalog
+>>
+endobj
+8 0 obj
+<<
+/Author (VistaPort Media Inc.) /CreationDate (D:20260107000000+00'00') /Creator (Project Atlas generator) /Keywords () /ModDate (D:20260107000000+00'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (Project Atlas data room) /Title (Penetration Test 2025 \204 Executive Summary) /Trapped /False
+>>
+endobj
+9 0 obj
+<<
+/Count 2 /Kids [ 5 0 R 6 0 R ] /Type /Pages
+>>
+endobj
+10 0 obj
+<<
+/Length 9043
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+.623529 .701961 .784314 RG
+.5 w
+n 54 47.52 m 558 47.52 l S
+BT /F1 6.6 Tf 7.92 TL ET
+.419608 .466667 .521569 rg
+BT 1 0 0 1 54 36 Tm (CONFIDENTIAL \227 Project Atlas \227 DR-063 \227 VistaPort Media Inc. \227 Subject to NDA & clean-team protocol.) Tj T* ET
+BT 1 0 0 1 537.0846 36 Tm (Page 1) Tj T* ET
+Q
+q
+1 0 0 1 60 712 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 3 Tm /F2 17 Tf 20 TL 64.1255 0 Td (Penetration Test 2025 \227 Executive Summary) Tj T* -64.1255 0 Td ET
+Q
+Q
+q
+1 0 0 1 60 693 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.5 Tm /F1 10.5 Tf 13 TL (Penetration Test 2025 \227 Executive Summary) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 684 cm
+Q
+q
+1 0 0 1 54 598.8 cm
+q
+.917647 .941176 .964706 rg
+n 0 85.2 504 -85.2 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 5 72.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Document ID) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 72.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (DR-063) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 58.4 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Prepared by / owner) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 58.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Nina Petrov) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 44.2 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Date) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 44.2 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (22 September 2025) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 30 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Classification) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 30 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Strictly Confidential \227 Project Atlas) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 15.8 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Assessor) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 15.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Independent \(grey-box\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 5 1.6 cm
+q
+.203922 .286275 .368627 rg
+BT 1 0 0 1 0 2.4 Tm /F2 8.6 Tf 11 TL (Test owner) Tj T* ET
+Q
+Q
+q
+1 0 0 1 102.2 1.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.4 Tm /F1 8.6 Tf 11 TL (Nina Petrov, Head of Security Engineering) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.121569 .227451 .372549 RG
+.6 w
+n 0 85.2 m 504 85.2 l S
+n 0 0 m 504 0 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 590.8 cm
+Q
+q
+1 0 0 1 60 532 cm
+q
+BT 1 0 0 1 0 43.1 Tm 13.2 TL /F1 9.7 Tf 0 0 0 rg (Executive summary of the FY2025 annual external penetration test of ) Tj /F2 9.7 Tf (VistaPort Media Inc.) Tj /F1 9.7 Tf (\222s internet-facing) Tj T* (services, authentication and identity platforms. Testing was performed by an independent assessor under a) Tj T* (grey-box methodology. This summary is provided for diligence; the full technical report and remediation tracker are) Tj T* (available on request.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 507 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (1. Scope and approach) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 487.8 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 487.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Internet-facing web and API surfaces across core consumer properties.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 468.6 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 468.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Authentication and session management \(VPAuth, SSOBridge\) including token handling.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 449.4 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 6.2 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 449.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Cloud configuration review of the primary object-storage and compute estate.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 417 cm
+BT /F1 7 Tf 8.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 19.4 Tm (\177) Tj T* ET
+Q
+q
+1 0 0 1 74 417 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 16.7 Tm /F1 9.7 Tf 13.2 TL -0.072491 Tw (Excluded: third-party managed services and components in active decommission \(see legacy-component note) Tj T* 0 Tw (below\).) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 392 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (2. Overall result) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 333.2 cm
+q
+BT 1 0 0 1 0 43.1 Tm 13.2 TL /F1 9.7 Tf 0 0 0 rg (The estate presented a ) Tj /F2 9.7 Tf (generally strong) Tj /F1 9.7 Tf ( security posture. No critical internet-facing vulnerabilities were) Tj T* (exploitable to a full compromise during the engagement. The majority of findings were low or informational. A small) Tj T* (number of ) Tj /F2 9.7 Tf (medium) Tj /F1 9.7 Tf ( findings relate to ) Tj /F3 9.7 Tf (legacy authentication components) Tj /F1 9.7 Tf ( scheduled for modernisation and are) Tj T* (summarised below.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 54 235.6 cm
+q
+.121569 .227451 .372549 rg
+n 0 92.6 504 -15.6 re f*
+1 1 1 rg
+n 0 77 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 61.6 504 -15.4 re f*
+1 1 1 rg
+n 0 46.2 504 -15.4 re f*
+.94902 .964706 .980392 rg
+n 0 30.8 504 -15.4 re f*
+1 1 1 rg
+n 0 15.4 504 -15.4 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 4 79.5 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Severity) Tj T* ET
+Q
+Q
+q
+1 0 0 1 155.2 79.5 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Count) Tj T* ET
+Q
+Q
+q
+1 0 0 1 245.92 79.5 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Status) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 64.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Critical) Tj T* ET
+Q
+Q
+q
+1 0 0 1 155.2 64.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (0) Tj T* ET
+Q
+Q
+q
+1 0 0 1 245.92 64.1 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (\227) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (High) Tj T* ET
+Q
+Q
+q
+1 0 0 1 155.2 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (0) Tj T* ET
+Q
+Q
+q
+1 0 0 1 245.92 48.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (\227) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Medium) Tj T* ET
+Q
+Q
+q
+1 0 0 1 155.2 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (4) Tj T* ET
+Q
+Q
+q
+1 0 0 1 245.92 33.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Remediation planned) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Low) Tj T* ET
+Q
+Q
+q
+1 0 0 1 155.2 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (11) Tj T* ET
+Q
+Q
+q
+1 0 0 1 245.92 17.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Tracked) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Informational) Tj T* ET
+Q
+Q
+q
+1 0 0 1 155.2 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (9) Tj T* ET
+Q
+Q
+q
+1 0 0 1 245.92 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Noted) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.4 w
+n 0 92.6 m 504 92.6 l S
+n 0 0 m 504 0 l S
+n 0 0 m 0 92.6 l S
+n 504 0 m 504 92.6 l S
+n 0 77 m 504 77 l S
+n 0 61.6 m 504 61.6 l S
+n 0 46.2 m 504 46.2 l S
+n 0 30.8 m 504 30.8 l S
+n 0 15.4 m 504 15.4 l S
+n 151.2 0 m 151.2 92.6 l S
+n 241.92 0 m 241.92 92.6 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 230.6 cm
+Q
+q
+1 0 0 1 60 205.6 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (3. Notable findings \227 legacy authentication components) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 160 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 29.9 Tm /F1 9.7 Tf 13.2 TL (Two related medium findings concern legacy elements of the authentication and backup estate. Both are flagged) Tj T* (for remediation under the modernisation roadmap; neither was independently exploited during testing but each) Tj T* (represents weak hygiene that should be closed.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 54 92.8 cm
+q
+.121569 .227451 .372549 rg
+n 0 62.2 504 -15.6 re f*
+1 1 1 rg
+n 0 46.6 504 -46.6 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 4 49.1 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Ref) Tj T* ET
+Q
+Q
+q
+1 0 0 1 64.48 49.1 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Finding) Tj T* ET
+Q
+Q
+q
+1 0 0 1 296.32 49.1 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Severity) Tj T* ET
+Q
+Q
+q
+1 0 0 1 356.8 49.1 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Recommendation) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 33.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (PT-25-007) Tj T* ET
+Q
+Q
+q
+1 0 0 1 64.48 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 33.3 Tm /F1 8.3 Tf 10.4 TL (Weak key-rotation hygiene on a legacy session-signing key.) Tj T* (A legacy VPAuth signing key has not been rotated within) Tj T* (policy; long-lived signing material increases the impact of) Tj T* (any key compromise.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 296.32 33.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Medium) Tj T* ET
+Q
+Q
+q
+1 0 0 1 356.8 12.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 22.9 Tm /F1 8.3 Tf 10.4 TL (Rotate the legacy signing key and) Tj T* (retire it from the active validation set;) Tj T* (enforce automated rotation.) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.4 w
+n 0 62.2 m 504 62.2 l S
+n 0 0 m 0 62.2 l S
+n 504 0 m 504 62.2 l S
+n 0 0 m 504 0 l S
+n 0 46.6 m 504 46.6 l S
+n 60.48 0 m 60.48 62.2 l S
+n 292.32 0 m 292.32 62.2 l S
+n 352.8 0 m 352.8 62.2 l S
+Q
+Q
+Q
+ 
+endstream
+endobj
+11 0 obj
+<<
+/Length 4063
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+.623529 .701961 .784314 RG
+.5 w
+n 54 47.52 m 558 47.52 l S
+BT /F1 6.6 Tf 7.92 TL ET
+.419608 .466667 .521569 rg
+BT 1 0 0 1 54 36 Tm (CONFIDENTIAL \227 Project Atlas \227 DR-063 \227 VistaPort Media Inc. \227 Subject to NDA & clean-team protocol.) Tj T* ET
+BT 1 0 0 1 537.0846 36 Tm (Page 2) Tj T* ET
+Q
+q
+1 0 0 1 54 644 cm
+q
+.121569 .227451 .372549 rg
+n 0 88 504 -15.6 re f*
+1 1 1 rg
+n 0 72.4 504 -46.6 re f*
+.94902 .964706 .980392 rg
+n 0 25.8 504 -25.8 re f*
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 4 74.9 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Ref) Tj T* ET
+Q
+Q
+q
+1 0 0 1 64.48 74.9 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Finding) Tj T* ET
+Q
+Q
+q
+1 0 0 1 296.32 74.9 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Severity) Tj T* ET
+Q
+Q
+q
+1 0 0 1 356.8 74.9 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 2.2 Tm /F2 8.4 Tf 10.6 TL (Recommendation) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 59.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (PT-25-011) Tj T* ET
+Q
+Q
+q
+1 0 0 1 64.48 28.3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 33.3 Tm /F1 8.3 Tf 10.4 TL (Over-retained backup with weak encryption. A historical) Tj T* (account-profile backup is retained beyond the data-retention) Tj T* (policy window and is protected with a weak/legacy) Tj T* (encryption scheme.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 296.32 59.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Medium) Tj T* ET
+Q
+Q
+q
+1 0 0 1 356.8 38.7 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 22.9 Tm /F1 8.3 Tf 10.4 TL (Purge or re-encrypt the backup to) Tj T* (current standards; bring retention into) Tj T* (policy and document disposition.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 4 12.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (PT-25-014) Tj T* ET
+Q
+Q
+q
+1 0 0 1 64.48 12.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Stale privileged/service accounts on legacy storage paths.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 296.32 12.9 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2.1 Tm /F1 8.3 Tf 10.4 TL (Medium) Tj T* ET
+Q
+Q
+q
+1 0 0 1 356.8 2.5 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 12.5 Tm /F1 8.3 Tf 10.4 TL (Disable unused privileged accounts;) Tj T* (tighten access to backup storage.) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.4 w
+n 0 88 m 504 88 l S
+n 0 72.4 m 0 88 l S
+n 0 0 m 0 72.4 l S
+n 504 72.4 m 504 88 l S
+n 504 0 m 504 72.4 l S
+n 0 0 m 504 0 l S
+n 0 72.4 m 504 72.4 l S
+n 60.48 72.4 m 60.48 88 l S
+n 292.32 72.4 m 292.32 88 l S
+n 352.8 72.4 m 352.8 88 l S
+n 0 25.8 m 504 25.8 l S
+n 60.48 0 m 60.48 72.4 l S
+n 292.32 0 m 292.32 72.4 l S
+n 352.8 0 m 352.8 72.4 l S
+Q
+Q
+Q
+q
+1 0 0 1 60 639 cm
+Q
+q
+1 0 0 1 60 614 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 2.5 Tm /F2 12.5 Tf 15 TL (4. Recommendations and timeline) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 594.8 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 1.2 Tm (1) Tj T* ET
+Q
+q
+1 0 0 1 76 594.8 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Prioritise rotation of legacy signing material ahead of the wider VPAuth migration.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 575.6 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 1.2 Tm (2) Tj T* ET
+Q
+q
+1 0 0 1 76 575.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Complete purge/re-encryption of over-retained backups and confirm policy compliance.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 556.4 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 1.2 Tm (3) Tj T* ET
+Q
+q
+1 0 0 1 76 556.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Remediate stale privileged accounts and complete the next quarterly access review.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 537.2 cm
+BT /F1 12 Tf 14.4 TL ET
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 1.2 Tm (4) Tj T* ET
+Q
+q
+1 0 0 1 76 537.2 cm
+q
+0 0 0 rg
+BT 1 0 0 1 6 3.5 Tm /F1 9.7 Tf 13.2 TL (Re-test the legacy authentication findings after remediation.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 60 509.2 cm
+q
+.419608 .466667 .521569 rg
+BT 1 0 0 1 0 13.6 Tm /F3 8.4 Tf 11 TL (Medium findings on legacy authentication components are expected to be closed under the FY2026 modernisation roadmap.) Tj T* (Assessor\222s full report retained by Security Engineering.) Tj T* ET
+Q
+Q
+ 
+endstream
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000061 00000 n 
+0000000112 00000 n 
+0000000219 00000 n 
+0000000331 00000 n 
+0000000446 00000 n 
+0000000640 00000 n 
+0000000834 00000 n 
+0000000902 00000 n 
+0000001236 00000 n 
+0000001301 00000 n 
+0000010396 00000 n 
+trailer
+<<
+/ID 
+[<bfa0da4fd8e853fc1c4392929bb2ab43><bfa0da4fd8e853fc1c4392929bb2ab43>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 8 0 R
+/Root 7 0 R
+/Size 12
+>>
+startxref
+14511
+%%EOF
