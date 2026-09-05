@@ -96,7 +96,7 @@
     {
       "id": "cobalt-term-length",
       "kind": "number",
-      "value": "36 months",
+      "value": "36-month",
       "documents": [
         "sample_data_room/Northwind_Logistics/arr_schedule.xlsx.md",
         "sample_data_room/Northwind_Logistics/order_form_cobalt_retail.pdf.md"

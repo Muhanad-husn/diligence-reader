@@ -29,7 +29,7 @@
     {
       "id": "revenue-2025",
       "kind": "number",
-      "value": "$24.8M",
+      "value": "24.8",
       "documents": [
         "revenue_summary.xlsx",
         "board_materials/q1-board-update.md"
@@ -39,7 +39,7 @@
     {
       "id": "revenue-2024",
       "kind": "number",
-      "value": "$22.2M",
+      "value": "22.2",
       "documents": [
         "revenue_summary.xlsx"
       ],
@@ -94,7 +94,7 @@
     {
       "id": "clouddent-top-vendor",
       "kind": "identifier",
-      "value": "CloudDent Practice Systems",
+      "value": "CloudDent",
       "documents": [
         "vendor_agreements/clouddent-practice-systems.md",
         "risks/risk_register.md"
