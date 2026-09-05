@@ -48,11 +48,11 @@ identical.
 
 | NN | Slice | Plan | Issue | Depends on |
 |---|---|---|---|---|
-| 01 | Sections and anchors on sample 1, all seven formats | [01-sections-atlas.md](01-sections-atlas.md) | | none |
-| 02 | The index: dates, amounts, names, identifiers, on sample 1 | [02-index-atlas.md](02-index-atlas.md) | | 01 |
-| 03 | The index: status words, version pairs, series, on sample 1 | [03-index-status-versions-series-atlas.md](03-index-status-versions-series-atlas.md) | | 01 |
-| 04 | Sections and index on samples 2 and 3, sample 1's digest unmoved | [04-ingest-northwind-northstar.md](04-ingest-northwind-northstar.md) | | 02, 03 |
-| 05 | Phase 1 gate | [05-gate.md](05-gate.md) | | 04 |
+| 01 | Sections and anchors on sample 1, all seven formats | [01-sections-atlas.md](01-sections-atlas.md) | #14 | none |
+| 02 | The index: dates, amounts, names, identifiers, on sample 1 | [02-index-atlas.md](02-index-atlas.md) | #15 | 01 |
+| 03 | The index: status words, version pairs, series, on sample 1 | [03-index-status-versions-series-atlas.md](03-index-status-versions-series-atlas.md) | #16 | 01 |
+| 04 | Sections and index on samples 2 and 3, sample 1's digest unmoved | [04-ingest-northwind-northstar.md](04-ingest-northwind-northstar.md) | #17 | 02, 03 |
+| 05 | Phase 1 gate | [05-gate.md](05-gate.md) | #18 | 04 |
 
 Order of work: 01, then 02 and 03 concurrently, then 04, then 05.
 

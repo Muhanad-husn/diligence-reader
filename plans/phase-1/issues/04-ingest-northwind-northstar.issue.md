@@ -1,7 +1,7 @@
 # feat(phase-1): sections and index on samples 2 and 3, sample 1's digest unmoved [slice 04]
 
-**Issue:** to be filed · **Spec:** PLAN.md#4-phases, row "1 Ingest" · **Plan:** plans/phase-1/04-ingest-northwind-northstar.md
-**Depends on:** 02-index-atlas, 03-index-status-versions-series-atlas
+**Issue:** #17 · **Spec:** PLAN.md#4-phases, row "1 Ingest" · **Plan:** plans/phase-1/04-ingest-northwind-northstar.md
+**Depends on:** #15, #16
 **Labels:** phase-1
 
 ## Deliverable

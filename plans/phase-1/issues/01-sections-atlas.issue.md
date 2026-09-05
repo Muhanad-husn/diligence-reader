@@ -1,6 +1,6 @@
 # feat(phase-1): sections and anchors on sample 1, all seven formats [slice 01]
 
-**Issue:** to be filed · **Spec:** PLAN.md#4-phases, row "1 Ingest" · **Plan:** plans/phase-1/01-sections-atlas.md
+**Issue:** #14 · **Spec:** PLAN.md#4-phases, row "1 Ingest" · **Plan:** plans/phase-1/01-sections-atlas.md
 **Depends on:** none
 **Labels:** phase-1
 

@@ -1,7 +1,7 @@
 # feat(phase-1): the index: status words, version pairs, series, on sample 1 [slice 03]
 
-**Issue:** to be filed · **Spec:** PLAN.md#4-phases, row "1 Ingest" · **Plan:** plans/phase-1/03-index-status-versions-series-atlas.md
-**Depends on:** 01-sections-atlas
+**Issue:** #16 · **Spec:** PLAN.md#4-phases, row "1 Ingest" · **Plan:** plans/phase-1/03-index-status-versions-series-atlas.md
+**Depends on:** #14
 **Labels:** phase-1
 
 ## Deliverable

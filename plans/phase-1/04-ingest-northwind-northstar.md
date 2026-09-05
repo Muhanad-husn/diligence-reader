@@ -1,6 +1,6 @@
 # 04: Sections and index on samples 2 and 3, sample 1's digest unmoved
 
-Issue: to be filed
+Issue: [#17](https://github.com/Muhanad-husn/RLM/issues/17)
 
 ## Goal
 

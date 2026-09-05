@@ -1,6 +1,6 @@
 # 05: Phase 1 gate
 
-Issue: to be filed
+Issue: [#18](https://github.com/Muhanad-husn/RLM/issues/18)
 
 ## Goal
 

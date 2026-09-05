@@ -1,6 +1,6 @@
 # 03: The index: status words, version pairs, series, on sample 1
 
-Issue: to be filed
+Issue: [#16](https://github.com/Muhanad-husn/RLM/issues/16)
 
 ## Goal
 

@@ -1,7 +1,7 @@
 # feat(phase-1): the index: dates, amounts, names, identifiers, on sample 1 [slice 02]
 
-**Issue:** to be filed · **Spec:** PLAN.md#4-phases, row "1 Ingest" · **Plan:** plans/phase-1/02-index-atlas.md
-**Depends on:** 01-sections-atlas
+**Issue:** #15 · **Spec:** PLAN.md#4-phases, row "1 Ingest" · **Plan:** plans/phase-1/02-index-atlas.md
+**Depends on:** #14
 **Labels:** phase-1
 
 ## Deliverable

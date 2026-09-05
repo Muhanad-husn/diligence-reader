@@ -1,6 +1,6 @@
 # 02: The index: dates, amounts, names, identifiers, on sample 1
 
-Issue: to be filed
+Issue: [#15](https://github.com/Muhanad-husn/RLM/issues/15)
 
 ## Goal
 

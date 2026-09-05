@@ -1,7 +1,7 @@
 # chore(phase-1): Phase 1 gate [slice 05]
 
-**Issue:** to be filed · **Spec:** PLAN.md#4-phases, row "1 Ingest" · **Plan:** plans/phase-1/05-gate.md
-**Depends on:** 04-ingest-northwind-northstar
+**Issue:** #18 · **Spec:** PLAN.md#4-phases, row "1 Ingest" · **Plan:** plans/phase-1/05-gate.md
+**Depends on:** #17
 **Labels:** phase-1
 
 ## Deliverable
