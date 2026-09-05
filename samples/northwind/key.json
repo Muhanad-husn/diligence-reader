@@ -1,0 +1,206 @@
+{
+  "sample": "northwind",
+  "brief": "brief.md",
+  "documents": {
+    "sample_data_room/Northwind_Logistics/msa_meridian_freight.pdf.md": "sample_data_room/Northwind_Logistics/msa_meridian_freight.pdf.md",
+    "sample_data_room/Northwind_Logistics/arr_schedule.xlsx.md": "sample_data_room/Northwind_Logistics/arr_schedule.xlsx.md",
+    "sample_data_room/Northwind_Logistics/cap_table_summary.pdf.md": "sample_data_room/Northwind_Logistics/cap_table_summary.pdf.md",
+    "sample_data_room/Northwind_Logistics/board_deck_excerpt.pdf.md": "sample_data_room/Northwind_Logistics/board_deck_excerpt.pdf.md",
+    "sample_data_room/Northwind_Logistics/msa_harbor_foods.pdf.md": "sample_data_room/Northwind_Logistics/msa_harbor_foods.pdf.md",
+    "sample_data_room/Northwind_Logistics/order_form_cobalt_retail.pdf.md": "sample_data_room/Northwind_Logistics/order_form_cobalt_retail.pdf.md",
+    "sample_data_room/Northwind_Logistics/msa_granite_manufacturing.pdf.md": "sample_data_room/Northwind_Logistics/msa_granite_manufacturing.pdf.md",
+    "sample_data_room/Northwind_Logistics/dpa_tidewater.pdf.md": "sample_data_room/Northwind_Logistics/dpa_tidewater.pdf.md",
+    "sample_data_room/Northwind_Logistics/subprocessor_register.pdf.md": "sample_data_room/Northwind_Logistics/subprocessor_register.pdf.md",
+    "sample_data_room/Northwind_Logistics/contractor_agreement_route_engine.pdf.md": "sample_data_room/Northwind_Logistics/contractor_agreement_route_engine.pdf.md",
+    "sample_data_room/Northwind_Logistics/employment_ip_agreement.pdf.md": "sample_data_room/Northwind_Logistics/employment_ip_agreement.pdf.md",
+    "sample_data_room/_reference/buyer_overview.pdf.md": "sample_data_room/_reference/buyer_overview.pdf.md"
+  },
+  "required_documents": [
+    "sample_data_room/Northwind_Logistics/msa_meridian_freight.pdf.md",
+    "sample_data_room/Northwind_Logistics/arr_schedule.xlsx.md",
+    "sample_data_room/Northwind_Logistics/cap_table_summary.pdf.md",
+    "sample_data_room/Northwind_Logistics/board_deck_excerpt.pdf.md",
+    "sample_data_room/Northwind_Logistics/msa_harbor_foods.pdf.md",
+    "sample_data_room/Northwind_Logistics/order_form_cobalt_retail.pdf.md",
+    "sample_data_room/Northwind_Logistics/dpa_tidewater.pdf.md",
+    "sample_data_room/Northwind_Logistics/subprocessor_register.pdf.md",
+    "sample_data_room/Northwind_Logistics/contractor_agreement_route_engine.pdf.md",
+    "sample_data_room/Northwind_Logistics/employment_ip_agreement.pdf.md"
+  ],
+  "decoys": [
+    {
+      "document": "sample_data_room/Northwind_Logistics/msa_granite_manufacturing.pdf.md",
+      "why": "A change-of-control clause that requires the non-assigning party's consent (not unreasonably withheld) and states a change of control does not itself give either party a termination right; the benign, consent-based control case against Meridian's automatic termination."
+    }
+  ],
+  "facts": [
+    {
+      "id": "meridian-arr",
+      "kind": "number",
+      "value": "$12,400,000",
+      "documents": [
+        "sample_data_room/Northwind_Logistics/arr_schedule.xlsx.md",
+        "sample_data_room/Northwind_Logistics/board_deck_excerpt.pdf.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "meridian-arr-pct",
+      "kind": "number",
+      "value": "30.1%",
+      "documents": [
+        "sample_data_room/Northwind_Logistics/arr_schedule.xlsx.md",
+        "sample_data_room/Northwind_Logistics/board_deck_excerpt.pdf.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "total-arr",
+      "kind": "number",
+      "value": "$41,200,000",
+      "documents": [
+        "sample_data_room/Northwind_Logistics/arr_schedule.xlsx.md",
+        "sample_data_room/Northwind_Logistics/board_deck_excerpt.pdf.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "harbor-termination-notice",
+      "kind": "number",
+      "value": "thirty (30) days",
+      "documents": [
+        "sample_data_room/Northwind_Logistics/msa_harbor_foods.pdf.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "harbor-arr-pct",
+      "kind": "number",
+      "value": "16.5%",
+      "documents": [
+        "sample_data_room/Northwind_Logistics/arr_schedule.xlsx.md",
+        "sample_data_room/Northwind_Logistics/board_deck_excerpt.pdf.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "cobalt-tcv",
+      "kind": "number",
+      "value": "$28,800,000",
+      "documents": [
+        "sample_data_room/Northwind_Logistics/order_form_cobalt_retail.pdf.md",
+        "sample_data_room/Northwind_Logistics/arr_schedule.xlsx.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "cobalt-term-length",
+      "kind": "number",
+      "value": "36-month",
+      "documents": [
+        "sample_data_room/Northwind_Logistics/arr_schedule.xlsx.md",
+        "sample_data_room/Northwind_Logistics/order_form_cobalt_retail.pdf.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "meridian-coc-termination",
+      "kind": "quote",
+      "value": "Notwithstanding any other provision of this Agreement, including Sections 11.1 and 12.2, in the event of a Change of Control of Provider, Customer may terminate this Agreement, effective immediately, by delivering written notice of such election to Provider (or its successor) at any time within sixty (60) days following the later of (i) the closing of the Change of Control or (ii) Customer's receipt of the notice required under Section 12.3(b). Such termination shall be automatic and effective upon Customer's written election, and shall not require the consent of Provider or its successor, nor shall it be subject to any cure period, transition period, or wind-down obligation.",
+      "documents": [
+        "sample_data_room/Northwind_Logistics/msa_meridian_freight.pdf.md"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "captable-coc-confirmation",
+      "kind": "quote",
+      "value": "constitutes a Change of Control",
+      "documents": [
+        "sample_data_room/Northwind_Logistics/cap_table_summary.pdf.md"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "deck-no-coc-flagged",
+      "kind": "quote",
+      "value": "No customer-termination, change-of-control, or contract-portability items are flagged in this excerpt.",
+      "documents": [
+        "sample_data_room/Northwind_Logistics/board_deck_excerpt.pdf.md"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "tidewater-subprocessor-gap",
+      "kind": "quote",
+      "value": "No EU Standard Contractual Clauses (SCCs) are on file",
+      "documents": [
+        "sample_data_room/Northwind_Logistics/subprocessor_register.pdf.md"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "contractor-ip-gap",
+      "kind": "quote",
+      "value": "This Agreement contains no provision assigning, transferring, or vesting in Company ownership of, or any work-made-for-hire designation with respect to, the intellectual property, source code, algorithms, or other work product created by Contractor in connection with the Services.",
+      "documents": [
+        "sample_data_room/Northwind_Logistics/contractor_agreement_route_engine.pdf.md"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "hero-documents",
+      "kind": "document",
+      "value": "the four hero documents of the Meridian change-of-control revenue-cliff matter",
+      "documents": [
+        "sample_data_room/Northwind_Logistics/msa_meridian_freight.pdf.md",
+        "sample_data_room/Northwind_Logistics/arr_schedule.xlsx.md",
+        "sample_data_room/Northwind_Logistics/cap_table_summary.pdf.md",
+        "sample_data_room/Northwind_Logistics/board_deck_excerpt.pdf.md"
+      ],
+      "phase": 3
+    },
+    {
+      "id": "deck-vs-msa-coc",
+      "kind": "comparison",
+      "value": "No customer-termination, change-of-control, or contract-portability items are flagged against effective immediately",
+      "documents": [
+        "sample_data_room/Northwind_Logistics/board_deck_excerpt.pdf.md",
+        "sample_data_room/Northwind_Logistics/msa_meridian_freight.pdf.md"
+      ],
+      "phase": 4
+    },
+    {
+      "id": "contractor-vs-employee-ip",
+      "kind": "comparison",
+      "value": "contains no provision assigning against hereby irrevocably assigns",
+      "documents": [
+        "sample_data_room/Northwind_Logistics/contractor_agreement_route_engine.pdf.md",
+        "sample_data_room/Northwind_Logistics/employment_ip_agreement.pdf.md"
+      ],
+      "phase": 4
+    },
+    {
+      "id": "revenue-cliff-answer",
+      "kind": "number",
+      "value": "$12.4m",
+      "documents": [
+        "sample_data_room/Northwind_Logistics/msa_meridian_freight.pdf.md",
+        "sample_data_room/Northwind_Logistics/arr_schedule.xlsx.md"
+      ],
+      "phase": 5
+    }
+  ],
+  "answer": {
+    "action": "price the revenue cliff at close",
+    "number": 12.4,
+    "low": 12.4,
+    "high": 12.4,
+    "unit": "USD millions"
+  },
+  "rubric": [],
+  "bar": {
+    "perfect": 100,
+    "wrong_under": 40
+  }
+}
