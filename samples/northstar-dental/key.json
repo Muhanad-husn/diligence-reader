@@ -1,0 +1,166 @@
+{
+  "sample": "northstar-dental",
+  "brief": "brief.md",
+  "documents": {
+    "board_materials/q1-board-update.md": "board_materials/q1-board-update.md",
+    "cim.md": "cim.md",
+    "company_profile.md": "company_profile.md",
+    "customer_contracts/buckeye-family-health-plan.md": "customer_contracts/buckeye-family-health-plan.md",
+    "customer_contracts/midwest-dental-benefits-network.md": "customer_contracts/midwest-dental-benefits-network.md",
+    "customer_contracts/riverbend-employer-dental-plan.md": "customer_contracts/riverbend-employer-dental-plan.md",
+    "customer_contracts/self-pay-and-retail-patients.md": "customer_contracts/self-pay-and-retail-patients.md",
+    "hr/employee_roster.xlsx": "hr/employee_roster.xlsx",
+    "revenue_summary.xlsx": "revenue_summary.xlsx",
+    "risks/risk_register.md": "risks/risk_register.md",
+    "vendor_agreements/clearview-revenue-cycle-services.md": "vendor_agreements/clearview-revenue-cycle-services.md",
+    "vendor_agreements/clouddent-practice-systems.md": "vendor_agreements/clouddent-practice-systems.md",
+    "vendor_agreements/smilesupply-distribution.md": "vendor_agreements/smilesupply-distribution.md"
+  },
+  "required_documents": [
+    "cim.md",
+    "revenue_summary.xlsx",
+    "vendor_agreements/clouddent-practice-systems.md",
+    "risks/risk_register.md",
+    "customer_contracts/buckeye-family-health-plan.md",
+    "customer_contracts/midwest-dental-benefits-network.md"
+  ],
+  "decoys": [],
+  "facts": [
+    {
+      "id": "revenue-2025",
+      "kind": "number",
+      "value": "$24.8M",
+      "documents": [
+        "revenue_summary.xlsx",
+        "board_materials/q1-board-update.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "revenue-2024",
+      "kind": "number",
+      "value": "$22.2M",
+      "documents": [
+        "revenue_summary.xlsx"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "growth-actual",
+      "kind": "number",
+      "value": "11.7%",
+      "documents": [
+        "revenue_summary.xlsx"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "clouddent-renewal",
+      "kind": "date",
+      "value": "2025-09-30",
+      "documents": [
+        "vendor_agreements/clouddent-practice-systems.md",
+        "risks/risk_register.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "buckeye-revenue",
+      "kind": "number",
+      "value": "$5.8M",
+      "documents": [
+        "customer_contracts/buckeye-family-health-plan.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "midwest-revenue",
+      "kind": "number",
+      "value": "$4.2M",
+      "documents": [
+        "customer_contracts/midwest-dental-benefits-network.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "buckeye-midwest-combined",
+      "kind": "number",
+      "value": "$10.0M",
+      "documents": [
+        "risks/risk_register.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "clouddent-top-vendor",
+      "kind": "identifier",
+      "value": "CloudDent Practice Systems",
+      "documents": [
+        "vendor_agreements/clouddent-practice-systems.md",
+        "risks/risk_register.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "cim-growth-claim",
+      "kind": "quote",
+      "value": "18.0% year-over-year revenue growth",
+      "documents": [
+        "cim.md"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "clouddent-system-of-record",
+      "kind": "quote",
+      "value": "Single system of record for scheduling, claims, and treatment plans.",
+      "documents": [
+        "vendor_agreements/clouddent-practice-systems.md"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "matter-documents",
+      "kind": "document",
+      "value": "the revenue-growth-contradiction documents: the CIM, the revenue workbook, and the Q1 board update",
+      "documents": [
+        "cim.md",
+        "revenue_summary.xlsx",
+        "board_materials/q1-board-update.md"
+      ],
+      "phase": 3
+    },
+    {
+      "id": "growth-claimed-vs-actual",
+      "kind": "comparison",
+      "value": "18.0% claimed in the CIM against 11.7% computed from $22.2M in 2024 to $24.8M in 2025",
+      "documents": [
+        "cim.md",
+        "revenue_summary.xlsx"
+      ],
+      "phase": 4
+    },
+    {
+      "id": "restated-growth-answer",
+      "kind": "number",
+      "value": "11.7%",
+      "documents": [
+        "revenue_summary.xlsx",
+        "cim.md"
+      ],
+      "phase": 5
+    }
+  ],
+  "answer": {
+    "action": "restate year-over-year revenue growth from the CIM's claimed 18.0% to the workbook's 11.7%",
+    "number": 11.7,
+    "low": 11.7,
+    "high": 11.7,
+    "unit": "percent"
+  },
+  "rubric": [],
+  "bar": {
+    "perfect": 100,
+    "wrong_under": 40
+  }
+}
