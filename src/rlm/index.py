@@ -317,8 +317,9 @@ def _phrases(piece: str) -> list[str]:
 def _names(sections: list[dict]) -> list[dict]:
     """Reads names: the capitalised multi-word forms, and words that repeat across documents.
 
-    A single word is a name where it stands inside a sentence rather than at its start, and
-    where it is in more than one document. That repetition is what stands in for a dictionary.
+    A single word is a name where it stands inside a sentence, rather than at its start, in
+    more than one document. That repetition is what stands in for a dictionary. Once a word is
+    a name, every occurrence of it is recorded, the start of a line included.
     """
     phrases = []
     words = []
@@ -328,13 +329,15 @@ def _names(sections: list[dict]) -> list[dict]:
             for phrase in _phrases(piece):
                 phrases.append(("name", phrase, None, phrase, *place))
             for match in _WORD.finditer(piece):
-                if _mid_sentence(piece, match.start()):
-                    words.append(("name", match.group(0), None, match.group(0), *place))
+                mid = _mid_sentence(piece, match.start())
+                words.append((mid, ("name", match.group(0), None, match.group(0), *place)))
 
     repeated = {}
-    for occurrence in words:
-        repeated.setdefault(occurrence[1], set()).add(occurrence[4])
-    kept = [occurrence for occurrence in words if len(repeated[occurrence[1]]) > 1]
+    for mid, occurrence in words:
+        if mid:
+            repeated.setdefault(occurrence[1], set()).add(occurrence[4])
+    established = {surface for surface, docs in repeated.items() if len(docs) > 1}
+    kept = [occurrence for mid, occurrence in words if occurrence[1] in established]
     return _group(phrases + kept)
 
 
