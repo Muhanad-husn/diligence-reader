@@ -8,6 +8,7 @@ coverage line. A sample whose ingest is not enabled yet is skipped."""
 import csv
 import email
 import email.policy
+import hashlib
 import json
 import mailbox
 import re
@@ -86,6 +87,13 @@ def ingested(sample, sample_dir, run_dir, capsys):
 @pytest.fixture
 def key(sample_dir):
     return load_key(sample_dir)
+
+
+@pytest.fixture
+def indexed(ingested):
+    """The index records of the sample's first run, read back from index.jsonl."""
+    path = ingested.first.with_name("index.jsonl")
+    return tuple(json.loads(line) for line in path.read_text(encoding="utf-8").splitlines())
 
 
 def test_sections_anchor_round_trip():
@@ -200,6 +208,197 @@ def test_sections_run_prints_one_coverage_line(ingested, key):
     )
     assert ingested.coverage.sections == len(ingested.records)
     assert ingested.coverage.documents >= len(key.documents)
+
+
+# The status words sample 1's own documents carry, from the key's account of the room. A
+# document may carry more than the ones named here; these are the ones that must be there.
+ATLAS_STATUS = {
+    "data_room/05_Security_IT_and_Infrastructure/Network_Quality_Ticket_NQ17_Redacted.txt": {"redacted"},
+    "data_room/06_Legal_Regulatory_and_Compliance/Outside_Counsel_Privacy_Risk_Memo_Redacted.pdf": {
+        "redacted",
+        "privileged",
+    },
+    "data_room/02_Financials_and_Tax/Draft_Financials_FY2025.pdf": {"draft"},
+    "data_room/02_Financials_and_Tax/Audited_Financials_FY2023.pdf": {"final"},
+    "data_room/02_Financials_and_Tax/Audited_Financials_FY2024.pdf": {"final"},
+}
+
+STATUS_VALUES = {"draft", "final", "redacted", "privileged", "confidential"}
+
+AURORA_DRAFT = "data_room/05_Security_IT_and_Infrastructure/Aurora_Phase1_Technical_Findings_Draft.pdf"
+AURORA_FINAL = "data_room/05_Security_IT_and_Infrastructure/Aurora_Executive_Summary_Final.pdf"
+DRAFT_FINANCIALS = "data_room/02_Financials_and_Tax/Draft_Financials_FY2025.pdf"
+FINANCE_PACKS = [
+    f"data_room/02_Financials_and_Tax/Monthly_Finance_Pack_2025_{month}.pdf"
+    for month in ("09", "10", "11", "12")
+]
+VISTAMAIL = "data_room/04_Product_Data_and_Technology/VistaMail_KPI_Weekly_Q4_2025.csv"
+USER_METRICS = "data_room/04_Product_Data_and_Technology/User_Metrics_Dashboard_Q3_Q4_2025.xlsx"
+
+RECORD_KEYS = {"anchors", "context", "docs", "kind", "surface", "unit", "value"}
+
+
+def records_of(indexed, kind):
+    """The index records of one kind, in the order the file holds them."""
+    return [record for record in indexed if record["kind"] == kind]
+
+
+def test_status_records_are_well_shaped(indexed, ingested):
+    """Every record carries the seven keys, and every anchor is a section this run wrote."""
+    anchors = {record["anchor"] for record in ingested.records}
+    for record in indexed:
+        assert set(record) == RECORD_KEYS, record
+        assert isinstance(record["docs"], list) and record["docs"]
+        assert isinstance(record["anchors"], list) and record["anchors"]
+        for anchor in record["anchors"]:
+            assert anchor in anchors, anchor
+        for doc in record["docs"]:
+            assert any(anchor.startswith(doc + "#") for anchor in anchors), doc
+
+    for record in records_of(indexed, "status"):
+        assert record["value"] in STATUS_VALUES
+        assert record["unit"] is None
+        assert len(record["docs"]) == 1
+        assert len(record["anchors"]) == 1
+        assert record["anchors"][0].startswith(record["docs"][0] + "#")
+        assert record["surface"]
+        assert record["surface"].lower() in record["context"].lower()
+
+
+def test_status_words_name_the_documents_that_carry_them(indexed, sample):
+    """The redacted ticket, the counsel memo, the draft year and the two audited years."""
+    if sample != "atlas":
+        pytest.skip("the status words of this sample are not pinned here")
+    carried = {}
+    for record in records_of(indexed, "status"):
+        carried.setdefault(record["docs"][0], set()).add(record["value"])
+    for doc, wanted in ATLAS_STATUS.items():
+        assert wanted <= carried.get(doc, set()), doc
+
+
+def test_status_index_file_is_sorted_and_two_runs_agree(indexed, ingested):
+    """index.jsonl holds one sorted JSON object per line and two runs write the same bytes."""
+    first = ingested.first.with_name("index.jsonl")
+    second = ingested.second.with_name("index.jsonl")
+    assert first.read_bytes() == second.read_bytes()
+
+    lines = first.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == len(indexed)
+    for line, record in zip(lines, indexed):
+        assert line == json.dumps(record, sort_keys=True, ensure_ascii=False)
+    order = [
+        (record["kind"], json.dumps(record["value"], sort_keys=True), record["anchors"][0])
+        for record in indexed
+    ]
+    assert order == sorted(order)
+
+
+def test_versions_pair_the_aurora_draft_with_its_final(indexed, sample):
+    """The one version pair in the room is AURORA, ordered draft 2025-11-12 then final 2025-11-20."""
+    if sample != "atlas":
+        pytest.skip("the version pairs of this sample are not pinned here")
+    pairs = records_of(indexed, "version-pair")
+    assert len(pairs) == 1, [pair["value"] for pair in pairs]
+    pair = pairs[0]
+    assert pair["surface"] == "AURORA"
+    assert pair["unit"] is None
+    assert pair["value"] == {
+        "draft": AURORA_DRAFT,
+        "draft_date": "2025-11-12",
+        "final": AURORA_FINAL,
+        "final_date": "2025-11-20",
+    }
+    assert pair["docs"] == [AURORA_DRAFT, AURORA_FINAL]
+    assert [anchor.split("#")[0] for anchor in pair["anchors"]] == [AURORA_DRAFT, AURORA_FINAL]
+
+
+def test_versions_leave_a_draft_with_no_final_unpaired(indexed, sample):
+    """Draft_Financials_FY2025 has no final in the room, so it is in no pair."""
+    if sample != "atlas":
+        pytest.skip("the version pairs of this sample are not pinned here")
+    for pair in records_of(indexed, "version-pair"):
+        assert DRAFT_FINANCIALS not in pair["docs"]
+
+
+def test_versions_put_no_document_in_two_pairs(indexed):
+    """A document is in at most one version pair, whatever the sample."""
+    seen = []
+    for pair in records_of(indexed, "version-pair"):
+        assert len(pair["docs"]) == 2
+        seen.extend(pair["docs"])
+    assert len(seen) == len(set(seen)), seen
+
+
+def test_series_hold_the_four_monthly_finance_packs(indexed, sample):
+    """The four monthly finance packs are one document series with step month, in order."""
+    if sample != "atlas":
+        pytest.skip("the series of this sample are not pinned here")
+    packs = [
+        record
+        for record in records_of(indexed, "series")
+        if record["value"]["form"] == "documents" and record["docs"] == FINANCE_PACKS
+    ]
+    assert len(packs) == 1
+    packs = packs[0]
+    assert packs["value"]["step"] == "month"
+    assert packs["value"]["members"] == FINANCE_PACKS
+    assert [anchor.split("#")[0] for anchor in packs["anchors"]] == FINANCE_PACKS
+
+
+def test_series_hold_the_weekly_rows_of_the_csv_and_the_workbook(indexed, sample):
+    """The VistaMail CSV and the user metrics workbook are row series with step week."""
+    if sample != "atlas":
+        pytest.skip("the series of this sample are not pinned here")
+    rows = {}
+    for record in records_of(indexed, "series"):
+        if record["value"]["form"] == "rows":
+            rows.setdefault(record["docs"][0], []).append(record)
+
+    assert len(rows[VISTAMAIL]) == 1
+    vistamail = rows[VISTAMAIL][0]
+    assert vistamail["surface"] == "week_start"
+    assert vistamail["value"]["step"] == "week"
+    assert vistamail["anchors"] == [f"{VISTAMAIL}#r1"]
+    assert vistamail["value"]["members"][:3] == [
+        f"{VISTAMAIL}#r2",
+        f"{VISTAMAIL}#r3",
+        f"{VISTAMAIL}#r4",
+    ]
+
+    assert len(rows[USER_METRICS]) == 1
+    metrics = rows[USER_METRICS][0]
+    assert metrics["surface"] == "Week commencing"
+    assert metrics["value"]["step"] == "week"
+    assert metrics["anchors"] == [f"{USER_METRICS}#Weekly MAU!A1"]
+    assert metrics["value"]["members"][:3] == [
+        f"{USER_METRICS}#Weekly MAU!A2",
+        f"{USER_METRICS}#Weekly MAU!A3",
+        f"{USER_METRICS}#Weekly MAU!A4",
+    ]
+
+
+def test_series_members_are_ordered_and_resolve(indexed, ingested):
+    """A series has two or more members, in order, and every member is a real place."""
+    anchors = {record["anchor"] for record in ingested.records}
+    docs = {record["doc"] for record in ingested.records}
+    for record in records_of(indexed, "series"):
+        value = record["value"]
+        assert value["form"] in ("documents", "rows")
+        assert value["step"] in ("week", "month", "quarter")
+        assert len(value["members"]) >= 2
+        assert len(set(value["members"])) == len(value["members"])
+        for member in value["members"]:
+            assert member in (docs if value["form"] == "documents" else anchors), member
+
+
+def test_series_and_sections_digests_are_pinned(ingested, sample):
+    """The sha256 of the sample's two artefacts is the one tests/phase1-digests.json holds."""
+    digests = json.loads((ROOT / "tests" / "phase1-digests.json").read_text(encoding="utf-8"))
+    if sample not in digests:
+        pytest.skip("no digest pinned for this sample yet")
+    for name, wanted in sorted(digests[sample].items()):
+        got = hashlib.sha256(ingested.first.with_name(name).read_bytes()).hexdigest()
+        assert got == wanted, name
 
 
 class Resolver:
