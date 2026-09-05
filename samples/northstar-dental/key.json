@@ -29,7 +29,7 @@
     {
       "id": "revenue-2025",
       "kind": "number",
-      "value": "24.8",
+      "value": "$24.8M",
       "documents": [
         "revenue_summary.xlsx",
         "board_materials/q1-board-update.md"
@@ -39,7 +39,7 @@
     {
       "id": "revenue-2024",
       "kind": "number",
-      "value": "22.2",
+      "value": "$22.2M",
       "documents": [
         "revenue_summary.xlsx"
       ],
