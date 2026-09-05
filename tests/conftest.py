@@ -1,5 +1,6 @@
 """Every phase test is parametrised over the three gate samples. Phase tests read a sample's
-key from samples/<name>/key.json and the phase's artefact from runs/<name>/."""
+key from samples/<name>/key.json and the phase's artefact from runs/<name>/. A sample whose
+key.json does not exist yet is skipped, so the suite is green on main between phase 0 slices."""
 
 from pathlib import Path
 
@@ -11,6 +12,8 @@ SAMPLES = ["atlas", "northwind", "northstar-dental"]
 
 @pytest.fixture(params=SAMPLES)
 def sample(request):
+    if not (ROOT / "samples" / request.param / "key.json").is_file():
+        pytest.skip("no key.json yet")
     return request.param
 
 
