@@ -351,7 +351,7 @@ def test_index_amount_in_a_workbook_cell_takes_its_unit_from_the_header(indexed,
             "records",
             "data_room/05_Security_IT_and_Infrastructure/Backup_Retention_Inventory.xlsx",
         ),
-        "northstar-dental": (24.8, "USD", "revenue_summary.xlsx"),
+        "northstar-dental": (24800000.0, "USD", "revenue_summary.xlsx"),
     }
     if sample not in headed:
         pytest.skip("no workbook header case recorded for this sample yet")
@@ -367,6 +367,35 @@ def test_index_amount_in_a_workbook_cell_takes_its_unit_from_the_header(indexed,
         )
         for record in indexed
     )
+
+
+def test_index_multiplies_a_workbook_cell_by_the_scale_its_header_names(indexed, sample):
+    """A cell under a header that names a scale is indexed at the scaled value, on its own cell.
+
+    Sample 3's 24.8 under Revenue ($M) is 24,800,000 USD. Sample 1's 34 under $m in the EBITDA
+    bridge is 34,000,000 USD, the value the memo's $34m carries. The surface stays the cell's
+    own text.
+    """
+    scaled = {
+        "atlas": (
+            34000000.0,
+            "34",
+            "data_room/02_Financials_and_Tax/EBITDA_Adjustments_Schedule.xlsx",
+            "EBITDA Bridge!C5",
+        ),
+        "northstar-dental": (24800000.0, "24.8", "revenue_summary.xlsx", "Annual Totals!B3"),
+    }
+    if sample not in scaled:
+        pytest.skip("no scaled header case recorded for this sample yet")
+    value, surface, doc, cell = scaled[sample]
+    matching = [
+        record
+        for record in indexed
+        if record["kind"] == "amount" and record["value"] == value and record["unit"] == "USD"
+    ]
+    assert any(doc in record["docs"] for record in matching), doc
+    assert any(f"{doc}#{cell}" in record["anchors"] for record in matching), cell
+    assert any(surface in record["surface"] for record in matching if f"{doc}#{cell}" in record["anchors"]), surface
 
 
 def test_index_reads_the_growth_figure_from_the_workbook_cell(indexed, sample):
