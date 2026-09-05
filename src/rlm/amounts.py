@@ -42,7 +42,7 @@ AMOUNT = re.compile(
     r"(?P<open>\()?"
     rf"(?P<number>{_NUMBER})"
     r"(?:(?P<suffix>mm|bn|tn|[mkb])(?![A-Za-z0-9]))?"
-    r"(?P<close>\))?"
+    r"(?(open)\)?)"
     r"(?:\s?(?P<spelled>million|billion|thousand|trillion)\b)?"
     r"(?P<percent>\s?%)?"
     r"(?:[\s-]?(?P<word>records?|months?|days?)\b)?",
