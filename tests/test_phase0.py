@@ -1,9 +1,16 @@
 """Phase 0 tests. The key tests check that a sample's key.json is well formed and that every
-document it names is a file in the sample. The grader tests arrive in slice 02."""
+document it names is a file in the sample. The grader tests check that the grader gives the
+hand-written perfect report the key's perfect score and the wrong report less than its bar."""
+
+import json
+from pathlib import Path
 
 import pytest
 
+from rlm.grade import grade, normalise
 from rlm.key import KINDS, load_key
+
+ROOT = Path(__file__).resolve().parents[1]
 
 # Counts and answers fixed by construction for the samples whose raw keys state them.
 EXPECTED_ANSWER = {"atlas": (400, 375, 525)}
@@ -65,3 +72,66 @@ def test_key_rubric_and_bar(key):
 
 def test_key_brief_exists(key, sample_dir):
     assert (sample_dir / key.brief).is_file()
+
+
+# The grader tests. A sample with no hand-written fixture reports yet is skipped.
+
+REPORTS = {"perfect": "report-perfect.md", "wrong": "report-wrong.md"}
+
+
+def test_normalise_folds_units_separators_and_currency():
+    assert normalise("912.8 million") == normalise("912.8m") == normalise("912.8 m")
+    assert normalise("US$240m") == normalise("$240m") == normalise("240m")
+    assert normalise("USD 240 million") == normalise("240m")
+    assert normalise("1,200") == normalise("1200")
+    assert normalise("  Bulk   EXPORT  is   probable ") == normalise("bulk export is probable")
+    assert normalise("36 months") == "36 months"
+
+
+@pytest.fixture
+def reports_dir(sample_dir):
+    directory = sample_dir / "fixtures"
+    for filename in REPORTS.values():
+        if not (directory / filename).is_file():
+            pytest.skip("no fixtures yet")
+    return directory
+
+
+@pytest.mark.parametrize("name", ["perfect", "wrong"])
+def test_grade(name, key, sample, sample_dir, reports_dir, run_dir):
+    ledger = ROOT / "LEDGER.md"
+    before = ledger.read_bytes()
+
+    result = grade(sample_dir, reports_dir / REPORTS[name], run_dir, name)
+
+    assert ledger.read_bytes() == before, "the grader must not write LEDGER.md"
+
+    written = json.loads((run_dir / f"grade-{name}.json").read_text(encoding="utf-8"))
+    assert written == result
+    assert written["sample"] == sample
+    assert set(written) == {
+        "sample",
+        "report",
+        "recall",
+        "recalled",
+        "missed",
+        "rubric",
+        "score",
+        "model",
+        "seconds",
+    }
+    assert written["model"]
+    assert written["seconds"] > 0
+    assert len(written["recalled"]) + len(written["missed"]) == len(key.facts)
+    assert len(written["rubric"]) == len(key.rubric)
+    for row, expected in zip(written["rubric"], key.rubric):
+        assert row["id"] == expected.id
+        assert 0 <= row["points"] <= expected.points
+        assert row["reason"]
+
+    if name == "perfect":
+        assert written["missed"] == []
+        assert written["recall"] == 100.0
+        assert written["score"] == key.bar.perfect
+    else:
+        assert written["score"] < key.bar.wrong_under
