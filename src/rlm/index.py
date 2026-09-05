@@ -18,6 +18,8 @@ import json
 import re
 from pathlib import Path
 
+from rlm.sections import parse_anchor
+
 
 def build_index(sections: list[dict]) -> list[dict]:
     """Runs every builder over the section records and returns the index records."""
@@ -341,7 +343,6 @@ def _version_pair_records(sections: list[dict]) -> list[dict]:
 _STEPS = ("week", "month", "quarter")
 
 _CELL_DAY = re.compile(r"(\d{4})-(\d{2})-(\d{2})(?:[T ].*)?")
-_CELL_DAY_MONTH_YEAR = re.compile(r"(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})")
 _CELL_MONTH = re.compile(r"(\d{4})-(\d{2})")
 _CELL_MONTH_NAME = re.compile(r"([A-Za-z]+)\s+(\d{4})")
 _CELL_YEAR_QUARTER = re.compile(r"(?:FY)?(\d{4})[ _-]?Q([1-4])", re.IGNORECASE)
@@ -359,7 +360,7 @@ def _period(surface) -> tuple[str, tuple[int, int, int]] | None:
     if match:
         year, month, day = (int(group) for group in match.groups())
         return ("day", (year, month, day)) if _iso_day(year, month, day) else None
-    match = _CELL_DAY_MONTH_YEAR.fullmatch(text)
+    match = _DAY_MONTH_YEAR.fullmatch(text)
     if match and match.group(2).lower() in _MONTHS:
         year, month = int(match.group(3)), _MONTHS.index(match.group(2).lower()) + 1
         day = int(match.group(1))
@@ -470,10 +471,6 @@ def _document_series(sections: list[dict]) -> list[dict]:
     return records
 
 
-_SHEET_ROW = re.compile(r"^(.+)!([A-Z]+)(\d+)$")
-_CSV_ROW = re.compile(r"^r(\d+)$")
-_PAGE_TABLE_ROW = re.compile(r"^p(\d+)t(\d+)r(\d+)$")
-
 _SHEET_CELL = re.compile(r"^([A-Z]+)(\d+)$")
 _CSV_CELL = re.compile(r"^r\d+c(\d+)$")
 _TABLE_CELL = re.compile(r"^t\d+r\d+c(\d+)$")
@@ -481,14 +478,14 @@ _TABLE_CELL = re.compile(r"^t\d+r\d+c(\d+)$")
 
 def _table_of(section: dict) -> str | None:
     """The table a row section belongs to: a sheet, a CSV file or one table on one PDF page."""
-    place = section["anchor"].rsplit("#", 1)[-1]
-    match = _SHEET_ROW.match(place)
-    if match:
-        return match.group(1)
-    if _CSV_ROW.match(place):
+    anchor = parse_anchor(section["anchor"])
+    if anchor.kind == "sheet-cell":
+        return anchor.sheet
+    if anchor.kind == "row":
         return ""
-    match = _PAGE_TABLE_ROW.match(place)
-    return f"p{match.group(1)}t{match.group(2)}" if match else None
+    if anchor.kind == "page-table-row":
+        return f"p{anchor.page}t{anchor.table}"
+    return None
 
 
 def _column_of(ref: str) -> str | None:
