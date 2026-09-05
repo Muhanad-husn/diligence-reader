@@ -4,7 +4,9 @@ version = "0.0.0"
 description = "Reproducible, cheap, general replacement for a recursive language model on a diligence data room"
 requires-python = ">=3.12"
 dependencies = [
-    "pdftext>=0.7,<0.8",
+    "pdftext==0.7.1",
+    "pypdf>=6,<7",
+    "pdfplumber>=0.11,<0.12",
     "openpyxl>=3.1,<4",
     "httpx>=0.28,<0.29",
     "pyyaml>=6,<7",
