@@ -30,7 +30,7 @@ When you have completed your analysis, **save your findings report as a Markdown
 
 ## What's in here
 
-15 diligence documents in six groups:
+13 diligence documents in six groups:
 
 | Folder | Workstream |
 |---|---|
@@ -41,4 +41,4 @@ When you have completed your analysis, **save your findings report as a Markdown
 | `hr/` | Employee roster and personnel materials |
 | `risks/` | Risk register and known diligence items |
 
-Start with **`cim.md`** for the business overview and key metrics, then work through the customer contracts, revenue documents, and vendor agreements. (This `brief.md` is your task brief, not one of the 15 diligence documents.)
+Start with **`cim.md`** for the business overview and key metrics, then work through the customer contracts, revenue documents, and vendor agreements. (This `brief.md` is your task brief, not one of the 13 diligence documents.)

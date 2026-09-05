@@ -163,7 +163,7 @@
     {
       "id": "deck-vs-msa-coc",
       "kind": "comparison",
-      "value": "the board deck's claim of no change-of-control items flagged and manageable concentration against MSA section 12.3(c)'s immediate, no-cure, no-wind-down termination right for Meridian on a change of control",
+      "value": "No customer-termination, change-of-control, or contract-portability items are flagged against effective immediately",
       "documents": [
         "sample_data_room/Northwind_Logistics/board_deck_excerpt.pdf.md",
         "sample_data_room/Northwind_Logistics/msa_meridian_freight.pdf.md"
@@ -173,7 +173,7 @@
     {
       "id": "contractor-vs-employee-ip",
       "kind": "comparison",
-      "value": "the contractor agreement's absence of any IP assignment or work-made-for-hire designation for the route-optimization engine against the employee agreement's present assignment of all Company Inventions",
+      "value": "contains no provision assigning against hereby irrevocably assigns",
       "documents": [
         "sample_data_room/Northwind_Logistics/contractor_agreement_route_engine.pdf.md",
         "sample_data_room/Northwind_Logistics/employment_ip_agreement.pdf.md"

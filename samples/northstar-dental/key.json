@@ -133,7 +133,7 @@
     {
       "id": "growth-claimed-vs-actual",
       "kind": "comparison",
-      "value": "18.0% claimed in the CIM against 11.7% computed from $22.2M in 2024 to $24.8M in 2025",
+      "value": "18.0% against 11.7%",
       "documents": [
         "cim.md",
         "revenue_summary.xlsx"
