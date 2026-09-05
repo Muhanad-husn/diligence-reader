@@ -20,6 +20,7 @@ import pdfplumber
 import pytest
 from pdftext.extraction import paginated_plain_text_output
 
+from rlm.amounts import normalise_amount, normalise_date
 from rlm.ingest import Coverage, ingest, main
 from rlm.key import load_key
 from rlm.sections import KINDS, parse_anchor
@@ -210,6 +211,141 @@ def test_sections_run_prints_one_coverage_line(ingested, key):
     assert ingested.coverage.documents >= len(key.documents)
 
 
+def test_index_normalise_amount_reads_the_surface():
+    """The normaliser maps a surface to a number and, where the surface says one, a unit."""
+    assert normalise_amount("$12,400,000") == (12400000.0, "USD")
+    assert normalise_amount("$12.4m") == (12400000.0, "USD")
+    assert normalise_amount("$240m") == (240000000.0, "USD")
+    assert normalise_amount("$12m") == (12000000.0, "USD")
+    assert normalise_amount("912.8m") == (912800000.0, None)
+    assert normalise_amount("912,800,000 records") == (912800000.0, "records")
+    assert normalise_amount("1.1bn") == (1100000000.0, None)
+    assert normalise_amount("30.1%") == (30.1, "percent")
+    assert normalise_amount("45-day") == (45.0, "days")
+    assert normalise_amount("45 days") == (45.0, "days")
+    assert normalise_amount("36 months") == (36.0, "months")
+    assert normalise_amount("36-month") == (36.0, "months")
+    assert normalise_amount("615") == (615.0, None)
+    assert normalise_amount("24.8") == (24.8, None)
+    # Read from the parenthesised digits, not from an English number table.
+    assert normalise_amount("twenty-four (24) months") == (24.0, "months")
+    for bad in ["", "TB", "no digits here"]:
+        with pytest.raises(ValueError):
+            normalise_amount(bad)
+
+
+def test_index_normalise_date_reads_the_surface():
+    """The normaliser maps every date surface this phase meets to one ISO string."""
+    assert normalise_date("2025-10-18") == "2025-10-18"
+    assert normalise_date("18 October 2025") == "2025-10-18"
+    assert normalise_date("11 Dec 2025") == "2025-12-11"
+    assert normalise_date("31 July 2021") == "2021-07-31"
+    assert normalise_date("2025-10-18T02:14:07Z") == "2025-10-18"
+    assert normalise_date("[2025-10-23 09:10 UTC]") == "2025-10-23"
+    assert normalise_date("October 18, 2025") == "2025-10-18"
+    for bad in ["", "October", "2025", "2025-13-40", "18 Octember 2025"]:
+        with pytest.raises(ValueError):
+            normalise_date(bad)
+
+
+def test_index_two_runs_are_byte_identical(ingested):
+    """Two runs of the same sample write the same index bytes."""
+    first = ingested.first.with_name("index.jsonl")
+    second = ingested.second.with_name("index.jsonl")
+    assert first.read_bytes() == second.read_bytes()
+
+
+def test_index_records_are_sorted_and_well_shaped(ingested, indexed):
+    """Every record carries the seven keys, a kind, a unit from the vocabulary, and its lists."""
+    kinds = {"date", "amount", "name", "identifier", "status", "version-pair", "series"}
+    units = {"USD", "percent", "records", "months", "days", "count"}
+    lines = ingested.first.with_name("index.jsonl").read_text(encoding="utf-8").splitlines()
+    assert indexed
+    assert len(lines) == len(indexed)
+    for line, record in zip(lines, indexed):
+        assert line == json.dumps(record, sort_keys=True, ensure_ascii=False)
+        assert line == line.rstrip()
+        assert set(record) == {"anchors", "context", "docs", "kind", "surface", "unit", "value"}
+        assert record["kind"] in kinds
+        assert record["unit"] is None or record["unit"] in units
+        assert record["surface"] and isinstance(record["surface"], str)
+        assert isinstance(record["context"], str)
+        assert record["docs"] == sorted(set(record["docs"])) != []
+        assert record["anchors"] == sorted(set(record["anchors"])) != []
+    order = [
+        (record["kind"], json.dumps(record["value"], sort_keys=True), record["anchors"][0])
+        for record in indexed
+    ]
+    assert order == sorted(order)
+
+
+def test_index_anchors_resolve_to_sections(ingested, indexed):
+    """Every anchor and every doc of the index is one slice 01 wrote."""
+    anchors = {record["anchor"] for record in ingested.records}
+    docs = {record["doc"] for record in ingested.records}
+    for record in indexed:
+        for anchor in record["anchors"]:
+            assert anchor in anchors, anchor
+        for doc in record["docs"]:
+            assert doc in docs, doc
+        assert {anchor.rpartition("#")[0] for anchor in record["anchors"]} == set(record["docs"])
+
+
+def test_index_carries_every_phase_1_fact(indexed, key, sample):
+    """Every phase 1 fact is in the index on a normalised value against one of its documents.
+
+    The key's value goes through the same normaliser as the document surface, so no rule is
+    written against a key string. An identifier fact is satisfied by a name as well.
+    """
+    kinds = {"date": ("date",), "number": ("amount",), "identifier": ("identifier", "name")}
+    facts = [fact for fact in key.facts if fact.phase == 1]
+    if sample == "atlas":
+        assert len(facts) == 29
+    assert facts
+    for fact in facts:
+        assert fact.kind in kinds, fact.id
+        wanted_docs = {key.documents[doc_id] for doc_id in fact.documents}
+        unit = None
+        if fact.kind == "date":
+            value = normalise_date(fact.value)
+        elif fact.kind == "number":
+            value, unit = normalise_amount(fact.value)
+        else:
+            value = fact.value
+        assert any(
+            record["kind"] in kinds[fact.kind]
+            and record["value"] == value
+            and (unit is None or record["unit"] == unit)
+            and wanted_docs.intersection(record["docs"])
+            for record in indexed
+        ), fact.id
+
+
+def test_index_amount_in_a_workbook_cell_takes_its_unit_from_the_header(indexed, sample):
+    """A bare number in a workbook cell carries the unit its sheet's own header names."""
+    headed = {
+        "atlas": (
+            912800000.0,
+            "records",
+            "data_room/05_Security_IT_and_Infrastructure/Backup_Retention_Inventory.xlsx",
+        ),
+    }
+    if sample not in headed:
+        pytest.skip("no workbook header case recorded for this sample yet")
+    value, unit, doc = headed[sample]
+    assert any(
+        record["kind"] == "amount"
+        and record["value"] == value
+        and record["unit"] == unit
+        and doc in record["docs"]
+        and any(
+            anchor.startswith(doc + "#") and "!" in anchor.rpartition("#")[2]
+            for anchor in record["anchors"]
+        )
+        for record in indexed
+    )
+
+
 # The status words sample 1's own documents carry, from the key's account of the room. A
 # document may carry more than the ones named here; these are the ones that must be there.
 ATLAS_STATUS = {
@@ -276,23 +412,6 @@ def test_status_words_name_the_documents_that_carry_them(indexed, sample):
         assert wanted <= carried.get(doc, set()), doc
 
 
-def test_status_index_file_is_sorted_and_two_runs_agree(indexed, ingested):
-    """index.jsonl holds one sorted JSON object per line and two runs write the same bytes."""
-    first = ingested.first.with_name("index.jsonl")
-    second = ingested.second.with_name("index.jsonl")
-    assert first.read_bytes() == second.read_bytes()
-
-    lines = first.read_text(encoding="utf-8").splitlines()
-    assert len(lines) == len(indexed)
-    for line, record in zip(lines, indexed):
-        assert line == json.dumps(record, sort_keys=True, ensure_ascii=False)
-    order = [
-        (record["kind"], json.dumps(record["value"], sort_keys=True), record["anchors"][0])
-        for record in indexed
-    ]
-    assert order == sorted(order)
-
-
 def test_versions_pair_the_aurora_draft_with_its_final(indexed, sample):
     """The one version pair in the room is AURORA, ordered draft 2025-11-12 then final 2025-11-20."""
     if sample != "atlas":
@@ -308,8 +427,8 @@ def test_versions_pair_the_aurora_draft_with_its_final(indexed, sample):
         "final": AURORA_FINAL,
         "final_date": "2025-11-20",
     }
-    assert pair["docs"] == [AURORA_DRAFT, AURORA_FINAL]
-    assert [anchor.split("#")[0] for anchor in pair["anchors"]] == [AURORA_DRAFT, AURORA_FINAL]
+    assert pair["docs"] == sorted([AURORA_DRAFT, AURORA_FINAL])
+    assert sorted(anchor.split("#")[0] for anchor in pair["anchors"]) == sorted([AURORA_DRAFT, AURORA_FINAL])
 
 
 def test_versions_leave_a_draft_with_no_final_unpaired(indexed, sample):
