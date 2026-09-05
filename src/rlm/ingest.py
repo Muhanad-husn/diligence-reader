@@ -7,7 +7,8 @@ table row. Workbooks come from openpyxl with data_only=True, one section per non
 no header inference. CSV, plain text, markdown, EML and MBOX come from the standard library.
 
 Records are sorted by doc then ordinal and their JSON keys are sorted, so two runs of the same
-sample write the same bytes. Nothing here reads a key, opens a socket or calls a model.
+sample write the same bytes. The sample's key is read for its list of documents and nothing
+else; nothing here opens a socket or calls a model.
 """
 
 from __future__ import annotations
@@ -31,6 +32,8 @@ import pypdf
 from openpyxl.utils import get_column_letter
 from pdftext.extraction import paginated_plain_text_output
 
+from rlm.index import build_index, write_index
+from rlm.key import load_key
 from rlm.sections import (
     Cell,
     Section,
@@ -42,9 +45,6 @@ from rlm.sections import (
     sheet_cell_anchor,
     to_record,
 )
-from rlm.index import build_index, write_index
-
-EXTENSIONS = frozenset({".pdf", ".xlsx", ".csv", ".txt", ".md", ".eml", ".mbox"})
 
 # The mail headers that become a mail section's heading, in this order.
 MAIL_HEADERS = ("From", "To", "Date", "Subject")
@@ -344,10 +344,12 @@ def read_document(path: Path, doc: str) -> tuple[list[Section], int, int]:
 
 
 def documents(sample_dir: Path) -> list[Path]:
-    """Lists the files of a sample's data room this phase reads, in path order."""
-    room = sample_dir / "data_room"
-    found = [path for path in room.rglob("*") if path.is_file() and path.suffix.lower() in EXTENSIONS]
-    return sorted(found, key=lambda path: path.relative_to(sample_dir).as_posix())
+    """Lists the documents the sample's key names, in path order."""
+    key = load_key(sample_dir)
+    return sorted(
+        (sample_dir / relative for relative in key.documents.values()),
+        key=lambda path: path.relative_to(sample_dir).as_posix(),
+    )
 
 
 def write_records(run_dir: Path, records: Iterable[dict]) -> None:
