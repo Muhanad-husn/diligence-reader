@@ -211,7 +211,7 @@ def grade(sample_dir: Path, report_path: Path, run_dir: Path, name: str) -> dict
         "rubric": rubric,
         "score": score,
         "model": model,
-        "seconds": round(time.monotonic() - started, 2),
+        "seconds": time.monotonic() - started,
     }
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / f"grade-{name}.json").write_text(

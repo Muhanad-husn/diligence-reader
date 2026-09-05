@@ -88,6 +88,52 @@ def test_normalise_folds_units_separators_and_currency():
     assert normalise("36 months") == "36 months"
 
 
+def test_grade_seconds_positive_with_no_rubric(tmp_path, monkeypatch):
+    """A sample with no rubric makes no model call, so grade() can finish inside a millisecond.
+    The seconds it writes must still be a positive number, never a rounded-away zero."""
+    sample_dir = tmp_path / "sample"
+    sample_dir.mkdir()
+    (sample_dir / "doc.txt").write_text("", encoding="utf-8")
+    (sample_dir / "brief.md").write_text("brief", encoding="utf-8")
+    key_data = {
+        "sample": "mini",
+        "brief": "brief.md",
+        "documents": {"DOC-001": "doc.txt"},
+        "required_documents": ["DOC-001"],
+        "decoys": [],
+        "facts": [
+            {"id": "F1", "kind": "number", "value": "42", "documents": ["DOC-001"], "phase": 1}
+        ],
+        "answer": {"action": "invest", "number": 42, "low": 40, "high": 50, "unit": "m"},
+        "rubric": [],
+        "bar": {"perfect": 100, "wrong_under": 40},
+    }
+    (sample_dir / "key.json").write_text(json.dumps(key_data), encoding="utf-8")
+
+    report_path = tmp_path / "report.md"
+    report_path.write_text("DOC-001 shows 42.", encoding="utf-8")
+
+    run_dir = tmp_path / "runs"
+
+    # The first call to time.monotonic() returns 0.0, every call after it returns 0.001, so
+    # the elapsed time is a fixed 0.001 seconds no matter how many times grade() reads the
+    # clock. This makes the test deterministic and independent of machine speed.
+    calls = {"count": 0}
+
+    def fake_monotonic():
+        value = 0.0 if calls["count"] == 0 else 0.001
+        calls["count"] += 1
+        return value
+
+    monkeypatch.setattr("rlm.grade.time.monotonic", fake_monotonic)
+
+    result = grade(sample_dir, report_path, run_dir, "perfect")
+
+    assert result["seconds"] > 0
+    written = json.loads((run_dir / "grade-perfect.json").read_text(encoding="utf-8"))
+    assert written == result
+
+
 @pytest.fixture
 def reports_dir(sample_dir):
     directory = sample_dir / "fixtures"
