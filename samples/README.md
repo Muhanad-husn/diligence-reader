@@ -47,7 +47,7 @@ phase that must carry it) and writes each sample a brief in the shape of sample 
 
 ## 3. `northstar-dental` (Northstar Dental Group)
 
-- Documents: `northstar-dental/`, 15 markdown and xlsx files. Brief to be written in phase 0.
+- Documents: `northstar-dental/`, 13 markdown and xlsx files. Brief to be written in phase 0.
 - Raw key: `northstar-dental/metadata/contradictions.json` (C-001: CIM claims 18.0% growth,
   workbook shows $22.2m to $24.8m, 11.7%), `metadata/ground_truth_qa.yaml` (five questions:
   2025 revenue, growth, the contradiction, the highest vendor dependency, payor concentration),
