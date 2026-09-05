@@ -11,10 +11,32 @@ other document sets. The method, the phases, the samples and the money are in `P
 decision in `PLAN.md` section 10. He does not want options lists; he wants one recommendation
 with the number behind it. He does not want reminders about what is uncommitted.
 
-**How work moves.** One phase at a time, in the order `PLAN.md` gives. A phase is a branch and
-one pull request. Its tests are parametrised over the three samples and are the specification.
-There are no reviewer or verifier roles, no evidence packets, no fix rounds: one reader reads
-the pull request, and the founder merges or not.
+**How work moves.** One phase at a time, in the order `PLAN.md` gives. A phase is a GitHub
+milestone; it is sliced into issues, and every issue is one session and one pull request. The
+phase's tests are parametrised over the three samples and are the specification. There are no
+reviewer or verifier roles, no evidence packets, no fix rounds: one reader reads the pull
+request, and the founder merges or not.
+
+**The aeo plugin: two lanes and one gate, nothing else.**
+- `/aeo:sprint-plan`, typed by the founder once per phase, when the previous phase's closing
+  issue is done. It slices the phase into issues under `plans/phase-N/` and files them on the
+  founder's approval. A slice is a vertical piece that leaves a checkable artefact against the
+  key, never a function or a library; the last slice of every phase is the closing issue below.
+- `/aeo:status`, for the readout at any time.
+- `block-merge`, the gate that keeps merging with the founder.
+- Not used, and not to be invoked by description: `/aeo:sprint-start`, `/aeo:fix`,
+  `/aeo:review`, `/aeo:verify`, `/aeo:triage`, `red-green-refactor`, `tdd-plan`, `tdd-ci`,
+  `safe-pr`, `safe-cleanup`, `worker-dispatch`, `monitor-design`, and the builder, reviewer
+  and verifier agents. A request to build, test or open a pull request is done directly in
+  the session, with a short pull request body: what the artefact is, the three numbers, the
+  tests that passed on the three samples.
+
+**Tracking.** Milestones `Phase 0` to `Phase 7` on GitHub, one issue per slice, labels
+`phase-N`. Every phase ends with a closing issue named `Phase N gate` whose pull request runs
+the phase's tests on all three samples and writes the three numbers into `PLAN.md`'s status
+table. No issue of phase N+1 is filed until that issue is closed. A new session starts by
+reading `RULES.md`, `PLAN.md`'s status table, and the one issue it is for; the session-start
+hook lists the open issues and pull requests.
 
 **Money.** `LEDGER.md` is the only record of spend and the code writes it. Before any gateway
 call, print the input token count and the price. The phase caps and the $50 total are in

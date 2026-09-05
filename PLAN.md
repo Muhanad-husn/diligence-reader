@@ -75,6 +75,29 @@ Samples 2 and 3 have no rubric; their bar is recall and the verifier.
 **Kill line.** If phase 5 on sample 1 is under 70 after $25 of the $50 is spent, the method is
 wrong, not a phase. Stop, write what the phase tests showed, and redesign before another dollar.
 
+## 4a. Status
+
+One row per phase, written by the phase's closing pull request. Score is planted-fact recall
+on the three gate samples and, from phase 5, the rubric score on sample 1.
+
+| Phase | Milestone | State | Score | Dollars | Spread | Closed |
+|---|---|---|---|---|---|---|
+| 0 Fixtures | Phase 0 | not started | | 0 | | |
+| 1 Ingest | Phase 1 | not started | | | | |
+| 2 Notes | Phase 2 | not started | | | | |
+| 3 Map | Phase 3 | not started | | | | |
+| 4 Dossier | Phase 4 | not started | | | | |
+| 5 Report | Phase 5 | not started | | | | |
+| 6 Widen | Phase 6 | not started | | | | |
+| 7 Compare | Phase 7 | not started | | | | |
+
+**How a phase becomes issues.** The founder types `/aeo:sprint-plan` for the phase. The plan is
+sliced into three to six issues, each a vertical piece that leaves an artefact a test checks
+against the key on at least one sample, in this order: the artefact on sample 1, the same
+artefact on samples 2 and 3, then the closing issue `Phase N gate` that runs all phase tests on
+all three samples and fills the row above. Each issue is one session and one pull request. No
+issue of the next phase exists before the gate issue closes.
+
 ## 5. Models
 
 Five candidates, chosen per task by the bake-off tables in phases 2 and 5, never by preference.
