@@ -328,6 +328,19 @@ def test_index_carries_every_phase_1_fact(indexed, key, sample):
         ), fact.id
 
 
+def test_index_credits_an_established_name_where_it_opens_a_line(indexed, sample):
+    """A word that is a name elsewhere is a name at the start of a line or after a label too."""
+    if sample != "atlas":
+        pytest.skip("the name places of this sample are not pinned here")
+    opening = {
+        "data_room/00_Index_and_Process/Data_Room_Index.xlsx",
+        "data_room/02_Financials_and_Tax/Contingency_Reserve_Memo.pdf",
+    }
+    names = [record for record in indexed if record["kind"] == "name" and record["value"] == "VistaPort"]
+    assert len(names) == 1
+    assert opening <= set(names[0]["docs"])
+
+
 def test_index_amount_in_a_workbook_cell_takes_its_unit_from_the_header(indexed, sample):
     """A bare number in a workbook cell carries the unit its sheet's own header names."""
     headed = {
