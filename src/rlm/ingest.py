@@ -21,9 +21,9 @@ import mailbox
 import re
 import sys
 from collections import Counter
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Callable, Iterable
 
 import openpyxl
 import pdfplumber
