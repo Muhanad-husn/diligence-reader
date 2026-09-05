@@ -317,7 +317,7 @@
     {
       "id": "mau-assumed",
       "kind": "number",
-      "value": "615",
+      "value": "615m",
       "documents": [
         "DR-096",
         "DR-048"
@@ -327,7 +327,7 @@
     {
       "id": "mobile-mau-assumed",
       "kind": "number",
-      "value": "408",
+      "value": "408m",
       "documents": [
         "DR-096",
         "DR-048"
