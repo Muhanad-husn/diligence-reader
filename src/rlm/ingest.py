@@ -42,6 +42,7 @@ from rlm.sections import (
     sheet_cell_anchor,
     to_record,
 )
+from rlm.index import build_index, write_index
 
 EXTENSIONS = frozenset({".pdf", ".xlsx", ".csv", ".txt", ".md", ".eml", ".mbox"})
 
@@ -373,6 +374,7 @@ def ingest(sample_dir: Path, run_dir: Path) -> Coverage:
         records.extend(to_record(section) for section in sections)
     records.sort(key=lambda record: (record["doc"], record["ordinal"]))
     write_records(run_dir, records)
+    write_index(run_dir, build_index(records))
     return Coverage(
         documents=read, sections=len(records), disagreements=disagreements, empty=empty
     )
