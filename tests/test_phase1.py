@@ -31,8 +31,9 @@ ROOT = Path(__file__).resolve().parents[1]
 ENABLED = ("atlas",)
 SKIP_REASON = "ingest not enabled for this sample yet"
 
-# The document counts sample 1 carries, by extension, fixed by construction.
-ATLAS_EXTENSIONS = {".pdf": 61, ".xlsx": 29, ".csv": 7, ".txt": 1, ".eml": 1, ".mbox": 1, ".md": 1}
+# The document counts sample 1 carries, by extension, fixed by construction. 100 documents,
+# the key's own count; data_room/README.md is the brief, not a document, and is not among them.
+ATLAS_EXTENSIONS = {".pdf": 61, ".xlsx": 29, ".csv": 7, ".txt": 1, ".eml": 1, ".mbox": 1}
 
 _WHITESPACE = re.compile(r"\s+")
 _BLANK_LINE = re.compile(r"\n\s*\n")
@@ -170,6 +171,12 @@ def test_sections_cover_every_key_document(ingested, key, sample):
             suffix = Path(doc).suffix
             counted[suffix] = counted.get(suffix, 0) + 1
         assert counted == ATLAS_EXTENSIONS
+
+
+def test_sections_read_only_the_documents_the_key_names(ingested, key):
+    """Every sectioned document is one the key names, so a brief, a key or a fixture is never read."""
+    named = set(key.documents.values())
+    assert {record["doc"] for record in ingested.records} <= named
 
 
 def test_sections_anchors_resolve_in_their_files(ingested, sample_dir):
