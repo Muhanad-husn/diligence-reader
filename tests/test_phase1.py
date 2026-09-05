@@ -27,13 +27,16 @@ from rlm.sections import KINDS, parse_anchor
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# The samples ingest reads today. Slice 04 empties this skip.
-ENABLED = ("atlas",)
+# The three gate samples. Every phase 1 test runs on all three.
+ENABLED = ("atlas", "northwind", "northstar-dental")
 SKIP_REASON = "ingest not enabled for this sample yet"
 
 # The document counts sample 1 carries, by extension, fixed by construction. 100 documents,
 # the key's own count; data_room/README.md is the brief, not a document, and is not among them.
 ATLAS_EXTENSIONS = {".pdf": 61, ".xlsx": 29, ".csv": 7, ".txt": 1, ".eml": 1, ".mbox": 1}
+
+# The count of phase 1 facts each sample's key carries.
+PHASE_1_FACTS = {"atlas": 29, "northwind": 7, "northstar-dental": 8}
 
 _WHITESPACE = re.compile(r"\s+")
 _BLANK_LINE = re.compile(r"\n\s*\n")
@@ -306,8 +309,7 @@ def test_index_carries_every_phase_1_fact(indexed, key, sample):
     """
     kinds = {"date": ("date",), "number": ("amount",), "identifier": ("identifier", "name")}
     facts = [fact for fact in key.facts if fact.phase == 1]
-    if sample == "atlas":
-        assert len(facts) == 29
+    assert len(facts) == PHASE_1_FACTS[sample]
     assert facts
     for fact in facts:
         assert fact.kind in kinds, fact.id
@@ -349,6 +351,7 @@ def test_index_amount_in_a_workbook_cell_takes_its_unit_from_the_header(indexed,
             "records",
             "data_room/05_Security_IT_and_Infrastructure/Backup_Retention_Inventory.xlsx",
         ),
+        "northstar-dental": (24.8, "USD", "revenue_summary.xlsx"),
     }
     if sample not in headed:
         pytest.skip("no workbook header case recorded for this sample yet")
@@ -364,6 +367,20 @@ def test_index_amount_in_a_workbook_cell_takes_its_unit_from_the_header(indexed,
         )
         for record in indexed
     )
+
+
+def test_index_reads_the_growth_figure_from_the_workbook_cell(indexed, sample):
+    """Sample 3's 11.7% is in the index against revenue_summary.xlsx, anchored to its own cell."""
+    if sample != "northstar-dental":
+        pytest.skip("the workbook growth figure is sample 3's")
+    growth = [
+        record
+        for record in indexed
+        if record["kind"] == "amount" and record["value"] == 11.7 and record["unit"] == "percent"
+    ]
+    assert len(growth) == 1
+    assert "revenue_summary.xlsx" in growth[0]["docs"]
+    assert any(anchor.startswith("revenue_summary.xlsx#Annual Totals!") for anchor in growth[0]["anchors"])
 
 
 # The status words sample 1's own documents carry, from the key's account of the room. A
@@ -466,6 +483,14 @@ def test_versions_put_no_document_in_two_pairs(indexed):
         assert len(pair["docs"]) == 2
         seen.extend(pair["docs"])
     assert len(seen) == len(set(seen)), seen
+
+
+def test_versions_and_series_are_absent_where_the_room_has_none(indexed, sample):
+    """Samples 2 and 3 carry no draft and final pair and no dated run of documents or rows."""
+    if sample == "atlas":
+        pytest.skip("sample 1's pairs and series are pinned above")
+    assert records_of(indexed, "version-pair") == []
+    assert records_of(indexed, "series") == []
 
 
 def test_series_hold_the_four_monthly_finance_packs(indexed, sample):
