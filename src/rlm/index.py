@@ -80,19 +80,19 @@ def _text_pieces(section: dict) -> list[tuple[str, str]]:
         heading = section["heading"] or ""
         text = f"{heading}\n{section['text']}" if heading else section["text"]
         return [(text, section["anchor"])]
-    anchor = parse_anchor(section["anchor"])
-    if anchor.kind != "sheet-cell":
-        return [
-            (cell["value"], section["anchor"])
-            for cell in section["cells"]
-            if isinstance(cell["value"], str)
-        ]
-    doc = section["doc"]
     return [
-        (cell["value"], f"{doc}#{anchor.sheet}!{cell['ref']}")
+        (cell["value"], _cell_anchor(section, cell["ref"]))
         for cell in section["cells"]
         if isinstance(cell["value"], str)
     ]
+
+
+def _cell_anchor(section: dict, ref: str) -> str:
+    """The anchor of one cell of a row section: the cell itself on a workbook, else the row."""
+    anchor = parse_anchor(section["anchor"])
+    if anchor.kind != "sheet-cell":
+        return section["anchor"]
+    return f"{section['doc']}#{anchor.sheet}!{ref}"
 
 
 def _context(section: dict) -> str:
@@ -318,10 +318,10 @@ def _amounts(sections: list[dict]) -> list[dict]:
                 )
         if section.get("cells") is None:
             continue
-        section_anchor = parse_anchor(section["anchor"])
-        if section_anchor.kind != "sheet-cell":
+        anchor = parse_anchor(section["anchor"])
+        if anchor.kind != "sheet-cell":
             continue
-        header = headers.get((section["doc"], section_anchor.sheet), {})
+        header = headers.get((section["doc"], anchor.sheet), {})
         for cell in section["cells"]:
             if not _is_number(cell["value"]):
                 continue
@@ -331,7 +331,6 @@ def _amounts(sections: list[dict]) -> list[dict]:
             value = float(cell["value"]) * _header_scale(column_header)
             if unit is None and value.is_integer():
                 unit = "count"
-            cell_anchor = f"{section['doc']}#{section_anchor.sheet}!{cell['ref']}"
             occurrences.append(
                 (
                     "amount",
@@ -339,7 +338,7 @@ def _amounts(sections: list[dict]) -> list[dict]:
                     unit,
                     str(cell["value"]),
                     section["doc"],
-                    cell_anchor,
+                    _cell_anchor(section, cell["ref"]),
                     _context(section),
                 )
             )
