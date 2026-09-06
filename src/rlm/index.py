@@ -167,6 +167,45 @@ def _header_unit(header: str) -> str | None:
     return None
 
 
+_SCALE_TOKENS = {
+    "mm": 1_000_000,
+    "m": 1_000_000,
+    "million": 1_000_000,
+    "millions": 1_000_000,
+    "k": 1_000,
+    "000s": 1_000,
+    "000": 1_000,
+    "thousand": 1_000,
+    "thousands": 1_000,
+    "bn": 1_000_000_000,
+    "b": 1_000_000_000,
+    "billion": 1_000_000_000,
+    "billions": 1_000_000_000,
+}
+
+_SCALE_TOKEN_PATTERN = re.compile(
+    r"(?:\(([^()]*)\)|\$([A-Za-z0-9]+))", re.IGNORECASE
+)
+
+
+def _header_scale(header: str) -> float:
+    """Reads a scale token off a workbook column header, or 1.0 where it names none.
+
+    The token counts only inside brackets or right after a currency sign, so
+    "Revenue ($M)", "($m)", "$m", "(m)", "(£m)", "$000s", "(USD m)" and "Revenue (millions)"
+    all scale, while "Month", "Members", "Maturity" and "Market" do not.
+    """
+    for bracketed, after_sign in _SCALE_TOKEN_PATTERN.findall(header):
+        for candidate in (bracketed, after_sign):
+            if not candidate:
+                continue
+            for word in re.findall(r"[A-Za-z]+|[0-9]+s?", candidate):
+                lowered = word.lower()
+                if lowered in _SCALE_TOKENS:
+                    return float(_SCALE_TOKENS[lowered])
+    return 1.0
+
+
 def _is_number(value) -> bool:
     """Says whether a cell value is a number rather than text."""
     return isinstance(value, (int, float)) and not isinstance(value, bool)
@@ -270,8 +309,9 @@ def _amounts(sections: list[dict]) -> list[dict]:
             if not _is_number(cell["value"]):
                 continue
             match = _CELL_REF.match(cell["ref"])
-            unit = _header_unit(header.get(match.group(1), "")) if match else None
-            value = float(cell["value"])
+            column_header = header.get(match.group(1), "") if match else ""
+            unit = _header_unit(column_header)
+            value = float(cell["value"]) * _header_scale(column_header)
             if unit is None and value.is_integer():
                 unit = "count"
             occurrences.append(

@@ -351,7 +351,7 @@ def test_index_amount_in_a_workbook_cell_takes_its_unit_from_the_header(indexed,
             "records",
             "data_room/05_Security_IT_and_Infrastructure/Backup_Retention_Inventory.xlsx",
         ),
-        "northstar-dental": (24.8, "USD", "revenue_summary.xlsx"),
+        "northstar-dental": (24800000.0, "USD", "revenue_summary.xlsx"),
     }
     if sample not in headed:
         pytest.skip("no workbook header case recorded for this sample yet")
@@ -367,6 +367,48 @@ def test_index_amount_in_a_workbook_cell_takes_its_unit_from_the_header(indexed,
         )
         for record in indexed
     )
+
+
+def test_index_multiplies_a_workbook_cell_by_the_scale_its_header_names(indexed, ingested, sample):
+    """A cell under a header that names a scale is indexed at the scaled value, on its own row.
+
+    Sample 3's 24.8 under Revenue ($M) is 24,800,000 USD. Sample 1's 34 under $m in the EBITDA
+    bridge is 34,000,000 USD, the value the memo's $34m carries. The record is anchored to the
+    section that holds the cell. A record's surface is its first occurrence's, so it is the
+    cell's own text or the text amount the cell joins.
+    """
+    scaled = {
+        "atlas": (
+            34000000.0,
+            "34",
+            "$34m",
+            "data_room/02_Financials_and_Tax/EBITDA_Adjustments_Schedule.xlsx",
+            "EBITDA Bridge",
+            "C5",
+        ),
+        "northstar-dental": (24800000.0, "24.8", "$24.8M", "revenue_summary.xlsx", "Annual Totals", "B3"),
+    }
+    if sample not in scaled:
+        pytest.skip("no scaled header case recorded for this sample yet")
+    value, surface, text, doc, sheet, ref = scaled[sample]
+    holding = [
+        section["anchor"]
+        for section in ingested.records
+        if section["doc"] == doc
+        and section["anchor"].rpartition("#")[2].startswith(sheet + "!")
+        and any(cell["ref"] == ref for cell in section.get("cells") or [])
+    ]
+    assert len(holding) == 1, ref
+    matching = [
+        record
+        for record in indexed
+        if record["kind"] == "amount"
+        and record["value"] == value
+        and record["unit"] == "USD"
+        and holding[0] in record["anchors"]
+    ]
+    assert len(matching) == 1, ref
+    assert matching[0]["surface"] in (surface, text), ref
 
 
 def test_index_reads_the_growth_figure_from_the_workbook_cell(indexed, sample):
