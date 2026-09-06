@@ -9,9 +9,12 @@ row says what the model misses everywhere.
 A model that clears every probe runs pass a and pass b over every document of every sample of
 the run, through rlm.notes, into runs/<sample>/bakeoff/<model slug>/<pass>/. Recall is measured
 against the sample's key: a planted fact is recalled when its words are inside one verified
-quote of a note of one of its own documents, both sides folded the same way. The row carries
-the probe, whether the model passes, the dollars and seconds of everything it ran, the
-agreement between the two passes and the recall of each.
+quote of a note of one of its own documents, both sides folded the same way. A row passes when
+pass a alone carries every phase fact of every sample; pass b is not part of the gate. The
+agreement between the two passes is carried in the row and reported as the spread between two
+runs of the same model, never gated on. The row carries the probe, whether the model passes,
+the dollars and seconds of everything it ran, the agreement between the two passes and the
+recall of each.
 
 Models run cheapest first inside a tier, the flash tier before the pro tier. The pro tier is
 skipped when a flash model passes everywhere, and stops at the first pro model that passes.
@@ -21,6 +24,11 @@ each. The winner is the passing row with the lowest measured dollars.
 
 Every pass calls rlm.notes.main, which opens its own ledger batch, so LEDGER.md gains one line
 per probe and per pass per sample per model. Nothing here writes LEDGER.md.
+
+--recount rebuilds every row from the probe, a and b directories already sitting under
+runs/<sample>/bakeoff/ on disk, with no gateway call and no ledger line: it reads what
+rlm.notes already wrote and recounts recall, agreement and passes under the current rule. A
+model with no directory on any sample it is asked about stays a blank row.
 """
 
 from __future__ import annotations
@@ -213,6 +221,42 @@ def run_pass(
     return json.loads((out_dir / "notes-summary.json").read_text(encoding="utf-8"))
 
 
+def read_summary(out_dir: Path) -> dict:
+    """The notes-summary.json a pass or a probe left under out_dir."""
+    return json.loads((out_dir / "notes-summary.json").read_text(encoding="utf-8"))
+
+
+def probe_result(out_dir: Path, sample: str, key: Key) -> tuple[dict, float, float]:
+    """Reads one probe's summary and notes off disk into its row entry, dollars and seconds.
+
+    A probe directory with no notes/ under it counts every one of its facts as missed, since
+    recall reads an absent directory that way.
+    """
+    summary = read_summary(out_dir)
+    found = recall(out_dir / "notes", key, probe_facts(sample, key))
+    missed = sorted(fact_id for fact_id, hit in found.items() if not hit)
+    entry = {"hits": len(found) - len(missed), "of": len(found), "missed": missed}
+    return entry, summary["dollars"], summary["seconds"]
+
+
+def pass_result(out_dir: Path, key: Key) -> tuple[dict[str, bool], float, float]:
+    """Reads one full pass's summary and notes off disk into its per-fact recall, dollars and
+    seconds."""
+    summary = read_summary(out_dir)
+    found = recall(out_dir / "notes", key, None)
+    return found, summary["dollars"], summary["seconds"]
+
+
+def passes_rule(probe: dict[str, dict], counts: dict[str, dict[str, list[int]]], samples: list[str]) -> bool:
+    """A row passes when every probe it measured is clean and pass a alone carries every phase
+    fact of every sample of the run. Pass b's agreement with pass a does not gate."""
+    if any(entry["missed"] for entry in probe.values()):
+        return False
+    if set(counts) != set(samples):
+        return False
+    return all(seen["a"][0] == seen["a"][1] for seen in counts.values())
+
+
 def measure(
     row: dict,
     samples: list[str],
@@ -227,13 +271,12 @@ def measure(
     dollars = 0.0
     seconds = 0.0
     probe: dict[str, dict] = {}
-    clean = True
 
     for sample in samples:
         if sample not in PROBE:
             continue
         out_dir = runs_root / sample / "bakeoff" / row["slug"] / "probe"
-        summary = run_pass(
+        run_pass(
             samples_root / sample,
             runs_root / sample,
             out_dir,
@@ -243,32 +286,28 @@ def measure(
             gateway,
             ledger,
         )
-        dollars += summary["dollars"]
-        seconds += summary["seconds"]
-        found = recall(out_dir / "notes", keys[sample], probe_facts(sample, keys[sample]))
-        missed = sorted(fact_id for fact_id, hit in found.items() if not hit)
-        probe[sample] = {"hits": len(found) - len(missed), "of": len(found), "missed": missed}
-        if missed:
-            clean = False
+        entry, one_dollars, one_seconds = probe_result(out_dir, sample, keys[sample])
+        probe[sample] = entry
+        dollars += one_dollars
+        seconds += one_seconds
 
     row["probe"] = probe
     row["dollars"] = round(dollars, 6)
     row["seconds"] = seconds
-    if not clean:
+    if any(entry["missed"] for entry in probe.values()):
         row["passes"] = False
         print(f"{model}: the probe missed a fact, so it runs no full pass")
         return
 
     agreement: dict[str, float] = {}
     counts: dict[str, dict[str, list[int]]] = {}
-    passes = True
     for sample in samples:
         key = keys[sample]
         facts = [fact.id for fact in phase_facts(key)]
         found: dict[str, dict[str, bool]] = {}
         for pass_name in ("a", "b"):
             out_dir = runs_root / sample / "bakeoff" / row["slug"] / pass_name
-            summary = run_pass(
+            run_pass(
                 samples_root / sample,
                 runs_root / sample,
                 out_dir,
@@ -278,23 +317,67 @@ def measure(
                 gateway,
                 ledger,
             )
-            dollars += summary["dollars"]
-            seconds += summary["seconds"]
-            found[pass_name] = recall(out_dir / "notes", key, None)
+            found[pass_name], one_dollars, one_seconds = pass_result(out_dir, key)
+            dollars += one_dollars
+            seconds += one_seconds
         counts[sample] = {
             pass_name: [sum(1 for hit in found[pass_name].values() if hit), len(facts)]
             for pass_name in ("a", "b")
         }
         both = sum(1 for fact_id in facts if found["a"][fact_id] and found["b"][fact_id])
         agreement[sample] = round(both / len(facts), 4) if facts else 0.0
-        if both != len(facts):
-            passes = False
 
     row["recall"] = counts
     row["agreement"] = agreement
-    row["passes"] = passes
+    row["passes"] = passes_rule(probe, counts, samples)
     row["dollars"] = round(dollars, 6)
     row["seconds"] = seconds
+
+
+def recount_row(row: dict, samples: list[str], keys: dict[str, Key], runs_root: Path) -> None:
+    """Rebuilds one row from the probe, a and b directories already on disk, with no gateway
+    call. A model with no directory on any sample stays the blank row it started as."""
+    dollars = 0.0
+    seconds = 0.0
+    probe: dict[str, dict] = {}
+    counts: dict[str, dict[str, list[int]]] = {}
+    agreement: dict[str, float] = {}
+
+    for sample in samples:
+        key = keys[sample]
+        base = runs_root / sample / "bakeoff" / row["slug"]
+
+        probe_dir = base / "probe"
+        if probe_dir.is_dir():
+            entry, one_dollars, one_seconds = probe_result(probe_dir, sample, key)
+            probe[sample] = entry
+            dollars += one_dollars
+            seconds += one_seconds
+
+        a_dir, b_dir = base / "a", base / "b"
+        if a_dir.is_dir() and b_dir.is_dir():
+            facts = [fact.id for fact in phase_facts(key)]
+            found: dict[str, dict[str, bool]] = {}
+            for pass_name, out_dir in (("a", a_dir), ("b", b_dir)):
+                found[pass_name], one_dollars, one_seconds = pass_result(out_dir, key)
+                dollars += one_dollars
+                seconds += one_seconds
+            counts[sample] = {
+                pass_name: [sum(1 for hit in found[pass_name].values() if hit), len(facts)]
+                for pass_name in ("a", "b")
+            }
+            both = sum(1 for fact_id in facts if found["a"][fact_id] and found["b"][fact_id])
+            agreement[sample] = round(both / len(facts), 4) if facts else 0.0
+
+    if not probe and not counts:
+        return
+
+    row["probe"] = probe if probe else NOT_RUN
+    row["recall"] = counts if counts else NOT_RUN
+    row["agreement"] = agreement if agreement else NOT_RUN
+    row["dollars"] = round(dollars, 6)
+    row["seconds"] = seconds
+    row["passes"] = passes_rule(probe, counts, samples)
 
 
 def build_table(samples: list[str], rows: dict[str, dict]) -> dict:
@@ -374,16 +457,34 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="the model ids to try; without it every model of the price table",
     )
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--recount",
+        action="store_true",
+        help="rebuild every row from the pass directories on disk, with no call and no ledger line",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None = None) -> int:
     """Runs the bake-off over the chosen models and samples and writes the table."""
     args = parse_args(argv)
+    if args.recount and (args.dry_run or args.models is not None):
+        print("--recount takes no --dry-run and no --models")
+        return 2
+
     samples_root = Path(args.samples_root)
     runs_root = Path(args.runs_root)
     samples = list(args.samples)
     keys = {sample: load_key(samples_root / sample) for sample in samples}
+
+    if args.recount:
+        rows = {model: blank_row(model, tier) for tier in TIERS for model in TIERS[tier]}
+        for model in rows:
+            recount_row(rows[model], samples, keys, runs_root)
+        table = build_table(samples, rows)
+        write_table(runs_root, samples, table)
+        print_table(table)
+        return 0
 
     wanted = None
     if args.models is not None:

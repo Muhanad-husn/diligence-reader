@@ -38,6 +38,9 @@ pass can be read back without calling the model again.
 
 The documents run eight at a time inside one ledger batch, so a pass is one line of LEDGER.md
 and one runs/<sample>/notes-summary.json.
+
+The bake-off of 2026-09-06 chose z-ai/glm-5.3-flash, DEFAULT_MODEL below, as the model this
+phase runs on when --model is left off.
 """
 
 from __future__ import annotations
@@ -55,6 +58,10 @@ from rlm.gateway import Batch, Completion, Gateway, Ledger, estimate_tokens, pri
 from rlm.key import load_key
 
 PHASE = 2
+
+# The bake-off's winner, the cheapest row whose pass a carried every phase 2 fact of every
+# sample (PLAN.md section 5).
+DEFAULT_MODEL = "z-ai/glm-5.3-flash"
 
 # Documents in flight at once, as the winning run's leaf did.
 WORKERS = 8
@@ -670,7 +677,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="python -m rlm.notes")
     parser.add_argument("sample_dir")
     parser.add_argument("run_dir")
-    parser.add_argument("--model", required=True)
+    parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument(
         "--only",
         action="append",
