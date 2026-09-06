@@ -18,6 +18,25 @@ spread along the edges, each neighbour's contribution divided by its own total w
 the room's index and its Q&A log, which link to everything, pass on almost nothing. The cluster
 is the prefix of the ranked list still scoring at least a hundredth of the highest score.
 
+The matter then carries two things a graph of shared values cannot see. Its `versions` are the
+index's draft and final pairs where at least one of the two is in the cluster, with the two
+dates and the two status lists the map already read. Its `consequences` are two links the map
+finds by mechanism. A `series-break` is a table of periods in the room whose numbers turn: the
+step from one period to the next starts running one way and each step is bigger than the
+column's usual step. A series turns once, at the earliest period any of its columns turns, and
+the matter keeps the turn nearest its own date, inside a week of it and on or after it, in a
+document that is not the seed. Where two series turn on the same day the map keeps the one in
+the document scoring highest against the seed. A `model-after` is a document whose name, folder
+or note says model, forecast, plan or synergy, dated after the matter, whose note still carries
+a figure the broken series left behind: the same number, ignoring the currency and the unit
+letter, so 615m and 615 are one figure and 4100 is not 410. The figure has to be a figure of
+another cluster document's note as well. The matter keeps the earliest such model.
+
+Each consequence adds a twentieth of the highest score to its document before the ranking is
+taken, which is five times the cluster cut. A document the room barely mentions is lifted inside
+the cluster by a consequence alone, and a document that shares the matter's own codes still
+outranks it.
+
 Nothing here reads the key's facts, its required documents or its decoys, opens a socket or
 calls a model. The key is read for the id and path of each document and for nothing else.
 """
@@ -29,6 +48,7 @@ import datetime
 import itertools
 import json
 import re
+import statistics
 import sys
 import time
 from pathlib import Path
@@ -57,6 +77,16 @@ BREADTH_SHARE = 0.5
 # A document stays in the cluster while it scores at least this share of the highest score.
 CLUSTER_SHARE = 0.01
 
+# What one consequence adds to a document's score, as a share of the highest score. Five times
+# the cluster cut: a consequence alone puts a document inside the cluster and no further.
+CONSEQUENCE_SHARE = 5 * CLUSTER_SHARE
+
+# How many steps in a row have to run the same way for a column of numbers to have turned.
+TURN_RUN = 3
+
+# The words that say a document is about what is to come rather than what happened.
+MODEL_WORDS = frozenset({"forecast", "model", "plan", "synergy"})
+
 # How many of a document's strongest links are read when the seed is chosen.
 SEED_LINKS = 3
 
@@ -68,6 +98,24 @@ WHY_LIMIT = 3
 
 _WORD = re.compile(r"[A-Za-z][A-Za-z\-]+")
 _LOOSE = re.compile(r"[^a-z0-9]+")
+_LETTERS = re.compile(r"[A-Za-z]+")
+_FIGURE = re.compile(r"([0-9]+(?:\.[0-9]+)?)(?:[a-z%]{0,2})")
+_MONEY = re.compile(r"[,$\s]")
+_DAY_MONTH_YEAR = re.compile(r"([0-9]{1,2}) ([A-Za-z]+) ([0-9]{4})")
+_MONTHS = (
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+)
 
 
 def fold(value) -> str:
@@ -191,6 +239,68 @@ def as_iso(value) -> datetime.date | None:
         return datetime.date.fromisoformat(str(value))
     except (TypeError, ValueError):
         return None
+
+
+def as_day(value) -> datetime.date | None:
+    """The day a period cell names, written either 2025-10-20 or 20 October 2025.
+
+    A month or a quarter is coarser than a day and reads as None.
+    """
+    day = as_iso(value)
+    if day is not None:
+        return day
+    match = _DAY_MONTH_YEAR.fullmatch(str(value).strip())
+    if not match or match.group(2).casefold() not in _MONTHS:
+        return None
+    month = _MONTHS.index(match.group(2).casefold()) + 1
+    try:
+        return datetime.date(int(match.group(3)), month, int(match.group(1)))
+    except ValueError:
+        return None
+
+
+def as_number(value) -> float | None:
+    """The number a cell holds, whether the file wrote it as a number or as digits."""
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        return float(_MONEY.sub("", str(value)))
+    except ValueError:
+        return None
+
+
+def figure_number(surface) -> str | None:
+    """The number a figure's surface names, without its currency, its commas or its unit.
+
+    615, 615m and $410m read as 615, 615 and 410, so a model that writes 615m and a table that
+    writes 615 carry one figure. 4100 reads as 4100 and is not 410. A surface that is not one
+    number reads as None.
+    """
+    match = _FIGURE.fullmatch(_MONEY.sub("", str(surface).casefold()))
+    if not match:
+        return None
+    return format(float(match.group(1)), "g")
+
+
+def turn_index(values: list[float]) -> int | None:
+    """Where a column of numbers turns, or None where it never does.
+
+    The steps are the differences from one period to the next and the usual step is the median
+    of their sizes. A turn is the start of a run of TURN_RUN steps that all go the same way and
+    are all bigger than the usual step: the period where a column stops wobbling and moves. The
+    index returned is the period the first of those steps arrives at, and the earliest run wins.
+    """
+    if len(values) < TURN_RUN + 2:
+        return None
+    steps = [values[at] - values[at - 1] for at in range(1, len(values))]
+    usual = statistics.median(abs(step) for step in steps)
+    for start in range(len(steps) - TURN_RUN + 1):
+        run = steps[start : start + TURN_RUN]
+        if all(step > usual for step in run) or all(-step > usual for step in run):
+            return start + 1
+    return None
 
 
 def shared_values(
@@ -479,6 +589,186 @@ def matter_date(
     return None
 
 
+def clustered(order: list[str], scores: dict[str, float]) -> list[str]:
+    """The documents above the cut, by id."""
+    ordered = sorted(order, key=lambda doc: (-scores[doc], doc))
+    return sorted(ordered[: cluster_size([scores[doc] for doc in ordered])])
+
+
+def version_pairs(
+    records: list[dict],
+    ids_by_path: dict[str, str],
+    nodes: dict[str, dict],
+    cluster: set[str],
+) -> list[dict]:
+    """The index's draft and final pairs that touch the cluster, the draft first.
+
+    A pair carries its two documents, the two dates the index read off them and the two status
+    lists the map's own nodes carry.
+    """
+    pairs = []
+    for record in records:
+        if record["kind"] != "version-pair":
+            continue
+        value = record["value"]
+        draft = ids_by_path.get(value.get("draft"))
+        final = ids_by_path.get(value.get("final"))
+        if not draft or not final or not ({draft, final} & cluster):
+            continue
+        if not value.get("draft_date") or not value.get("final_date"):
+            continue
+        pairs.append(
+            {
+                "dates": [str(value["draft_date"]), str(value["final_date"])],
+                "docs": [draft, final],
+                "status": [nodes[draft]["status"], nodes[final]["status"]],
+            }
+        )
+    return sorted(pairs, key=lambda pair: pair["docs"])
+
+
+def row_series(
+    records: list[dict], sections: dict[str, dict], ids_by_path: dict[str, str]
+) -> list[dict]:
+    """Every index series whose members are the rows of one table, read back as numbers.
+
+    A series is kept where every member row is a section of the run, every row's leading cell is
+    a day, and at least one column holds a number in every row. A series of documents, five
+    quarters of board minutes, has no rows and is not one of these.
+    """
+    found = []
+    for record in records:
+        value = record["value"]
+        if record["kind"] != "series" or value.get("form") != "rows":
+            continue
+        doc = ids_by_path.get(record["docs"][0]) if record["docs"] else None
+        members = list(value.get("members", []))
+        rows = [sections.get(anchor) for anchor in members]
+        if doc is None or not rows or any(row is None for row in rows):
+            continue
+        cells = [row.get("cells") or [] for row in rows]
+        if not all(cells):
+            continue
+        days = [as_day(row[0]["value"]) for row in cells]
+        if any(day is None for day in days):
+            continue
+        columns = []
+        for at in range(1, min(len(row) for row in cells)):
+            numbers = [as_number(row[at]["value"]) for row in cells]
+            if all(number is not None for number in numbers):
+                columns.append(numbers)
+        if columns:
+            found.append(
+                {
+                    "anchors": members,
+                    "columns": columns,
+                    "days": days,
+                    "doc": doc,
+                    "series": str(record["surface"]),
+                }
+            )
+    return found
+
+
+def series_break(
+    series: list[dict], date: str | None, seed: list[str], scores: dict[str, float]
+) -> tuple[dict | None, set[str]]:
+    """The matter's one series break, and the numbers that series carried before it turned.
+
+    A series turns at the earliest period any of its columns turns. The matter keeps the turn
+    nearest its own date, on or after it and no more than DATE_WINDOW days later, in a document
+    that is not the seed. Where two series turn on the same day the map keeps the one in the
+    document scoring highest against the seed.
+    """
+    began = as_iso(date) if date else None
+    if began is None:
+        return None, set()
+    best = None
+    for table in series:
+        if table["doc"] in seed:
+            continue
+        turns = [turn_index(column) for column in table["columns"]]
+        places = [turn for turn in turns if turn is not None]
+        if not places:
+            continue
+        at = min(places)
+        day = table["days"][at]
+        if day < began or (day - began).days > DATE_WINDOW:
+            continue
+        marker = ((day - began).days, -scores.get(table["doc"], 0.0), table["doc"])
+        if best is None or marker < best[0]:
+            best = (marker, table, turns, at, day)
+    if best is None:
+        return None, set()
+    _, table, turns, at, day = best
+    before = set()
+    for column, turn in zip(table["columns"], turns):
+        if turn == at:
+            before.update(format(value, "g") for value in column[:at])
+    found = {
+        "anchor": table["anchors"][at],
+        "doc": table["doc"],
+        "kind": "series-break",
+        "period": day.isoformat(),
+        "series": table["series"],
+    }
+    return found, before
+
+
+def model_after(
+    notes: dict[str, dict],
+    nodes: dict[str, dict],
+    cluster: set[str],
+    date: str | None,
+    before: set[str],
+) -> dict | None:
+    """The earliest model written after the matter that still carries one of its old numbers.
+
+    A model is a document whose file name, whose folder or whose note's own words say model,
+    forecast, plan or synergy. It is a consequence of the matter where its first date is after
+    the matter, where one of its note's figures is a number the broken series carried before it
+    turned, and where another cluster document's note carries that figure as well. The anchor is
+    the figure's place in the model.
+    """
+    if not date or not before:
+        return None
+    carried: dict[str, set[str]] = {}
+    for doc in cluster:
+        for figure in notes.get(doc, {}).get("figures", []):
+            number = figure_number(figure["surface"])
+            if number:
+                carried.setdefault(number, set()).add(doc)
+    best = None
+    for doc in sorted(notes):
+        node = nodes[doc]
+        if not node["date"] or node["date"] <= date:
+            continue
+        words = _LETTERS.findall(notes[doc].get("what") or "")
+        words += _LETTERS.findall(node["folder"])
+        words += _LETTERS.findall(Path(node["path"]).stem)
+        if not MODEL_WORDS & {word.casefold() for word in words}:
+            continue
+        for figure in notes[doc]["figures"]:
+            number = figure_number(figure["surface"])
+            if number is None or number not in before:
+                continue
+            if not carried.get(number, set()) - {doc}:
+                continue
+            marker = (node["date"], doc)
+            if best is None or marker < best[0]:
+                best = (
+                    marker,
+                    {
+                        "anchor": figure["anchor"],
+                        "date": node["date"],
+                        "doc": doc,
+                        "kind": "model-after",
+                    },
+                )
+            break
+    return best[1] if best else None
+
+
 def build_map(sample_dir: Path, run_dir: Path) -> dict:
     """Reads a sample's index, sections and notes and returns the map."""
     key = load_key(sample_dir)
@@ -528,23 +818,37 @@ def build_map(sample_dir: Path, run_dir: Path) -> dict:
     linked = adjacency(edges)
     seed = choose_seed(edges, order)
     scores = score_documents(linked, seed, order)
-    why = reasons(edges, scores)
 
+    nodes = {node["doc"]: node for node in documents}
+    cluster = clustered(order, scores)
+    date = matter_date(seed, cluster, dated)
+    versions = version_pairs(records, ids_by_path, nodes, set(cluster))
+
+    by_anchor = {section["anchor"]: section for section in sections}
+    broken, before = series_break(
+        row_series(records, by_anchor, ids_by_path), date, seed, scores
+    )
+    modelled = model_after(notes, nodes, set(cluster), date, before)
+    consequences = sorted(
+        (row for row in (broken, modelled) if row), key=lambda row: (row["kind"], row["doc"])
+    )
+
+    bonus = max(scores.values(), default=0.0) * CONSEQUENCE_SHARE
+    for row in consequences:
+        scores[row["doc"]] = round(scores[row["doc"]] + bonus, 6)
+
+    why = reasons(edges, scores)
     ordered = sorted(order, key=lambda doc: (-scores[doc], doc))
-    ranked = [
-        {"doc": doc, "score": scores[doc], "why": why.get(doc, [])} for doc in ordered
-    ]
-    size = cluster_size([row["score"] for row in ranked])
-    cluster = sorted(row["doc"] for row in ranked[:size])
+    ranked = [{"doc": doc, "score": scores[doc], "why": why.get(doc, [])} for doc in ordered]
 
     matter = {
-        "cluster": cluster,
-        "consequences": [],
-        "date": matter_date(seed, cluster, dated),
+        "cluster": clustered(order, scores),
+        "consequences": consequences,
+        "date": date,
         "id": 1,
         "ranked": ranked,
         "seed": seed,
-        "versions": [],
+        "versions": versions,
     }
     return {
         "documents": documents,
@@ -581,12 +885,15 @@ def readout_line(document: dict, seconds: float) -> str:
     for edge in document["edges"]:
         by_kind[edge["kind"]] = by_kind.get(edge["kind"], 0) + 1
     counted = ", ".join(f"{kind} {by_kind[kind]}" for kind in sorted(by_kind))
-    matter = document["matters"][0] if document["matters"] else {"cluster": []}
+    empty: dict = {"cluster": [], "consequences": [], "versions": []}
+    matter = document["matters"][0] if document["matters"] else empty
     return (
         f"map {document['sample']}: nodes {len(document['documents'])}, "
         f"edges {len(document['edges'])} ({counted}), "
         f"matters {len(document['matters'])}, "
         f"cluster {len(matter['cluster'])}, "
+        f"versions {len(matter['versions'])}, "
+        f"consequences {len(matter['consequences'])}, "
         f"seconds {seconds:.1f}"
     )
 

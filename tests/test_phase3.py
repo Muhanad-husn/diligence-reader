@@ -5,11 +5,14 @@ check that the two files are byte identical, that every document the key names i
 every edge names two documents, one of the four kinds, a shared value and an anchor in each
 document that parses and belongs to that document, that the first matter's cluster holds every
 document of the key's phase 3 matter-documents fact and none of the key's decoys, that the
-ranked list covers the room in descending score, and that the run prints one readout line. A
-sample whose map inputs are absent is skipped."""
+ranked list covers the room in descending score, that the matter carries the version pairs of
+the room and the consequences the map read off the index and the notes, that every document the
+key plants ranks above every decoy, and that the run prints one readout line. A sample whose map
+inputs are absent is skipped."""
 
 from __future__ import annotations
 
+import datetime
 import json
 import shutil
 from dataclasses import dataclass
@@ -19,11 +22,14 @@ import pytest
 
 from rlm.key import load_key
 from rlm.map import (
+    DATE_WINDOW,
     EDGE_KINDS,
     KIND_WEIGHTS,
     MATTER_FACT,
     cluster_size,
+    figure_number,
     main,
+    turn_index,
     value_weight,
 )
 from rlm.sections import parse_anchor
@@ -162,6 +168,26 @@ def test_cluster_size_takes_the_prefix_above_the_cut():
     assert cluster_size([2.0, 1.0, 0.04, 0.022, 0.018]) == 4
 
 
+def test_turn_index_finds_where_a_column_stops_wobbling():
+    """A column turns where its steps start running one way and are bigger than its usual step."""
+    assert turn_index([615, 616, 615, 617, 616, 615, 611, 606, 599, 594]) == 6
+
+    # A column that only wobbles by its usual step never turns.
+    assert turn_index([615, 616, 617, 617, 618, 618, 619, 620, 621, 622, 623]) is None
+    assert turn_index([5, 5, 5, 5, 5, 5, 5]) is None
+    # A column too short to hold a run has no turn.
+    assert turn_index([615, 611, 606]) is None
+
+
+def test_figure_number_reads_a_figure_without_its_unit():
+    """A figure is the number it names, so 615 and 615m are the same figure and 4100 is not."""
+    assert figure_number("615") == figure_number("615m") == "615"
+    assert figure_number("$410m") == figure_number("410") == "410"
+    assert figure_number("4100") != figure_number("410")
+    assert figure_number("8.0%") == "8"
+    assert figure_number("early reset ramp") is None
+
+
 # ---------------------------------------------------------------- the artefact
 
 
@@ -257,10 +283,96 @@ def test_map_ranked_covers_every_document_in_descending_score(mapped, key):
     assert matter["cluster"] == sorted(row["doc"] for row in ranked[: len(matter["cluster"])])
 
 
-def test_map_first_matter_carries_no_versions_or_consequences_yet(mapped):
+def test_map_first_matter_versions_pair_the_draft_and_the_final(mapped, key):
+    """Every version pair names two documents, their two dates and their two status lists."""
     matter = mapped.document["matters"][0]
-    assert matter["versions"] == []
-    assert matter["consequences"] == []
+    nodes = {node["doc"]: node for node in mapped.document["documents"]}
+    for pair in matter["versions"]:
+        assert set(pair) == {"dates", "docs", "status"}
+        assert len(pair["docs"]) == 2 and len(pair["dates"]) == 2 and len(pair["status"]) == 2
+        assert all(doc in key.documents for doc in pair["docs"])
+        assert all(isinstance(day, str) and len(day) == 10 for day in pair["dates"])
+        assert pair["dates"] == sorted(pair["dates"])
+        assert [nodes[doc]["status"] for doc in pair["docs"]] == pair["status"]
+
+    draft = fact_documents(key, "forensic-draft")
+    final = fact_documents(key, "forensic-final")
+    if not (draft and final):
+        return
+    assert len(matter["versions"]) == 1
+    assert matter["versions"][0]["docs"] == [draft[0], final[0]]
+
+
+def test_map_first_matter_series_break_is_within_a_week_of_the_matter_date(
+    mapped, key, known_anchors
+):
+    """The break names the document whose series turned, the period and a row of that period."""
+    matter = mapped.document["matters"][0]
+    breaks = [row for row in matter["consequences"] if row["kind"] == "series-break"]
+    for row in breaks:
+        assert set(row) == {"anchor", "doc", "kind", "period", "series"}
+        assert row["doc"] in key.documents
+        assert isinstance(row["series"], str) and row["series"].strip()
+        assert len(row["period"]) == 10
+
+    stepped = fact_documents(key, "step-down")
+    started = fact_value(key, "incident-start")
+    if not (stepped and started):
+        return
+    assert len(breaks) == 1
+    found = breaks[0]
+    assert found["doc"] == stepped[0]
+    began = datetime.date.fromisoformat(started)
+    period = datetime.date.fromisoformat(found["period"])
+    assert period >= began
+    assert (period - began).days <= DATE_WINDOW
+    path = key.documents[found["doc"]]
+    assert parse_anchor(found["anchor"]).doc == path
+    assert found["anchor"] in known_anchors[path]
+
+
+def test_map_first_matter_model_after_is_dated_after_the_matter(mapped, key, known_anchors):
+    """The model names a document written after the matter that still carries its old figure."""
+    matter = mapped.document["matters"][0]
+    models = [row for row in matter["consequences"] if row["kind"] == "model-after"]
+    for row in models:
+        assert set(row) == {"anchor", "date", "doc", "kind"}
+        assert row["doc"] in key.documents
+        assert len(row["date"]) == 10
+
+    modelled = fact_documents(key, "synergy-npv")
+    started = fact_value(key, "incident-start")
+    if not (modelled and started):
+        return
+    assert len(models) == 1
+    found = models[0]
+    assert found["doc"] == modelled[0]
+    assert found["date"] > started
+    path = key.documents[found["doc"]]
+    assert parse_anchor(found["anchor"]).doc == path
+    assert found["anchor"] in known_anchors[path]
+
+
+def test_map_every_required_document_ranks_above_every_decoy(mapped, key):
+    """No decoy outranks a planted document: the ranked list is the order the dossier reads."""
+    matter = mapped.document["matters"][0]
+    places = {row["doc"]: place for place, row in enumerate(matter["ranked"], 1)}
+    planted = planted_documents(key)
+    decoys = {decoy.document for decoy in key.decoys}
+    assert planted and decoys
+    worst = max(places[doc] for doc in planted)
+    best = min(places[doc] for doc in decoys)
+    assert worst < best, (
+        sorted((places[doc], doc) for doc in planted)[-3:],
+        sorted((places[doc], doc) for doc in decoys)[:3],
+    )
+
+
+def test_map_readout_counts_versions_and_consequences(mapped, sample):
+    lines = [line for line in mapped.printed.splitlines() if line.startswith(f"map {sample}:")]
+    assert lines
+    for line in lines:
+        assert "versions" in line and "consequences" in line
 
 
 def test_map_prints_one_readout_line(mapped, sample):
@@ -272,6 +384,22 @@ def test_map_prints_one_readout_line(mapped, sample):
 
 
 # ---------------------------------------------------------------- the readout
+
+
+def fact_value(key, fact_id: str):
+    """The value of the key fact with that id, or None where the sample has no such fact."""
+    for fact in key.facts:
+        if fact.id == fact_id:
+            return fact.value
+    return None
+
+
+def fact_documents(key, fact_id: str) -> tuple[str, ...]:
+    """The documents the key fact with that id resolves to, empty where there is no such fact."""
+    for fact in key.facts:
+        if fact.id == fact_id:
+            return fact.documents
+    return ()
 
 
 def planted_documents(key) -> set[str]:
