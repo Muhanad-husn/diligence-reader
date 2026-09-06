@@ -289,9 +289,26 @@ def test_index_records_are_sorted_and_well_shaped(ingested, indexed):
     assert order == sorted(order)
 
 
+def cell_anchors(ingested):
+    """Every workbook cell a section lists, as `doc#Sheet!Ref`, mapped to the cell's value."""
+    cells = {}
+    for section in ingested.records:
+        if section.get("cells") is None:
+            continue
+        sheet = section["anchor"].rpartition("#")[2].partition("!")[0]
+        for cell in section["cells"]:
+            cells[f"{section['doc']}#{sheet}!{cell['ref']}"] = cell["value"]
+    return cells
+
+
+def resolvable_anchors(ingested):
+    """The section anchors of the run and, for workbooks, every cell a section lists."""
+    return {record["anchor"] for record in ingested.records} | set(cell_anchors(ingested))
+
+
 def test_index_anchors_resolve_to_sections(ingested, indexed):
-    """Every anchor and every doc of the index is one slice 01 wrote."""
-    anchors = {record["anchor"] for record in ingested.records}
+    """Every anchor of the index is a section slice 01 wrote or a cell such a section lists."""
+    anchors = resolvable_anchors(ingested)
     docs = {record["doc"] for record in ingested.records}
     for record in indexed:
         for anchor in record["anchors"]:
@@ -299,6 +316,30 @@ def test_index_anchors_resolve_to_sections(ingested, indexed):
         for doc in record["docs"]:
             assert doc in docs, doc
         assert {anchor.rpartition("#")[0] for anchor in record["anchors"]} == set(record["docs"])
+
+
+def test_index_workbook_anchors_name_the_cell_that_holds_the_value(ingested, indexed):
+    """An occurrence read from a workbook cell is anchored to that cell, not to its row.
+
+    A name or identifier is cited at a cell whose text carries it. An amount or a date is
+    cited at a numeric cell or at a text cell that holds a digit. A row's leftmost label cell,
+    `Reported EBITDA` say, carries none of the amounts that sit to its right, so a row anchor
+    on an amount fails here.
+    """
+    cells = cell_anchors(ingested)
+    for record in indexed:
+        if record["kind"] not in ("amount", "date", "name", "identifier"):
+            continue
+        for anchor in record["anchors"]:
+            if anchor not in cells:
+                continue
+            value = cells[anchor]
+            if record["kind"] in ("name", "identifier"):
+                assert isinstance(value, str) and record["value"] in value, (anchor, record["value"])
+            else:
+                assert isinstance(value, (int, float)) or any(
+                    character.isdigit() for character in str(value)
+                ), (anchor, record["value"])
 
 
 def test_index_carries_every_phase_1_fact(indexed, key, sample):
@@ -374,8 +415,9 @@ def test_index_multiplies_a_workbook_cell_by_the_scale_its_header_names(indexed,
 
     Sample 3's 24.8 under Revenue ($M) is 24,800,000 USD. Sample 1's 34 under $m in the EBITDA
     bridge is 34,000,000 USD, the value the memo's $34m carries. The record is anchored to the
-    section that holds the cell. A record's surface is its first occurrence's, so it is the
-    cell's own text or the text amount the cell joins.
+    cell itself, `EBITDA Bridge!C5` and `Annual Totals!B3`, not to the row's leftmost cell. A
+    record's surface is its first occurrence's, so it is the cell's own text or the text
+    amount the cell joins.
     """
     scaled = {
         "atlas": (
@@ -391,21 +433,15 @@ def test_index_multiplies_a_workbook_cell_by_the_scale_its_header_names(indexed,
     if sample not in scaled:
         pytest.skip("no scaled header case recorded for this sample yet")
     value, surface, text, doc, sheet, ref = scaled[sample]
-    holding = [
-        section["anchor"]
-        for section in ingested.records
-        if section["doc"] == doc
-        and section["anchor"].rpartition("#")[2].startswith(sheet + "!")
-        and any(cell["ref"] == ref for cell in section.get("cells") or [])
-    ]
-    assert len(holding) == 1, ref
+    cell = f"{doc}#{sheet}!{ref}"
+    assert cell in cell_anchors(ingested), ref
     matching = [
         record
         for record in indexed
         if record["kind"] == "amount"
         and record["value"] == value
         and record["unit"] == "USD"
-        and holding[0] in record["anchors"]
+        and cell in record["anchors"]
     ]
     assert len(matching) == 1, ref
     assert matching[0]["surface"] in (surface, text), ref
@@ -459,8 +495,8 @@ def records_of(indexed, kind):
 
 
 def test_status_records_are_well_shaped(indexed, ingested):
-    """Every record carries the seven keys, and every anchor is a section this run wrote."""
-    anchors = {record["anchor"] for record in ingested.records}
+    """Every record carries the seven keys, and every anchor is a section or a cell of this run."""
+    anchors = resolvable_anchors(ingested)
     for record in indexed:
         assert set(record) == RECORD_KEYS, record
         assert isinstance(record["docs"], list) and record["docs"]
