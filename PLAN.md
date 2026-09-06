@@ -84,7 +84,7 @@ on the three gate samples and, from phase 5, the rubric score on sample 1.
 |---|---|---|---|---|---|---|
 | 0 Fixtures | Phase 0 | done | 100 / 100 / 100 | 0 | 0 | 2026-09-05 |
 | 1 Ingest | Phase 1 | done | 100 / 100 / 100 | 0 | 0 | 2026-09-06 |
-| 2 Notes | Phase 2 | not started | | | | |
+| 2 Notes | Phase 2 | done | 100 / 100 / 100 | 1.51 | 0 / 20 / 0 | 2026-09-06 |
 | 3 Map | Phase 3 | not started | | | | |
 | 4 Dossier | Phase 4 | not started | | | | |
 | 5 Report | Phase 5 | not started | | | | |
