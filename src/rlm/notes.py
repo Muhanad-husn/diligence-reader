@@ -8,10 +8,11 @@ Code then verifies every item against the document's own sections. An item must 
 required key of its field as a string: a flag has flag, quote and consequence, a figure has
 surface and quote, a cross reference has kind, value and quote, and a concealed item has claim
 and quote. An item that answers with the model's own key names instead fails. A quote passes
-when its text, with whitespace collapsed and curly quotes and apostrophes straightened, is a
-substring of one section's text treated the same way, or of two adjacent sections joined by one
-space. Case is not folded. The anchor written into the note is the anchor of the section where
-the quote starts, and the model's own anchor, if it writes one, is discarded. A figure passes
+when its text, with whitespace collapsed, curly quotes and apostrophes straightened, and
+markdown emphasis marks dropped, is a substring of one section's text treated the same way, or
+of two adjacent sections joined by one space. Case is not folded. The anchor written into the
+note is the anchor of the section where the quote starts, and the model's own anchor, if it
+writes one, is discarded. A figure passes
 when its quote passes and its surface string is inside that quote. Two items of one field that
 match on every key are kept once.
 
@@ -86,6 +87,10 @@ MAX_OUTPUT_TOKENS = 6000
 
 _WHITESPACE = re.compile(r"\s+")
 _CURLY = {"“": '"', "”": '"', "‘": "'", "’": "'"}
+# A * or _ used as a markdown emphasis mark: a lone * between spaces, and a _ between two word
+# characters, are left alone, since those are not emphasis.
+_EMPHASIS_STAR = re.compile(r"(?<!\s)\*|\*(?!\s)")
+_EMPHASIS_UNDERSCORE = re.compile(r"(?<!\w)_|_(?!\w)")
 
 SYSTEM_PROMPT = """You read one document of a diligence data room and write one note about it.
 
@@ -105,50 +110,54 @@ Answer with one JSON object and nothing else, with exactly these keys:
                 "quote": "the document's own words, verbatim"}]
 }
 
-Use exactly these key names. An item that uses any other name is dropped.
+Use exactly these key names; another name drops the item.
 
 Rules for every quote:
-- Copy the document's characters exactly. A quote is text lifted out of the document, never a
-  sentence about the document. Do not paraphrase, correct, shorten inside, or reword. A quote
-  that is not verbatim is dropped.
-- Start a quote at the subject of its clause and carry its verb.
-- In a table, a row is written with its cells separated by " | ". Quote one cell's own text
-  whole and exactly as it is written. Do not join cells or restate a row in your own words.
-- Keep a quote to one sentence or one row: enough words to find it and to carry the point.
-- Do not invent a quote. If you cannot quote it, leave the item out.
-- A figure's surface is copied out of its own quote, character for character, and from nowhere
-  else in the document.
-- Do not write an anchor, a page, a line or a section number. Those are added later.
+- Copy the document's characters exactly: never a paraphrase, correction, shortening or
+  description. A quote that is not verbatim is dropped.
+- Start a quote at the first word of its sentence, a leading Notwithstanding, Subject to or
+  For the avoidance of doubt included, and carry its verb.
+- In a table, a row is written with its cells separated by " | ". Quote one cell's text
+  exactly. Do not join cells or restate a row.
+- Keep a quote to one sentence or one row, except a clause paragraph: a termination,
+  change of control, assignment or exclusivity paragraph of two or three sentences is one
+  quote from its first word to its last full stop, as one flag. Never split it or start it
+  after its first word.
+- Do not invent a quote; if you cannot quote it, leave it out.
+- A figure's surface is copied from its own quote, verbatim, from nowhere else.
+- Do not add an anchor, page, line or section number; those come later.
 
-A diligence reader is buying this business. Quote every one of these the document carries:
-- a hedge or a qualifier that weakens a finding, and the sentence that carries it
-- a conclusion that is softened, restated or reclassified from something harder
-- every warranty, representation or covenant, in the words that bind it, and in particular a
-  statement that something has not happened, does not exist or is not owed
-- an exclusion, a carve-out or a condition that could deny a claim
-- a deadline, a notice period or a clock, and whether it has run
-- a policy, a control, a limit or a standard that is breached, blocked or exceeded, and the
-  reason the document gives for it
+A diligence reader is buying this business; quote every one that the document carries:
+- a hedge or qualifier weakening a finding, and its sentence
+- a conclusion softened, restated or reclassified from something harder
+- every warranty, representation or covenant, especially that something has not happened,
+  does not exist or is not owed
+- an exclusion, carve-out or condition that could deny a claim
+- a deadline, notice period or clock, and whether it has run
+- a policy, control, limit or standard breached, blocked or exceeded, and why
 - every clause that gives a party a right to end, suspend, withhold, accelerate or claim,
-  quoted from that party through what it may do, not from its condition alone; when there is
-  room for only some quotes, these come before figures and cross references
-- a reserve, a provision or a charge, and the words that size it
-- a range of exposure and both of its ends
-- a dated turning point: the week, month or date on which a number or a trend moves
+  quoted whole from the first word of its paragraph to the last full stop of that
+  paragraph; these come before figures and cross references
+- a reserve, provision or charge, and its sizing words
+- a range of exposure and its ends
+- a dated turning point: the week, month or date a number or trend moves
+- every sentence that says this deal or event constitutes, triggers or qualifies as a
+  defined term, the sentence that applies the definition to the deal before the one that
+  expects it
+- in a document under a page, every prose line, including a note under its own heading: a
+  dependency, single point of failure or system of record above all
 
 Which sentence to quote:
-- When your flag, claim or what restates a sentence of the document, quote that sentence, not
-  one beside it.
-- When a sentence names a term, a condition or an exclusion as material, decisive, key or at
-  risk, quote that sentence as well as the clause that defines the thing it names.
-- When a number appears more than once, quote the first sentence that states the number and
-  what it is for, as well as the later formal one.
-- When a table carries a total, an aggregate or a range, quote the prose sentence that states
-  it before the rows that feed it: a conclusion comes before what feeds it.
+- When your flag, claim or what restates a sentence, quote that one, not a neighbor.
+- When a sentence calls a term, condition or exclusion material, decisive or at risk,
+  quote it and the clause defining it.
+- When a number recurs, quote the first sentence giving it and its purpose, and the later
+  formal one.
+- When a table carries a total or a range, quote the prose sentence stating it, not the
+  rows.
 
-This document is short, so there is room: a document of a few pages usually yields twenty to
-forty quotes. When unsure whether a sentence matters, quote it. Leave a list empty only when
-the document gives nothing for it."""
+A few pages yield twenty to forty quotes; longer ones yield more, one per clause that binds,
+ends or excludes. When unsure, quote it; leave a list empty only when nothing applies."""
 
 USER_PREFIX = "The document, one section per line, in order:\n\n"
 
@@ -172,9 +181,14 @@ REASK_JSON = (
 
 
 def straighten(text: str) -> str:
-    """Collapses whitespace and straightens curly quotes and apostrophes. Case is untouched."""
+    """Collapses whitespace, straightens curly quotes and apostrophes, and drops markdown
+    emphasis marks (**, __, backticks, and a * or _ used to emphasize a word). Case is untouched.
+    """
     for curly, straight in _CURLY.items():
         text = text.replace(curly, straight)
+    text = text.replace("**", "").replace("__", "").replace("`", "")
+    text = _EMPHASIS_STAR.sub("", text)
+    text = _EMPHASIS_UNDERSCORE.sub("", text)
     return _WHITESPACE.sub(" ", text).strip()
 
 
