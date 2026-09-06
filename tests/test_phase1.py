@@ -742,3 +742,103 @@ class Resolver:
             box.close()
             self._messages[doc] = counts
         return self._messages[doc]
+
+
+def _fact_resolved(fact, key, sectioned_docs, section_texts, indexed):
+    """Says whether one key fact is covered: its documents are sectioned and its value resolves.
+
+    A value resolves either in a section, where the fact's flattened value is a case
+    insensitive substring of a flattened section text of one of its documents, or in the
+    index, where a record's value equals the fact's normalised value, with a matching unit for
+    a number fact, and whose docs intersect the fact's documents.
+    """
+    docs = {key.documents[doc_id] for doc_id in fact.documents}
+    if not docs <= sectioned_docs:
+        return False
+
+    wanted = flatten(fact.value).lower()
+    for doc in docs:
+        for text in section_texts.get(doc, []):
+            if wanted in text.lower():
+                return True
+
+    if fact.kind == "date":
+        try:
+            value, unit = normalise_date(fact.value), None
+        except ValueError:
+            return False
+    elif fact.kind == "number":
+        try:
+            value, unit = normalise_amount(fact.value)
+        except ValueError:
+            return False
+    else:
+        value, unit = fact.value, None
+
+    for record in indexed:
+        if record["value"] != value:
+            continue
+        if unit is not None and record["unit"] != unit:
+            continue
+        if docs.intersection(record["docs"]):
+            return True
+    return False
+
+
+def readout(terminalreporter):
+    """Writes, per sample, one coverage line and one recall line with the facts not resolved."""
+    if not _RUNS:
+        return
+    terminalreporter.section("phase 1 readout")
+    for sample in ENABLED:
+        if sample not in _RUNS:
+            continue
+        run = _RUNS[sample]
+        coverage = run.coverage
+        by_kind: dict[str, int] = {}
+        index_path = run.first.with_name("index.jsonl")
+        indexed = tuple(
+            json.loads(line) for line in index_path.read_text(encoding="utf-8").splitlines()
+        )
+        for record in indexed:
+            by_kind[record["kind"]] = by_kind.get(record["kind"], 0) + 1
+        by_kind_text = ", ".join(f"{kind} {by_kind[kind]}" for kind in sorted(by_kind))
+        terminalreporter.write_line(
+            f"phase 1 {sample}: documents read {coverage.documents}, "
+            f"sections written {coverage.sections}, "
+            f"index records {len(indexed)} ({by_kind_text}), "
+            f"engine disagreements {coverage.disagreements}, "
+            f"empty extractions {coverage.empty}"
+        )
+
+        key = load_key(ROOT / "samples" / sample)
+        sectioned_docs = {record["doc"] for record in run.records}
+        section_texts: dict[str, list[str]] = {}
+        for record in run.records:
+            section_texts.setdefault(record["doc"], []).append(flatten(record["text"]))
+
+        missed = []
+        hit = 0
+        phase_1_total = 0
+        phase_1_hit = 0
+        for fact in key.facts:
+            resolved = _fact_resolved(fact, key, sectioned_docs, section_texts, indexed)
+            if fact.phase == 1:
+                phase_1_total += 1
+            if resolved:
+                hit += 1
+                if fact.phase == 1:
+                    phase_1_hit += 1
+            else:
+                missed.append(fact)
+
+        total = len(key.facts)
+        recall = (hit / total * 100) if total else 0.0
+        terminalreporter.write_line(
+            f"phase 1 {sample}: planted-fact recall {recall:.1f} ({hit} of {total}), "
+            f"phase 1 facts {phase_1_hit} of {phase_1_total}"
+        )
+        for fact in missed:
+            terminalreporter.write_line(
+                f"phase 1 {sample}: not resolved {fact.id} (kind {fact.kind}, phase {fact.phase})"
+            )
