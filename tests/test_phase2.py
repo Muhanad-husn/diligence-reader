@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import threading
 from pathlib import Path
 
@@ -32,6 +33,7 @@ from rlm.gateway import (
 from rlm.key import load_key
 from rlm.notes import (
     CROSS_REFERENCE_KINDS,
+    DEFAULT_MODEL,
     LOG_KEYS,
     MAX_OUTPUT_TOKENS,
     NOTE_KEYS,
@@ -789,6 +791,30 @@ def test_one_document_main_writes_a_verified_note_a_verify_log_and_one_ledger_li
     assert (rows[-1]["tokens_in"], rows[-1]["tokens_out"]) == (5500, 700)
     assert rows[-1]["dollars"] == round(price(MODEL, 5500, 700), 4)
     assert rows[-1]["balance"] == pytest.approx(round(50.0 - rows[-1]["dollars"], 4))
+
+
+def test_one_document_main_with_no_model_sends_the_default_model(tmp_path, capsys):
+    """--model left off sends the bake-off's winner and prices the ledger line at its rate."""
+    ledger_path = tmp_path / "LEDGER.md"
+    write_ledger(ledger_path, [("2026-09-05", "", "", "", 0, 0, 0.0, 50.0)])
+    transport = FakeTransport([reply(json.dumps(MINIMAL_NOTE), tokens_in=2500, tokens_out=400)])
+    gateway = Gateway(api_key="k", transport=transport)
+    out = tmp_path / "out"
+
+    code = main(
+        [str(ROOT / "samples" / "atlas"), str(ROOT / "runs" / "atlas"), "--only", "DR-069", "--out", str(out)],
+        gateway=gateway,
+        ledger=Ledger(ledger_path),
+    )
+    capsys.readouterr()
+    assert code == 0
+
+    body = json.loads(transport.requests[0].content)
+    assert body["model"] == DEFAULT_MODEL
+
+    rows = ledger_rows(ledger_path)
+    assert rows[-1]["model"] == DEFAULT_MODEL
+    assert rows[-1]["dollars"] == round(price(DEFAULT_MODEL, 2500, 400), 4)
 
 
 def test_one_document_main_drops_a_note_whose_reply_does_not_parse(tmp_path, capsys):
@@ -2252,6 +2278,84 @@ def test_bakeoff_two_passes_on_two_samples_fill_one_row_and_name_the_winner(tmp_
     assert f"winner: {GLM_FLASH}" in printed
 
 
+class PassBTransport(httpx.MockTransport):
+    """Answers the first call for a document's text with its pass a reply and every later call
+    with its pass b reply, so a model's replies can differ between the two passes though the
+    request itself never says which pass it is answering.
+    """
+
+    def __init__(self, pass_a: dict[str, dict], pass_b: dict[str, dict]):
+        self.requests: list[httpx.Request] = []
+        self._pass_a = pass_a
+        self._pass_b = pass_b
+        self._seen: set[str] = set()
+        self._lock = threading.Lock()
+        super().__init__(self._handle)
+
+    def _handle(self, request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        with self._lock:
+            self.requests.append(request)
+        sent = "\n".join(message["content"] for message in body["messages"])
+        matched, longest = None, 0
+        for text in self._pass_a:
+            if len(text) > longest and text in sent:
+                matched, longest = text, len(text)
+        answer = MINIMAL_NOTE
+        if matched is not None:
+            with self._lock:
+                first_time = matched not in self._seen
+                self._seen.add(matched)
+            pool = self._pass_a if first_time else self._pass_b
+            answer = pool.get(matched, MINIMAL_NOTE)
+        return httpx.Response(200, json=reply(json.dumps(answer), 1000, 200))
+
+
+def test_bakeoff_a_pass_b_that_misses_one_fact_still_passes_on_pass_a(tmp_path, capsys):
+    """A row passes on pass a's recall alone; pass b's shortfall only lowers the agreement."""
+    runs_root = runs_root_with(tmp_path, ["northwind", "northstar-dental"])
+    ledger_path = fresh_ledger(tmp_path)
+    pass_a = {
+        **perfect_replies("northwind", runs_root / "northwind"),
+        **perfect_replies("northstar-dental", runs_root / "northstar-dental"),
+    }
+    pass_b = dict(pass_a)
+    pass_b.update(
+        perfect_replies(
+            "northstar-dental", runs_root / "northstar-dental", drop=("clouddent-system-of-record",)
+        )
+    )
+    transport = PassBTransport(pass_a, pass_b)
+    gateway = Gateway(api_key="k", transport=transport)
+
+    code = bakeoff.main(
+        [
+            str(ROOT / "samples"),
+            str(runs_root),
+            "--samples",
+            "northwind",
+            "northstar-dental",
+            "--models",
+            GLM_FLASH,
+        ],
+        gateway=gateway,
+        ledger=Ledger(ledger_path),
+    )
+    printed = capsys.readouterr().out
+    assert code == 0
+    assert len(transport.requests) == 1 + 12 + 12 + 13 + 13
+
+    table = json.loads((runs_root / "northwind" / "bakeoff.json").read_text(encoding="utf-8"))
+    row = row_of(table, GLM_FLASH)
+    assert row["recall"]["northwind"] == {"a": [5, 5], "b": [5, 5]}
+    assert row["recall"]["northstar-dental"] == {"a": [2, 2], "b": [1, 2]}
+    assert row["agreement"]["northwind"] == 1.0
+    assert row["agreement"]["northstar-dental"] < 1.0
+    assert row["passes"] is True
+    assert table["winner"] == GLM_FLASH
+    assert f"winner: {GLM_FLASH}" in printed
+
+
 def test_bakeoff_a_passing_flash_model_stops_the_pro_tier(tmp_path, capsys):
     """No pro model is called once a flash model passes everywhere."""
     runs_root = runs_root_with(tmp_path, ["northstar-dental"])
@@ -2533,6 +2637,89 @@ def test_bakeoff_notes_only_still_refuses_a_document_the_key_does_not_name(tmp_p
     assert transport.requests == []
 
 
+def test_bakeoff_recount_rebuilds_the_table_from_disk_with_no_call(tmp_path, capsys):
+    """--recount reads what rlm.notes already wrote under bakeoff/ and recounts the row, with
+    no gateway call and no ledger line."""
+    samples = ["northwind", "northstar-dental"]
+    runs_root = tmp_path / "runs"
+    for sample in samples:
+        source = ROOT / "runs" / sample / "bakeoff"
+        if not source.exists():
+            pytest.skip(f"runs/{sample}/bakeoff absent; run the bake-off first")
+        target = runs_root / sample / "bakeoff"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(source, target)
+
+    ledger_path = fresh_ledger(tmp_path)
+    before = ledger_path.read_bytes()
+    transport = FakeTransport([])
+    gateway = Gateway(api_key="k", transport=transport)
+
+    code = bakeoff.main(
+        [str(ROOT / "samples"), str(runs_root), "--samples", *samples, "--recount"],
+        gateway=gateway,
+        ledger=Ledger(ledger_path),
+    )
+    printed = capsys.readouterr().out
+    assert code == 0
+    assert transport.requests == []
+    assert ledger_path.read_bytes() == before
+
+    first = (runs_root / "northwind" / "bakeoff.json").read_bytes()
+    second = (runs_root / "northstar-dental" / "bakeoff.json").read_bytes()
+    assert first == second
+    table = json.loads(first.decode("utf-8"))
+
+    real = json.loads((ROOT / "runs" / "northwind" / "bakeoff.json").read_text(encoding="utf-8"))
+    real_by_model = {row["model"]: row for row in real["rows"]}
+
+    for model in (GLM_FLASH, LUNA):
+        row = row_of(table, model)
+        expected = real_by_model[model]
+        assert row["passes"] is True, model
+        assert row["recall"]["northwind"] == expected["recall"]["northwind"], model
+        assert row["recall"]["northstar-dental"] == expected["recall"]["northstar-dental"], model
+        assert row["agreement"]["northwind"] == expected["agreement"]["northwind"], model
+        assert row["agreement"]["northstar-dental"] == expected["agreement"]["northstar-dental"], model
+        assert row["probe"]["northwind"] == expected["probe"]["northwind"], model
+
+        slug = bakeoff.slug(model)
+        summed_dollars = 0.0
+        summed_seconds = 0.0
+        for pass_name in ("probe", "a", "b"):
+            summary_path = runs_root / "northwind" / "bakeoff" / slug / pass_name / "notes-summary.json"
+            if summary_path.exists():
+                summary = json.loads(summary_path.read_text(encoding="utf-8"))
+                summed_dollars += summary["dollars"]
+                summed_seconds += summary["seconds"]
+        for pass_name in ("a", "b"):
+            summary_path = runs_root / "northstar-dental" / "bakeoff" / slug / pass_name / "notes-summary.json"
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            summed_dollars += summary["dollars"]
+            summed_seconds += summary["seconds"]
+        assert row["dollars"] == pytest.approx(round(summed_dollars, 6)), model
+        assert row["seconds"] == pytest.approx(summed_seconds), model
+
+    assert table["winner"] == GLM_FLASH
+    assert f"winner: {GLM_FLASH}" in printed
+
+
+def test_bakeoff_recount_with_dry_run_is_an_error(tmp_path, capsys):
+    code = bakeoff.main([str(ROOT / "samples"), str(tmp_path / "runs"), "--recount", "--dry-run"])
+    printed = capsys.readouterr().out
+    assert code == 2
+    assert "--recount" in printed
+
+
+def test_bakeoff_recount_with_models_is_an_error(tmp_path, capsys):
+    code = bakeoff.main(
+        [str(ROOT / "samples"), str(tmp_path / "runs"), "--recount", "--models", GLM_FLASH]
+    )
+    printed = capsys.readouterr().out
+    assert code == 2
+    assert "--recount" in printed
+
+
 def test_bakeoff_every_ledger_row_reconciles_at_a_price_the_table_has_carried():
     """Every row of LEDGER.md is priced at the current table or one the repository has used."""
     for row in ledger_rows(ROOT / "LEDGER.md"):
@@ -2624,7 +2811,9 @@ def test_bakeoff_artefact_table_is_well_shaped(sample, run_dir, bakeoff_table):
 
 
 def test_bakeoff_artefact_winner_is_the_cheapest_passing_row(bakeoff_table):
-    """The winner is the passing row measured cheapest, or none when nothing passed."""
+    """The winner is the passing row measured cheapest, or none when nothing passed. A row
+    passes on pass a's recall alone; pass b's agreement with it is carried as the spread and
+    is not required to be total."""
     table = bakeoff_table
     passing = [row for row in table["rows"] if row["passes"] is True]
     if not passing:
@@ -2638,14 +2827,12 @@ def test_bakeoff_artefact_winner_is_the_cheapest_passing_row(bakeoff_table):
         agreement = row["agreement"]
         assert agreement != bakeoff.NOT_RUN, row
         assert set(agreement) == set(table["samples"]), row
-        assert all(share == 1.0 for share in agreement.values()), row
 
         recall_field = row["recall"]
         assert recall_field != bakeoff.NOT_RUN, row
         assert set(recall_field) == set(table["samples"]), row
         for seen in recall_field.values():
             assert seen["a"][0] == seen["a"][1], row
-            assert seen["b"][0] == seen["b"][1], row
 
 
 def test_bakeoff_artefact_every_probed_row_agrees_with_its_notes(sample, run_dir, key, bakeoff_table):
