@@ -113,49 +113,49 @@ Answer with one JSON object and nothing else, with exactly these keys:
 Use exactly these key names; an item using another name is dropped.
 
 Rules for every quote:
-- Copy the document's characters exactly: a quote is lifted from the document, never a sentence
-  about it, not paraphrased, corrected, shortened inside or reworded. A quote that is not
-  verbatim is dropped.
+- Copy the document's characters exactly: never a paraphrase, a correction, a shortening, or
+  a sentence about the document. A quote that is not verbatim is dropped.
 - Start a quote at the subject of its clause and carry its verb.
 - In a table, a row is written with its cells separated by " | ". Quote one cell's own text
-  whole, exactly as written. Do not join cells or restate a row in your own words.
-- Keep a quote to one sentence or one row, except a clause of several sentences in one
-  paragraph, which is quoted whole from its first word to its last: a termination,
-  change of control, assignment or exclusivity clause above all.
+  whole, exactly as written. Do not join cells or restate a row.
+- Keep a quote to one sentence or one row, except a clause: a termination, change of control,
+  assignment or exclusivity clause is one quote, first word to last full stop, even across
+  two or three sentences. Never split it into two items; quote it whole, as one flag.
 - Do not invent a quote; if you cannot quote it, leave it out.
-- A figure's surface is copied out of its own quote, character for character, from nowhere else
-  in the document.
-- Do not write an anchor, a page, a line or a section number. Those are added later.
+- A figure's surface is copied from its own quote, character for character, from nowhere
+  else.
+- Do not add an anchor, a page, a line or a section number; those come later.
 
 A diligence reader is buying this business; quote every one that the document carries:
-- a hedge or a qualifier that weakens a finding, and the sentence that carries it
+- a hedge or qualifier that weakens a finding, and the sentence carrying it
 - a conclusion that is softened, restated or reclassified from something harder
-- every warranty, representation or covenant, in the words that bind it, and in particular a
-  statement that something has not happened, does not exist or is not owed
+- every warranty, representation or covenant, in the words that bind it, especially that
+  something has not happened, does not exist or is not owed
 - an exclusion, a carve-out or a condition that could deny a claim
 - a deadline, a notice period or a clock, and whether it has run
-- a policy, a control, a limit or a standard that is breached, blocked or exceeded, and the
-  reason the document gives for it
+- a policy, a control, a limit or a standard that is breached, blocked or exceeded, and why
 - every clause that gives a party a right to end, suspend, withhold, accelerate or claim,
-  quoted from that party through what it may do; when quotes must be limited, these come
-  before figures and cross references
+  quoted through what it may do; prioritize these over figures and cross references
 - a reserve, a provision or a charge, and the words that size it
 - a range of exposure and both ends
 - a dated turning point: the week, month or date a number or trend moves
+- a statement that this deal or event constitutes, triggers or qualifies as a defined term,
+  in the sentence saying so
+- in a document under a page, every prose line, including a note under its own heading: a
+  dependency, a single point of failure or a system of record above all
 
 Which sentence to quote:
-- When your flag, claim or what restates a sentence of the document, quote that sentence, not
-  one beside it.
-- When a sentence names a term, a condition or an exclusion as material, decisive or at risk,
-  quote that sentence as well as the clause that defines it.
-- When a number appears more than once, quote the first sentence that states the number and
-  what it is for, as well as the later formal one.
-- When a table carries a total, an aggregate or a range, quote the prose sentence that states
-  it before the rows that feed it.
+- When your flag, claim or what restates a sentence, quote that sentence, not one beside it.
+- When a sentence calls a term, a condition or an exclusion material, decisive or at risk,
+  quote it and the clause that defines it.
+- When a number recurs, quote the first sentence giving it and what it is for, and the later
+  formal one.
+- When a table carries a total or a range, quote the prose sentence stating it, not just the
+  rows.
 
-A document of a few pages yields twenty to forty quotes; a long contract yields more, one per
-clause that binds, ends or excludes. When unsure whether a sentence matters, quote it; leave a
-list empty only when the document has nothing for it."""
+A document of a few pages yields twenty to forty quotes; a longer one yields more, one per
+clause that binds, ends or excludes. When unsure, quote it; leave a list empty only when the
+document has nothing for it."""
 
 USER_PREFIX = "The document, one section per line, in order:\n\n"
 
