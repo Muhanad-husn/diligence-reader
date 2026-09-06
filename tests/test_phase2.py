@@ -435,7 +435,7 @@ def test_one_document_main_writes_a_verified_note_a_verify_log_and_one_ledger_li
     assert note["what"] == CANNED_NOTE["what"]
 
     assert [flag["flag"] for flag in note["flags"]] == ["Exfiltration assessed as probable"]
-    assert note["flags"][0]["anchor"] == f"{DR_069}#p1l25"
+    assert note["flags"][0]["anchor"] == f"{DR_069}#p2l13"
     assert note["flags"][0]["consequence"] == "Contradicts the final report's softer wording."
 
     assert [figure["surface"] for figure in note["figures"]] == ["~8.4m"]
