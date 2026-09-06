@@ -27,13 +27,17 @@ from rlm.gateway import (
 from rlm.key import load_key
 from rlm.notes import (
     CROSS_REFERENCE_KINDS,
+    LOG_KEYS,
     NOTE_KEYS,
     QUOTED_FIELDS,
     build_messages,
+    item_detail,
     locate_quote,
     main,
     note_name,
     straighten,
+    verify_items,
+    well_shaped,
 )
 from rlm.sections import parse_anchor
 
@@ -402,6 +406,108 @@ def test_one_document_note_name_is_the_key_document_id():
     )
 
 
+# ---------------------------------------------------------------- notes: the shape of a reply
+
+
+SENTENCE = "Management recommends a reserve of $12m at this time, pending counsel's view."
+DRIFT_SECTIONS = [section(1, SENTENCE)]
+
+
+def test_one_document_verify_items_keeps_an_item_that_carries_every_required_key():
+    items = [{"surface": "$12m", "quote": "Management recommends a reserve of $12m"}]
+    kept, dropped = verify_items(DR_069, "figures", items, DRIFT_SECTIONS)
+    assert dropped == []
+    assert kept == [
+        {"surface": "$12m", "quote": "Management recommends a reserve of $12m", "anchor": f"{DR_069}#p1l10"}
+    ]
+
+
+def test_one_document_verify_items_drops_an_item_missing_a_required_key():
+    """The model's own key names are not the schema: a figure without surface does not verify."""
+    items = [{"figure": "$12m", "value": "12", "quote": "Management recommends a reserve of $12m"}]
+    kept, dropped = verify_items(DR_069, "figures", items, DRIFT_SECTIONS)
+    assert kept == []
+    assert len(dropped) == 1
+    assert dropped[0]["reason"] == "missing key surface"
+    assert dropped[0]["detail"] is None
+    assert dropped[0]["quote"] == "Management recommends a reserve of $12m"
+
+
+def test_one_document_verify_items_drops_an_item_whose_required_key_is_not_a_string():
+    items = [{"surface": 12, "quote": "Management recommends a reserve of $12m"}]
+    kept, dropped = verify_items(DR_069, "figures", items, DRIFT_SECTIONS)
+    assert kept == []
+    assert dropped[0]["reason"] == "missing key surface"
+
+
+def test_one_document_verify_items_drops_a_cross_reference_without_kind_or_value():
+    items = [{"cross_reference": "AURORA", "quote": "Management recommends a reserve of $12m"}]
+    kept, dropped = verify_items(DR_069, "cross_references", items, DRIFT_SECTIONS)
+    assert kept == []
+    assert dropped[0]["reason"] == "missing key kind"
+    assert dropped[0]["detail"] is None
+
+
+def test_one_document_verify_items_drops_a_concealed_item_without_claim():
+    items = [{"concealed": "the reserve is soft", "quote": "Management recommends a reserve of $12m"}]
+    kept, dropped = verify_items(DR_069, "concealed", items, DRIFT_SECTIONS)
+    assert kept == []
+    assert dropped[0]["reason"] == "missing key claim"
+
+
+def test_one_document_verify_items_gives_the_reason_of_every_failure():
+    quote = "Management recommends a reserve of $12m"
+    _, not_verbatim = verify_items(DR_069, "figures", [{"surface": "$12m", "quote": "management recommends"}], DRIFT_SECTIONS)
+    assert not_verbatim[0]["reason"] == "quote not found verbatim"
+    _, bad_surface = verify_items(DR_069, "figures", [{"surface": "$12.0m", "quote": quote}], DRIFT_SECTIONS)
+    assert bad_surface[0]["reason"] == "surface not inside the quote"
+    _, bad_kind = verify_items(DR_069, "cross_references", [{"kind": "amount", "value": "$12m", "quote": quote}], DRIFT_SECTIONS)
+    assert bad_kind[0]["reason"] == "kind not one of " + ", ".join(sorted(CROSS_REFERENCE_KINDS))
+
+
+def test_one_document_item_detail_names_the_item_inside_its_field():
+    quote = "Management recommends a reserve of $12m"
+    assert item_detail("flags", {"flag": "The reserve is soft", "quote": quote}) == "The reserve is soft"
+    assert item_detail("figures", {"surface": "$12m", "quote": quote}) == "$12m"
+    assert item_detail("cross_references", {"kind": "code", "value": "AURORA", "quote": quote}) == "code: AURORA"
+    assert item_detail("concealed", {"claim": "Counsel's view is not given", "quote": quote}) == "Counsel's view is not given"
+    assert item_detail("figures", {"quote": quote}) is None
+    assert item_detail("cross_references", {"kind": "code", "quote": quote}) is None
+    assert item_detail("flags", "not a dict") is None
+
+
+def test_one_document_verify_items_carries_the_detail_of_a_dropped_item():
+    items = [{"surface": "$12.0m", "quote": "Management recommends a reserve of $12m"}]
+    _, dropped = verify_items(DR_069, "figures", items, DRIFT_SECTIONS)
+    assert dropped[0]["detail"] == "$12.0m"
+
+
+def test_one_document_verify_items_keeps_an_exact_duplicate_once():
+    """One reply often writes the same figure twice; the note carries it once."""
+    item = {"surface": "$12m", "quote": "Management recommends a reserve of $12m"}
+    kept, dropped = verify_items(DR_069, "figures", [dict(item), dict(item), dict(item)], DRIFT_SECTIONS)
+    assert len(kept) == 1
+    assert dropped == []
+
+
+def test_one_document_verify_items_keeps_two_items_that_share_a_quote_and_differ():
+    quote = "Management recommends a reserve of $12m at this time"
+    items = [{"surface": "$12m", "quote": quote}, {"surface": "12m", "quote": quote}]
+    kept, dropped = verify_items(DR_069, "figures", items, DRIFT_SECTIONS)
+    assert [figure["surface"] for figure in kept] == ["$12m", "12m"]
+    assert dropped == []
+
+
+def test_one_document_well_shaped_wants_what_and_at_least_one_list_key():
+    assert well_shaped({"what": "x", "flags": [], "figures": [], "cross_references": [], "concealed": []})
+    assert well_shaped({"what": "x", "flags": []})
+    assert not well_shaped({"what": "", "flags": []})
+    assert not well_shaped({"flags": [], "figures": []})
+    assert not well_shaped({"what": "x"})
+    assert not well_shaped({"what": "x", "summary": [], "numbers": []})
+    assert not well_shaped({"what": 3, "flags": []})
+
+
 # ---------------------------------------------------------------- notes: main with a fake gateway
 
 
@@ -525,7 +631,10 @@ def test_one_document_main_writes_a_verified_note_a_verify_log_and_one_ledger_li
         ("flags", 1, "re-asked", 1),
     ]
     assert records[0]["quote"] == "Peak/cumulative egress on the legacy backup prefix"
+    assert records[0]["detail"] == "912.8m"
     assert records[1]["quote"] == "the attacker was identified as a state actor"
+    assert records[1]["detail"] == "A quote the model made up"
+    assert all(set(r) == LOG_KEYS for r in records)
     assert all(r["doc"] == DR_069 for r in records)
 
     # The ledger line.
@@ -804,7 +913,15 @@ def test_all_documents_a_call_that_raises_drops_the_note_and_the_pass_goes_on(tm
     records = [json.loads(line) for line in (out / "notes-verify.jsonl").read_text(encoding="utf-8").splitlines()]
     dropped_records = [r for r in records if r["doc"] == DR_069]
     assert dropped_records == [
-        {"doc": DR_069, "field": None, "item": None, "quote": None, "outcome": "note-dropped", "attempt": 1}
+        {
+            "doc": DR_069,
+            "field": None,
+            "item": None,
+            "quote": None,
+            "detail": None,
+            "outcome": "note-dropped",
+            "attempt": 1,
+        }
     ]
 
     rows = ledger_rows(ledger_path)
@@ -815,6 +932,129 @@ def test_all_documents_a_call_that_raises_drops_the_note_and_the_pass_goes_on(tm
     assert (summary["documents"], summary["noted"], summary["dropped"]) == (100, 99, 1)
 
     assert "DR-069: note dropped" in printed
+
+
+# The shape a live reply took when the model used its own key names: no what, no surface, no kind.
+DRIFTED_REPLY = {
+    "summary": "A dashboard of weekly product metrics.",
+    "figures": [
+        {"figure": "~8.4m", "value": "8400000", "quote": "~8.4m legacy small-business accounts"}
+    ],
+    "cross_references": [{"cross_reference": "AURORA", "quote": "AURORA"}],
+    "concealed": [{"concealed": "The draft hedges.", "quote": "Further work is required"}],
+}
+
+
+def test_all_documents_a_reply_with_the_models_own_keys_is_reasked_then_note_dropped(tmp_path, capsys):
+    """A reply without what, or without any of the four lists, is asked again with the key names."""
+    atlas_sections()
+    ledger_path = tmp_path / "LEDGER.md"
+    write_ledger(ledger_path, [("2026-09-05", "", "", "", 0, 0, 0.0, 50.0)])
+    drifted = json.dumps(DRIFTED_REPLY)
+    transport = FakeTransport(
+        [reply(drifted, tokens_in=2500, tokens_out=179), reply(drifted, tokens_in=2600, tokens_out=179)]
+    )
+    gateway = Gateway(api_key="k", transport=transport)
+    out = tmp_path / "out"
+
+    code = main(
+        [str(ROOT / "samples" / "atlas"), str(ROOT / "runs" / "atlas"), "--model", MODEL, "--only", "DR-069", "--out", str(out)],
+        gateway=gateway,
+        ledger=Ledger(ledger_path),
+    )
+    capsys.readouterr()
+    assert code == 0
+    assert len(transport.requests) == 2
+
+    asked = json.loads(transport.requests[1].content)["messages"][3]["content"]
+    for name in ("what", "flags", "figures", "cross_references", "concealed", "surface", "kind", "claim"):
+        assert name in asked, name
+
+    assert not (out / "notes" / "DR-069.json").exists()
+    records = [json.loads(line) for line in (out / "notes-verify.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert len(records) == 1
+    assert (records[0]["outcome"], records[0]["attempt"]) == ("note-dropped", 2)
+    assert records[0]["detail"] is None
+    assert set(records[0]) == LOG_KEYS
+
+
+def test_all_documents_the_reask_names_the_field_the_reason_and_the_quote(tmp_path, capsys):
+    """An item whose keys drifted is a failed item: the re-ask says which field and why."""
+    atlas_sections()
+    ledger_path = tmp_path / "LEDGER.md"
+    write_ledger(ledger_path, [("2026-09-05", "", "", "", 0, 0, 0.0, 50.0)])
+    first = {
+        "what": "Draft forensic findings on the October 2025 legacy backup exposure.",
+        "flags": [],
+        "figures": [
+            {"figure": "~8.4m", "value": "8400000", "quote": "~8.4m legacy small-business accounts"}
+        ],
+        "cross_references": [],
+        "concealed": [],
+    }
+    second = json.loads(json.dumps(first))
+    second["figures"] = [{"surface": "~8.4m", "quote": "~8.4m legacy small-business accounts"}]
+    transport = FakeTransport(
+        [
+            reply(json.dumps(first), tokens_in=2500, tokens_out=400),
+            reply(json.dumps(second), tokens_in=3000, tokens_out=300),
+        ]
+    )
+    gateway = Gateway(api_key="k", transport=transport)
+    out = tmp_path / "out"
+
+    code = main(
+        [str(ROOT / "samples" / "atlas"), str(ROOT / "runs" / "atlas"), "--model", MODEL, "--only", "DR-069", "--out", str(out)],
+        gateway=gateway,
+        ledger=Ledger(ledger_path),
+    )
+    capsys.readouterr()
+    assert code == 0
+    assert len(transport.requests) == 2
+
+    asked = json.loads(transport.requests[1].content)["messages"][3]["content"]
+    assert "figures" in asked
+    assert "missing key surface" in asked
+    assert "~8.4m legacy small-business accounts" in asked
+
+    note = json.loads((out / "notes" / "DR-069.json").read_text(encoding="utf-8"))
+    assert [figure["surface"] for figure in note["figures"]] == ["~8.4m"]
+
+    records = [json.loads(line) for line in (out / "notes-verify.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert [(r["field"], r["item"], r["detail"], r["outcome"], r["attempt"]) for r in records] == [
+        ("figures", 0, None, "re-asked", 1)
+    ]
+
+
+def test_all_documents_every_reply_is_written_to_notes_raw(tmp_path, capsys):
+    """Both replies of a re-asked document are kept verbatim under notes-raw, one per attempt."""
+    atlas_sections()
+    ledger_path = tmp_path / "LEDGER.md"
+    write_ledger(ledger_path, [("2026-09-05", "", "", "", 0, 0, 0.0, 50.0)])
+    first_text = json.dumps(CANNED_NOTE)
+    second_text = json.dumps(canned_note_without_the_bad_items())
+    transport = FakeTransport(
+        [
+            reply(first_text, tokens_in=2500, tokens_out=400),
+            reply(second_text, tokens_in=3000, tokens_out=300),
+        ]
+    )
+    gateway = Gateway(api_key="k", transport=transport)
+    out = tmp_path / "out"
+
+    code = main(
+        [str(ROOT / "samples" / "atlas"), str(ROOT / "runs" / "atlas"), "--model", MODEL, "--only", "DR-069", "--out", str(out)],
+        gateway=gateway,
+        ledger=Ledger(ledger_path),
+    )
+    capsys.readouterr()
+    assert code == 0
+    assert len(transport.requests) == 2
+
+    raw_dir = out / "notes-raw"
+    assert sorted(path.name for path in raw_dir.glob("*.txt")) == ["DR-069.1.txt", "DR-069.2.txt"]
+    assert (raw_dir / "DR-069.1.txt").read_text(encoding="utf-8") == first_text
+    assert (raw_dir / "DR-069.2.txt").read_text(encoding="utf-8") == second_text
 
 
 # ---------------------------------------------------------------- notes: the artefact
@@ -935,13 +1175,15 @@ def test_one_document_verify_log_is_well_shaped_and_sorted(run_dir, notes):
     assert path.exists()
     records = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
     for record in records:
-        assert set(record) == {"doc", "field", "item", "quote", "outcome", "attempt"}
+        assert set(record) == LOG_KEYS
         assert record["outcome"] in ("re-asked", "dropped", "note-dropped")
         assert record["attempt"] in (1, 2)
         if record["outcome"] == "note-dropped":
             assert record["field"] is None and record["item"] is None
+            assert record["detail"] is None
         else:
             assert record["field"] in QUOTED_FIELDS and isinstance(record["item"], int)
+            assert record["detail"] is None or isinstance(record["detail"], str)
     order = [(r["doc"], r["field"] or "", r["item"] if r["item"] is not None else -1, r["attempt"]) for r in records]
     assert order == sorted(order)
 
@@ -1004,6 +1246,11 @@ def test_all_documents_every_key_document_has_a_note_or_a_drop(notes, key, run_d
 
 
 def test_all_documents_dropped_items_are_absent_from_their_note(notes, run_dir):
+    """A dropped item is told from a kept one by its field, its detail and its quote together.
+
+    Two items of one reply can share a quote and differ in surface or kind, one passing and one
+    failing, so the quote alone does not say which record is which.
+    """
     by_path = {note["doc"]: note for _, note in notes.values()}
     for record in verify_records(run_dir):
         if record["outcome"] != "dropped":
@@ -1011,8 +1258,12 @@ def test_all_documents_dropped_items_are_absent_from_their_note(notes, run_dir):
         note = by_path.get(record["doc"])
         if note is None:
             continue
-        quotes = {straighten(item["quote"]) for _, _, item in quoted_items(note)}
-        assert straighten(record["quote"] or "") not in quotes, record
+        kept = {
+            (field, item_detail(field, item), straighten(item["quote"]))
+            for field, _, item in quoted_items(note)
+        }
+        triple = (record["field"], record["detail"], straighten(record["quote"] or ""))
+        assert triple not in kept, record
 
 
 def test_all_documents_summary_counts_the_pass(notes, key, run_dir, sample):
