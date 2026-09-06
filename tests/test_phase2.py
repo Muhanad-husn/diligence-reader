@@ -467,6 +467,62 @@ def test_one_document_locate_quote_ignores_markdown_emphasis_in_the_source():
     assert locate_quote("**constitutes a Change of Control**", sections) == f"{DR_069}#p1l10"
 
 
+def quote_in_section(quote: str, anchor: str, doc_sections: list[dict]) -> bool:
+    """Says whether a document's own anchor actually carries a quote: True when the straightened
+    quote is a substring of the straightened text of the section named by anchor, or of that
+    section's text joined by one space with the next section in ordinal order (the same
+    two-section rule locate_quote uses). False when the quote is nowhere in that pair, or when
+    anchor is not one of doc_sections' own anchors (for instance an anchor of another document).
+    doc_sections is one document's records in ordinal order.
+    """
+    needle = straighten(quote)
+    if not needle:
+        return False
+    for index, record in enumerate(doc_sections):
+        if record["anchor"] != anchor:
+            continue
+        text = straighten(record["text"])
+        if needle in text:
+            return True
+        if index + 1 < len(doc_sections):
+            following = straighten(doc_sections[index + 1]["text"])
+            if needle in f"{text} {following}":
+                return True
+        return False
+    return False
+
+
+def test_quote_in_section_passes_for_a_quote_inside_its_anchored_section():
+    sections = [section(1, "First block of text."), section(2, "Second block.")]
+    assert quote_in_section("First block of text.", f"{DR_069}#p1l10", sections)
+
+
+def test_quote_in_section_fails_for_a_quote_only_in_a_later_section():
+    """The two-section rule only reaches the anchor's own text and the one section right after
+    it, so a quote that first appears two sections on still fails."""
+    sections = [
+        section(1, "First block of text."),
+        section(2, "Second block of text."),
+        section(3, "Third block only here."),
+    ]
+    assert not quote_in_section("Third block only here.", f"{DR_069}#p1l10", sections)
+
+
+def test_quote_in_section_passes_for_a_quote_spanning_the_anchored_section_and_the_next():
+    sections = [
+        section(1, "The access pattern is inconsistent with any"),
+        section(2, "scheduled restore or analytics job."),
+    ]
+    assert quote_in_section(
+        "inconsistent with any scheduled restore", f"{DR_069}#p1l10", sections
+    )
+
+
+def test_quote_in_section_fails_for_an_anchor_of_another_document():
+    sections = [section(1, "First block of text.", doc=DR_069)]
+    assert not quote_in_section("First block of text.", f"{CONTINGENCY}#p1l10", sections)
+
+
 def test_one_document_verify_items_keeps_a_figure_whose_surface_was_bold_in_the_source():
     sections = [section(1, "an annual subscription fee of Twelve Million U.S. Dollars (**US $12,400,000**) per year")]
     items = [{"surface": "US $12,400,000", "quote": "an annual subscription fee of Twelve Million U.S. Dollars (US $12,400,000) per year"}]
@@ -1396,6 +1452,17 @@ def test_one_document_harvest_reads_the_change_of_control_sentence_out_of_the_ca
     assert found[0]["anchor"] == f"{CAP_TABLE}#l98"
 
 
+def test_all_documents_every_harvested_figure_of_atlas_verifies_by_quote_in_section():
+    """Every figure harvest_figures cuts from atlas's own sections carries an anchor that
+    actually names a section containing its quote, including the short table cells (like
+    $1,480m) that recur in an earlier prose line and so are not the first place a plain
+    document-wide search would find them."""
+    by_doc = atlas_sections_by_doc()
+    for doc, sections in by_doc.items():
+        for item in harvest_figures(sections):
+            assert quote_in_section(item["quote"], item["anchor"], sections), (doc, item)
+
+
 def test_one_document_main_harvests_the_figures_a_reply_left_out(tmp_path, capsys):
     """A reply with no figures still gives a note carrying every sentence that names an amount."""
     sections = [record for record in atlas_sections() if record["doc"] == CONTINGENCY]
@@ -1601,18 +1668,21 @@ def test_one_document_note_is_well_shaped(notes, key):
 
 
 def assert_notes_quotes_verified(notes, sections_by_doc):
-    """Every quote of every note is verified and anchored by code. Shared by the sample-level
-    notes test and the bake-off artefact test."""
+    """Every quote of every note is verified and anchored by code: the anchor is one of the
+    document's own sections, and the quote is actually inside that section (or that section
+    joined with the next). A harvested figure keeps the anchor of the section it was cut from,
+    which need not be the first section a plain search of the document would find (a short
+    table cell such as $1,480m can also read verbatim in an earlier prose line), so this does
+    not require the anchor to equal locate_quote's first match. Shared by the sample-level notes
+    test and the bake-off artefact test."""
     for name, (_, note) in notes.items():
         doc_sections = sections_by_doc[note["doc"]]
         for field, index, item in quoted_items(note):
             where = (name, field, index)
-            anchor = locate_quote(item["quote"], doc_sections)
-            assert anchor is not None, where
-            assert item["anchor"] == anchor, where
             parsed = parse_anchor(item["anchor"])
             assert parsed.doc == note["doc"], where
             assert item["anchor"] in {record["anchor"] for record in doc_sections}, where
+            assert quote_in_section(item["quote"], item["anchor"], doc_sections), where
         for index, figure in enumerate(note["figures"]):
             assert straighten(figure["surface"]) in straighten(figure["quote"]), (name, "figures", index)
 
