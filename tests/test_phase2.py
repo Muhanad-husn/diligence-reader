@@ -185,6 +185,30 @@ def test_gateway_complete_posts_one_chat_request_and_returns_the_reported_usage(
     assert body["max_tokens"] == 4000
     assert body["seed"] == 0
     assert body["response_format"] == {"type": "json_object"}
+    assert body["reasoning"] == {"enabled": False}
+
+
+def test_gateway_complete_turns_reasoning_off():
+    transport = FakeTransport([reply('{"what": "x"}')])
+    gateway = Gateway(api_key="test-key", transport=transport)
+
+    gateway.complete(MODEL, [{"role": "user", "content": "u"}], max_tokens=100)
+
+    body = json.loads(transport.requests[0].content)
+    assert body["reasoning"] == {"enabled": False}
+
+
+def test_gateway_complete_reads_a_null_content_as_empty_text():
+    body = reply("placeholder", tokens_in=500, tokens_out=6000)
+    body["choices"][0]["message"]["content"] = None
+    transport = FakeTransport([body])
+    gateway = Gateway(api_key="test-key", transport=transport)
+
+    completion = gateway.complete(MODEL, [{"role": "user", "content": "u"}], max_tokens=6000)
+
+    assert completion.text == ""
+    assert completion.tokens_in == 500
+    assert completion.tokens_out == 6000
 
 
 def test_gateway_complete_raises_on_a_non_200_reply():
@@ -744,6 +768,53 @@ def test_all_documents_a_document_with_no_sections_is_dropped_without_a_call(tmp
 
     summary = json.loads((out / "notes-summary.json").read_text(encoding="utf-8"))
     assert (summary["documents"], summary["noted"], summary["dropped"]) == (100, 1, 99)
+
+
+def test_all_documents_a_call_that_raises_drops_the_note_and_the_pass_goes_on(tmp_path, capsys):
+    """A document whose call raises is dropped whole; the rest of the pass still gets noted."""
+    atlas_sections()
+    key = load_key(ROOT / "samples" / "atlas")
+    ledger_path = tmp_path / "LEDGER.md"
+    write_ledger(ledger_path, [("2026-09-05", "", "", "", 0, 0, 0.0, 50.0)])
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        sent = "\n".join(message["content"] for message in body["messages"])
+        if "bulk export is probable" in sent:
+            return httpx.Response(500, json={"error": {"message": "boom"}})
+        return httpx.Response(200, json=reply(json.dumps(MINIMAL_NOTE), tokens_in=2500, tokens_out=400))
+
+    transport = httpx.MockTransport(handle)
+    gateway = Gateway(api_key="k", transport=transport)
+    out = tmp_path / "out"
+
+    code = main(
+        [str(ROOT / "samples" / "atlas"), str(ROOT / "runs" / "atlas"), "--model", MODEL, "--out", str(out)],
+        gateway=gateway,
+        ledger=Ledger(ledger_path),
+    )
+    printed = capsys.readouterr().out
+    assert code == 0
+
+    assert not (out / "notes" / "DR-069.json").exists()
+    written = sorted(path.name for path in (out / "notes").glob("*.json"))
+    expected = sorted(note_name(doc_id) for doc_id in key.documents if doc_id != "DR-069")
+    assert written == expected
+
+    records = [json.loads(line) for line in (out / "notes-verify.jsonl").read_text(encoding="utf-8").splitlines()]
+    dropped_records = [r for r in records if r["doc"] == DR_069]
+    assert dropped_records == [
+        {"doc": DR_069, "field": None, "item": None, "quote": None, "outcome": "note-dropped", "attempt": 1}
+    ]
+
+    rows = ledger_rows(ledger_path)
+    assert len(rows) == 2
+    assert (rows[-1]["tokens_in"], rows[-1]["tokens_out"]) == (2500 * 99, 400 * 99)
+
+    summary = json.loads((out / "notes-summary.json").read_text(encoding="utf-8"))
+    assert (summary["documents"], summary["noted"], summary["dropped"]) == (100, 99, 1)
+
+    assert "DR-069: note dropped" in printed
 
 
 # ---------------------------------------------------------------- notes: the artefact
