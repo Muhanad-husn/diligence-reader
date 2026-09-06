@@ -1,0 +1,120 @@
+"""Pins the bake-off winner's pass a into a sample's runs directory, and writes the sha256 of
+every pinned file into tests/phase2-digests.json.
+
+For each sample it reads runs/<sample>/bakeoff.json's winner. A sample with no winner is a
+refusal: the message names the sample and the run stops before anything is copied or written,
+on any sample. When every sample has a winner, its pass a is copied byte for byte from
+runs/<sample>/bakeoff/<slug>/a/ into runs/<sample>/: notes/ replaces the sample's notes/
+(removed first when present), notes-verify.jsonl and notes-summary.json replace the sample's
+copies, and notes-raw/ is copied the same way when the winning pass wrote one. Nothing here
+calls a model or writes LEDGER.md; the copy is bytes, not a rerun.
+
+The digest file holds, per sample, the sha256 of every pinned note file (keyed "notes/<name>")
+and of notes-verify.jsonl, sorted keys, matching how tests/phase1-digests.json is written.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import shutil
+import sys
+from pathlib import Path
+
+from rlm import bakeoff
+
+# The three gate samples, in the order a run takes them.
+SAMPLES = ("atlas", "northwind", "northstar-dental")
+
+
+def default_digests_path() -> Path:
+    """tests/phase2-digests.json at the repo root, the parent of the rlm package's src."""
+    return Path(__file__).resolve().parents[2] / "tests" / "phase2-digests.json"
+
+
+def winner_of(sample_dir: Path) -> str | None:
+    """The winner named by sample_dir/bakeoff.json, or None."""
+    table = json.loads((sample_dir / "bakeoff.json").read_text(encoding="utf-8"))
+    return table.get("winner")
+
+
+def copy_pass(pass_dir: Path, sample_dir: Path) -> None:
+    """Copies one winning pass a's files into sample_dir, replacing what was there."""
+    notes_dir = sample_dir / "notes"
+    if notes_dir.exists():
+        shutil.rmtree(notes_dir)
+    shutil.copytree(pass_dir / "notes", notes_dir)
+
+    shutil.copy2(pass_dir / "notes-verify.jsonl", sample_dir / "notes-verify.jsonl")
+    shutil.copy2(pass_dir / "notes-summary.json", sample_dir / "notes-summary.json")
+
+    raw_source = pass_dir / "notes-raw"
+    if raw_source.is_dir():
+        raw_target = sample_dir / "notes-raw"
+        if raw_target.exists():
+            shutil.rmtree(raw_target)
+        shutil.copytree(raw_source, raw_target)
+
+
+def note_digests(sample_dir: Path) -> dict[str, str]:
+    """The sha256 of every pinned note file and the verify log, keyed as the digest file names
+    them."""
+    digests: dict[str, str] = {}
+    for path in sorted((sample_dir / "notes").glob("*.json")):
+        digests[f"notes/{path.name}"] = hashlib.sha256(path.read_bytes()).hexdigest()
+    digests["notes-verify.jsonl"] = hashlib.sha256(
+        (sample_dir / "notes-verify.jsonl").read_bytes()
+    ).hexdigest()
+    return digests
+
+
+def pin_sample(runs_root: Path, sample: str, winner: str) -> dict[str, str]:
+    """Copies one sample's winning pass a into place and returns its file digests."""
+    sample_dir = runs_root / sample
+    pass_dir = sample_dir / "bakeoff" / bakeoff.slug(winner) / "a"
+    copy_pass(pass_dir, sample_dir)
+    return note_digests(sample_dir)
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    """Reads the command line of one pin run."""
+    parser = argparse.ArgumentParser(prog="python -m rlm.pin")
+    parser.add_argument("runs_root")
+    parser.add_argument("--samples", nargs="+", default=list(SAMPLES))
+    parser.add_argument("--digests", default=None)
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str]) -> int:
+    """Pins each sample's bake-off winner and writes tests/phase2-digests.json."""
+    args = parse_args(argv)
+    runs_root = Path(args.runs_root)
+    digests_path = Path(args.digests) if args.digests else default_digests_path()
+
+    winners: dict[str, str] = {}
+    for sample in args.samples:
+        winner = winner_of(runs_root / sample)
+        if not winner:
+            print(f"{sample}: bakeoff.json names no winner, nothing pinned")
+            return 1
+        winners[sample] = winner
+
+    all_digests: dict[str, dict[str, str]] = {}
+    for sample in args.samples:
+        winner = winners[sample]
+        digests = pin_sample(runs_root, sample, winner)
+        all_digests[sample] = digests
+        notes_copied = len(digests) - 1
+        print(f"{sample}: winner {winner}, {notes_copied} notes copied, {len(digests)} digests")
+
+    digests_path.parent.mkdir(parents=True, exist_ok=True)
+    digests_path.write_text(
+        json.dumps(all_digests, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
