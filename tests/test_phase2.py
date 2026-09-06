@@ -28,8 +28,10 @@ from rlm.key import load_key
 from rlm.notes import (
     CROSS_REFERENCE_KINDS,
     LOG_KEYS,
+    MAX_OUTPUT_TOKENS,
     NOTE_KEYS,
     QUOTED_FIELDS,
+    SYSTEM_PROMPT,
     build_messages,
     item_detail,
     locate_quote,
@@ -508,6 +510,12 @@ def test_one_document_well_shaped_wants_what_and_at_least_one_list_key():
     assert not well_shaped({"what": 3, "flags": []})
 
 
+def test_one_document_the_prompt_stays_inside_its_budget():
+    """The system prompt is under 3800 characters and one note is capped at 6000 output tokens."""
+    assert len(SYSTEM_PROMPT) < 3800
+    assert MAX_OUTPUT_TOKENS == 6000
+
+
 # ---------------------------------------------------------------- notes: main with a fake gateway
 
 
@@ -842,6 +850,95 @@ def test_all_documents_reask_drops_what_still_fails(tmp_path, capsys):
     ]
     order = [(r["doc"], r["field"] or "", r["item"] if r["item"] is not None else -1, r["attempt"]) for r in records]
     assert order == sorted(order)
+
+
+def test_all_documents_reask_keeps_an_item_the_second_reply_left_out(tmp_path, capsys):
+    """The note is the union of both attempts, so a shrinking second reply loses nothing."""
+    atlas_sections()
+    ledger_path = tmp_path / "LEDGER.md"
+    write_ledger(ledger_path, [("2026-09-05", "", "", "", 0, 0, 0.0, 50.0)])
+    second_note = {
+        "what": "A shorter answer.",
+        "flags": [
+            {
+                "flag": "Five bulk-read events in the window",
+                "quote": "5 distinct anomalous bulk-read events across the window.",
+                "consequence": "Sizes the window of the exposure.",
+            }
+        ],
+        "figures": [],
+        "cross_references": [],
+        "concealed": [],
+    }
+    transport = FakeTransport(
+        [
+            reply(json.dumps(CANNED_NOTE), tokens_in=2500, tokens_out=400),
+            reply(json.dumps(second_note), tokens_in=3000, tokens_out=300),
+        ]
+    )
+    gateway = Gateway(api_key="k", transport=transport)
+    out = tmp_path / "out"
+
+    code = main(
+        [str(ROOT / "samples" / "atlas"), str(ROOT / "runs" / "atlas"), "--model", MODEL, "--only", "DR-069", "--out", str(out)],
+        gateway=gateway,
+        ledger=Ledger(ledger_path),
+    )
+    capsys.readouterr()
+    assert code == 0
+    assert len(transport.requests) == 2
+
+    note = json.loads((out / "notes" / "DR-069.json").read_text(encoding="utf-8"))
+    assert [flag["flag"] for flag in note["flags"]] == [
+        "Exfiltration assessed as probable",
+        "Five bulk-read events in the window",
+    ]
+    assert [figure["surface"] for figure in note["figures"]] == ["~8.4m"]
+    assert len(note["cross_references"]) == 2
+    assert len(note["concealed"]) == 1
+    assert note["what"] == CANNED_NOTE["what"]
+
+    records = [json.loads(line) for line in (out / "notes-verify.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert [(r["field"], r["item"], r["outcome"], r["attempt"]) for r in records] == [
+        ("figures", 1, "re-asked", 1),
+        ("flags", 1, "re-asked", 1),
+    ]
+
+
+def test_all_documents_reask_keeps_a_repeated_item_once(tmp_path, capsys):
+    """An item the second reply repeats exactly as the first wrote it is in the note once."""
+    atlas_sections()
+    ledger_path = tmp_path / "LEDGER.md"
+    write_ledger(ledger_path, [("2026-09-05", "", "", "", 0, 0, 0.0, 50.0)])
+    second_note = {
+        "what": "The same items again.",
+        "flags": [CANNED_NOTE["flags"][0]],
+        "figures": [CANNED_NOTE["figures"][0]],
+        "cross_references": list(CANNED_NOTE["cross_references"]),
+        "concealed": list(CANNED_NOTE["concealed"]),
+    }
+    transport = FakeTransport(
+        [
+            reply(json.dumps(CANNED_NOTE), tokens_in=2500, tokens_out=400),
+            reply(json.dumps(second_note), tokens_in=3000, tokens_out=300),
+        ]
+    )
+    gateway = Gateway(api_key="k", transport=transport)
+    out = tmp_path / "out"
+
+    code = main(
+        [str(ROOT / "samples" / "atlas"), str(ROOT / "runs" / "atlas"), "--model", MODEL, "--only", "DR-069", "--out", str(out)],
+        gateway=gateway,
+        ledger=Ledger(ledger_path),
+    )
+    capsys.readouterr()
+    assert code == 0
+
+    note = json.loads((out / "notes" / "DR-069.json").read_text(encoding="utf-8"))
+    assert [flag["flag"] for flag in note["flags"]] == ["Exfiltration assessed as probable"]
+    assert [figure["surface"] for figure in note["figures"]] == ["~8.4m"]
+    assert len(note["cross_references"]) == 2
+    assert len(note["concealed"]) == 1
 
 
 def test_all_documents_a_document_with_no_sections_is_dropped_without_a_call(tmp_path, capsys):
