@@ -52,3 +52,6 @@ Ceiling $50. Written by the code that makes gateway calls; a line added by hand 
 | 2026-09-06 | northstar-dental | 2 | openai/gpt-5.6-luna | 13791 | 8073 | 0.0124 | 48.5288 |
 | 2026-09-06 | atlas | 2 | deepseek/deepseek-v4-pro | 19325 | 11689 | 0.0281 | 48.5007 |
 | 2026-09-06 | northwind | 2 | deepseek/deepseek-v4-pro | 7833 | 4188 | 0.0106 | 48.4901 |
+| 2026-09-06 | atlas | 2 | z-ai/glm-5.3-flash | 251478 | 206060 | 0.0704 | 48.4197 |
+| 2026-09-06 | northwind | 2 | z-ai/glm-5.3-flash | 59030 | 41822 | 0.0149 | 48.4048 |
+| 2026-09-06 | northstar-dental | 2 | z-ai/glm-5.3-flash | 14634 | 13678 | 0.0045 | 48.4003 |
