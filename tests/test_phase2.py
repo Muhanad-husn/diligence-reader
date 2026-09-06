@@ -18,6 +18,7 @@ from rlm import bakeoff
 from rlm.gateway import (
     PAST_PRICES,
     PRICES,
+    REASONING,
     TOTAL_CEILING,
     CapExceeded,
     Completion,
@@ -225,6 +226,19 @@ def test_gateway_complete_turns_reasoning_off():
 
     body = json.loads(transport.requests[0].content)
     assert body["reasoning"] == {"enabled": False}
+
+
+def test_gateway_complete_sends_low_effort_reasoning_to_glm():
+    """The GLM endpoints refuse reasoning off, so they carry a low effort object instead."""
+    assert set(REASONING) == set(PRICES)
+    for model in ("z-ai/glm-5.3", "z-ai/glm-5.3-flash"):
+        transport = FakeTransport([reply('{"what": "x"}')])
+        gateway = Gateway(api_key="test-key", transport=transport)
+
+        gateway.complete(model, [{"role": "user", "content": "u"}], max_tokens=100)
+
+        body = json.loads(transport.requests[0].content)
+        assert body["reasoning"] == {"effort": "low"}
 
 
 def test_gateway_complete_reads_a_null_content_as_empty_text():
@@ -2008,6 +2022,74 @@ def test_bakeoff_dry_run_writes_a_table_of_not_run_rows_and_makes_no_request(tmp
     for model in PRICES:
         assert model in printed, model
     assert "$" in printed
+
+
+def test_bakeoff_a_models_rerun_keeps_the_rows_it_does_not_measure(tmp_path, capsys):
+    """--models with an existing bakeoff.json keeps the other rows instead of blanking them."""
+    runs_root = runs_root_with(tmp_path, ["northwind", "northstar-dental"])
+    ledger_path = fresh_ledger(tmp_path)
+    luna_row = {
+        "model": LUNA,
+        "slug": bakeoff.slug(LUNA),
+        "tier": "flash",
+        "probe": {"northwind": {"hits": 1, "of": 1, "missed": []}},
+        "passes": True,
+        "dollars": 0.0123,
+        "agreement": {"northwind": 1.0, "northstar-dental": 1.0},
+        "recall": {
+            "northwind": {"a": [5, 5], "b": [5, 5]},
+            "northstar-dental": {"a": [2, 2], "b": [2, 2]},
+        },
+        "seconds": 12.5,
+    }
+    rows = [luna_row] + [
+        bakeoff.blank_row(model, tier)
+        for tier in bakeoff.TIERS
+        for model in bakeoff.TIERS[tier]
+        if model != LUNA
+    ]
+    existing = {
+        "date": "2026-09-01",
+        "samples": ["northwind", "northstar-dental"],
+        "prices": {model: list(PRICES[model]) for model in PRICES},
+        "rows": rows,
+        "winner": LUNA,
+    }
+    (runs_root / "northwind" / "bakeoff.json").write_text(json.dumps(existing), encoding="utf-8")
+
+    replies = {
+        GLM_FLASH: {
+            **perfect_replies("northwind", runs_root / "northwind"),
+            **perfect_replies("northstar-dental", runs_root / "northstar-dental"),
+        }
+    }
+    transport = BakeoffTransport(replies)
+    gateway = Gateway(api_key="k", transport=transport)
+
+    code = bakeoff.main(
+        [
+            str(ROOT / "samples"),
+            str(runs_root),
+            "--samples",
+            "northwind",
+            "northstar-dental",
+            "--models",
+            GLM_FLASH,
+        ],
+        gateway=gateway,
+        ledger=Ledger(ledger_path),
+    )
+    capsys.readouterr()
+    assert code == 0
+
+    table = json.loads((runs_root / "northwind" / "bakeoff.json").read_text(encoding="utf-8"))
+    kept = row_of(table, LUNA)
+    assert kept == luna_row
+    glm = row_of(table, GLM_FLASH)
+    assert glm["passes"] is True
+    for model in (DS_FLASH, DS_PRO, GLM):
+        assert all(row_of(table, model)[field] == "not run" for field in MEASURED), model
+    assert table["winner"] == (LUNA if luna_row["dollars"] < glm["dollars"] else GLM_FLASH)
 
 
 def test_bakeoff_notes_only_is_repeatable(tmp_path, capsys):

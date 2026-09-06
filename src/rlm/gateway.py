@@ -1,8 +1,8 @@
 """The one module that calls the gateway, and the ledger that pays for the call.
 
 Every model call in this repository goes through Gateway.complete, which posts one chat
-completion to OpenRouter with temperature 0, a fixed seed, JSON output mode and reasoning off.
-Nothing else opens a socket.
+completion to OpenRouter with temperature 0, a fixed seed, JSON output mode and the reasoning
+object REASONING gives its model. Nothing else opens a socket.
 
 Money is a ceiling the code enforces. A batch of calls runs inside Ledger.batch, which prints
 the estimated tokens and the price before anything is sent, refuses when the estimate would
@@ -46,6 +46,17 @@ PAST_PRICES: tuple[dict[str, tuple[float, float]], ...] = (
         "z-ai/glm-5.3-flash": (0.075, 0.250),
     },
 )
+
+# The reasoning object each model's request carries. The two GLM endpoints answer 400 when
+# reasoning is disabled, so they carry a low effort object instead; every other model of PRICES
+# carries reasoning off.
+REASONING: dict[str, dict] = {
+    "openai/gpt-5.6-luna": {"enabled": False},
+    "deepseek/deepseek-v4-flash-0731": {"enabled": False},
+    "deepseek/deepseek-v4-pro": {"enabled": False},
+    "z-ai/glm-5.3": {"effort": "low"},
+    "z-ai/glm-5.3-flash": {"effort": "low"},
+}
 
 # The total ceiling and the per phase caps, from PLAN.md section 6.
 TOTAL_CEILING = 50.0
@@ -146,7 +157,7 @@ class Gateway:
             "seed": 0,
             "max_tokens": max_tokens,
             "response_format": {"type": "json_object"},
-            "reasoning": {"enabled": False},
+            "reasoning": REASONING.get(model, {"enabled": False}),
         }
         started = time.monotonic()
         response = self._client.post(

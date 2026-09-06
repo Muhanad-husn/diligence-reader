@@ -135,6 +135,15 @@ def blank_row(model: str, tier: str) -> dict:
     return row
 
 
+def kept_rows(runs_root: Path, first_sample: str) -> dict[str, dict]:
+    """The rows of runs_root/<first_sample>/bakeoff.json, by model, or {} when it is absent."""
+    path = runs_root / first_sample / "bakeoff.json"
+    if not path.exists():
+        return {}
+    table = json.loads(path.read_text(encoding="utf-8"))
+    return {row["model"]: row for row in table["rows"]}
+
+
 def pass_estimate(
     sections_by_doc: dict[str, list[dict]], key: Key, only: tuple[str, ...] = ()
 ) -> tuple[int, int]:
@@ -384,7 +393,12 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
             print("no such model in the price table: " + ", ".join(unknown))
             return 2
 
-    rows = {model: blank_row(model, tier) for tier in TIERS for model in TIERS[tier]}
+    kept = kept_rows(runs_root, samples[0]) if wanted is not None else {}
+    rows = {
+        model: kept[model] if wanted is not None and model not in wanted and model in kept else blank_row(model, tier)
+        for tier in TIERS
+        for model in TIERS[tier]
+    }
     chosen = [
         (tier, model)
         for tier in TIERS
