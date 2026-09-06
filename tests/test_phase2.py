@@ -401,6 +401,47 @@ def test_one_document_locate_quote_is_case_exact_and_straightens_the_quote():
     assert locate_quote("", sections) is None
 
 
+def test_one_document_straighten_drops_markdown_emphasis_marks():
+    """A markdown rendering wraps words in ** or _ ; the model quotes the words without them."""
+    assert straighten("The proposed acquisition **constitutes a Change of Control** under") == (
+        "The proposed acquisition constitutes a Change of Control under"
+    )
+    assert straighten("(c) **Notwithstanding any other provision.**") == "(c) Notwithstanding any other provision."
+    assert straighten("does **not** appear") == "does not appear"
+    assert straighten("_Prepared by: the DPO_") == "Prepared by: the DPO"
+    assert straighten("`code`") == "code"
+    # An underscore inside a word is part of the word, not a mark.
+    assert straighten("Aurora_Phase1_Technical_Findings_Draft.pdf") == "Aurora_Phase1_Technical_Findings_Draft.pdf"
+    assert straighten("a * b") == "a * b"
+
+
+def test_one_document_locate_quote_ignores_markdown_emphasis_in_the_source():
+    sections = [
+        section(1, "**5.2 Application to the Transaction.** The proposed acquisition **constitutes a Change of Control** under the foregoing definition."),
+        section(2, "(c) **Notwithstanding any other provision of this Agreement, Customer may terminate this Agreement, effective immediately.**"),
+        section(3, "| 3 | **TelemetryWorks Inc.** | **NOT LISTED** | **SCCs: none on file.** |"),
+    ]
+    assert locate_quote("The proposed acquisition constitutes a Change of Control under the foregoing definition.", sections) == f"{DR_069}#p1l10"
+    assert locate_quote("Notwithstanding any other provision of this Agreement, Customer may terminate this Agreement, effective immediately.", sections) == f"{DR_069}#p1l20"
+    assert locate_quote("SCCs: none on file.", sections) == f"{DR_069}#p1l30"
+    # A quote that keeps the marks verifies as well.
+    assert locate_quote("**constitutes a Change of Control**", sections) == f"{DR_069}#p1l10"
+
+
+def test_one_document_verify_items_keeps_a_figure_whose_surface_was_bold_in_the_source():
+    sections = [section(1, "an annual subscription fee of Twelve Million U.S. Dollars (**US $12,400,000**) per year")]
+    items = [{"surface": "US $12,400,000", "quote": "an annual subscription fee of Twelve Million U.S. Dollars (US $12,400,000) per year"}]
+    kept, dropped = verify_items(DR_069, "figures", items, sections)
+    assert dropped == []
+    assert kept[0]["anchor"] == f"{DR_069}#p1l10"
+
+
+def test_one_document_the_prompt_asks_for_a_multi_sentence_clause_whole():
+    """A termination or change-of-control clause of more than one sentence is quoted whole."""
+    assert "whole" in SYSTEM_PROMPT
+    assert "change of control" in SYSTEM_PROMPT.casefold()
+
+
 def test_one_document_note_name_is_the_key_document_id():
     assert note_name("DR-069") == "DR-069.json"
     assert note_name("sample_data_room/Northwind_Logistics/arr_schedule.xlsx.md") == (
