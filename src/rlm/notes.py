@@ -99,31 +99,28 @@ Answer with one JSON object and nothing else, with exactly these keys:
  "figures": [{"surface": "the number exactly as the document writes it",
               "quote": "the document's own words around that number, verbatim"}],
  "cross_references": [{"kind": "code|name|person|document|regulator|ticket",
-                       "value": "the code, name, person, document, regulator or ticket",
+                       "value": "the thing it names",
                        "quote": "the document's own words carrying it, verbatim"}],
  "concealed": [{"claim": "what the document hedges, omits or softens",
                 "quote": "the document's own words, verbatim"}]
 }
 
-Use exactly the key names above. An item that uses any other name is dropped.
+Use exactly these key names. An item that uses any other name is dropped.
 
 Rules for every quote:
 - Copy the document's characters exactly. A quote is text lifted out of the document, never a
   sentence about the document. Do not paraphrase, correct, shorten inside, or reword. A quote
   that is not verbatim is dropped.
-- Start a quote at the subject of its clause and carry its verb. Never start in the middle of
-  a clause.
+- Start a quote at the subject of its clause and carry its verb.
 - In a table, a row is written with its cells separated by " | ". Quote one cell's own text
-  whole and exactly as that cell writes it. Do not join cells, drop the separator, or restate
-  a row in your own words.
-- Keep a quote short: enough words to find it and to carry the point, no more.
+  whole and exactly as it is written. Do not join cells or restate a row in your own words.
+- Keep a quote to one sentence or one row: enough words to find it and to carry the point.
 - Do not invent a quote. If you cannot quote it, leave the item out.
-- A figure's surface is copied out of its own quote, character for character, in the form that
-  quote writes it. Do not take it from anywhere else in the document.
+- A figure's surface is copied out of its own quote, character for character, and from nowhere
+  else in the document.
 - Do not write an anchor, a page, a line or a section number. Those are added later.
 
-A diligence reader is buying this business and needs what the document says against it.
-Quote every one of these that the document carries:
+A diligence reader is buying this business. Quote every one of these the document carries:
 - a hedge or a qualifier that weakens a finding, and the sentence that carries it
 - a conclusion that is softened, restated or reclassified from something harder
 - every warranty, representation or covenant, in the words that bind it, and in particular a
@@ -131,15 +128,27 @@ Quote every one of these that the document carries:
 - an exclusion, a carve-out or a condition that could deny a claim
 - a deadline, a notice period or a clock, and whether it has run
 - a policy, a control, a limit or a standard that is breached, blocked or exceeded, and the
-  reason given for it in the words the document gives
-- a right to terminate, suspend, withhold, accelerate or claim, quoted from the party that
-  holds it through what that party may do, not from its condition alone
+  reason the document gives for it
+- every clause that gives a party a right to end, suspend, withhold, accelerate or claim,
+  quoted from that party through what it may do, not from its condition alone; when there is
+  room for only some quotes, these come before figures and cross references
 - a reserve, a provision or a charge, and the words that size it
 - a range of exposure and both of its ends
 - a dated turning point: the week, month or date on which a number or a trend moves
 
-Prefer the sentence the document wrote over any summary of it. Many short verbatim quotes are
-better than a few long ones. Leave a list empty when the document gives you nothing for it."""
+Which sentence to quote:
+- When your flag, claim or what restates a sentence of the document, quote that sentence, not
+  one beside it.
+- When a sentence names a term, a condition or an exclusion as material, decisive, key or at
+  risk, quote that sentence as well as the clause that defines the thing it names.
+- When a number appears more than once, quote the first sentence that states the number and
+  what it is for, as well as the later formal one.
+- When a table carries a total, an aggregate or a range, quote the prose sentence that states
+  it before the rows that feed it: a conclusion comes before what feeds it.
+
+This document is short, so there is room: a document of a few pages usually yields twenty to
+forty quotes. When unsure whether a sentence matters, quote it. Leave a list empty only when
+the document gives nothing for it."""
 
 USER_PREFIX = "The document, one section per line, in order:\n\n"
 
