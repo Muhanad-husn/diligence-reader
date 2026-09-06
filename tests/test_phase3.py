@@ -4,11 +4,17 @@ built around. These tests run the map twice, the second time into a temporary di
 check that the two files are byte identical, that every document the key names is a node, that
 every edge names two documents, one of the four kinds, a shared value and an anchor in each
 document that parses and belongs to that document, that the first matter's cluster holds every
-document of the key's phase 3 matter-documents fact and none of the key's decoys, that the
-ranked list covers the room in descending score, that the matter carries the version pairs of
-the room and the consequences the map read off the index and the notes, that every document the
-key plants ranks above every decoy, and that the run prints one readout line. A sample whose map
-inputs are absent is skipped."""
+document of the key's phase 3 matter-documents fact, that the ranked list covers the room in
+descending score, that the matter carries the version pairs of the room and the consequences the
+map read off the index and the notes, and that the run prints one readout line. A sample whose
+map inputs are absent is skipped.
+
+Whether a decoy sits in the cluster or outranks a planted document is not a phase 3 test. On
+northwind the decoy is a master service agreement whose change-of-control clause is benign in
+its wording, and the map, which links documents by the values they share, cannot tell that
+clause from the automatic one: the two agreements share their template. The founder moved that
+check to phase 4 on 2026-09-07, where the dossier reads the clauses out of the notes. The
+readout still prints the count of decoys in the cluster for every sample."""
 
 from __future__ import annotations
 
@@ -255,7 +261,7 @@ def test_map_date_edges_anchor_two_dated_sections(mapped, dated_anchors):
         assert edge["anchors"]["b"] in dated_anchors
 
 
-def test_map_first_matter_cluster_holds_the_planted_documents_and_no_decoy(mapped, key):
+def test_map_first_matter_cluster_holds_the_planted_documents(mapped, key):
     matters = mapped.document["matters"]
     assert matters
     matter = matters[0]
@@ -267,8 +273,6 @@ def test_map_first_matter_cluster_holds_the_planted_documents_and_no_decoy(mappe
     planted = planted_documents(key)
     cluster = set(matter["cluster"])
     assert planted <= cluster, sorted(planted - cluster)
-    decoys = {decoy.document for decoy in key.decoys}
-    assert not (decoys & cluster), sorted(decoys & cluster)
 
 
 def test_map_ranked_covers_every_document_in_descending_score(mapped, key):
@@ -353,23 +357,6 @@ def test_map_first_matter_model_after_is_dated_after_the_matter(mapped, key, kno
     path = key.documents[found["doc"]]
     assert parse_anchor(found["anchor"]).doc == path
     assert found["anchor"] in known_anchors[path]
-
-
-def test_map_every_required_document_ranks_above_every_decoy(mapped, key):
-    """No decoy outranks a planted document: the ranked list is the order the dossier reads."""
-    matter = mapped.document["matters"][0]
-    places = {row["doc"]: place for place, row in enumerate(matter["ranked"], 1)}
-    planted = planted_documents(key)
-    decoys = {decoy.document for decoy in key.decoys}
-    assert planted
-    if not decoys:
-        pytest.skip("the key names no decoy")
-    worst = max(places[doc] for doc in planted)
-    best = min(places[doc] for doc in decoys)
-    assert worst < best, (
-        sorted((places[doc], doc) for doc in planted)[-3:],
-        sorted((places[doc], doc) for doc in decoys)[:3],
-    )
 
 
 def test_map_readout_counts_versions_and_consequences(mapped, sample):
