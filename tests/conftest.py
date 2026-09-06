@@ -27,7 +27,15 @@ def run_dir(sample):
 
 
 def pytest_terminal_summary(terminalreporter):
-    """Prints each phase's readout at the end of the session, when that phase's tests ran."""
+    """Prints each phase's readout at the end of the session, when that phase's tests ran.
+
+    Every loaded test_phase<N> module that defines readout(terminalreporter) is called, in
+    phase order.
+    """
+    seen = {}
     for name, module in list(sys.modules.items()):
-        if name.rsplit(".", 1)[-1] == "test_phase1" and hasattr(module, "readout"):
-            module.readout(terminalreporter)
+        base = name.rsplit(".", 1)[-1]
+        if base.startswith("test_phase") and hasattr(module, "readout"):
+            seen[base] = module
+    for base in sorted(seen):
+        seen[base].readout(terminalreporter)

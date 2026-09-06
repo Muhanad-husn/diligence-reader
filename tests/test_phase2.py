@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 from pathlib import Path
 
 import httpx
@@ -28,6 +29,7 @@ from rlm.notes import (
     CROSS_REFERENCE_KINDS,
     NOTE_KEYS,
     QUOTED_FIELDS,
+    build_messages,
     locate_quote,
     main,
     note_name,
@@ -41,6 +43,25 @@ MODEL = "deepseek/deepseek-v4-flash-0731"
 PHASE = 2
 PHASE_CAP = 8.0
 DR_069 = "data_room/05_Security_IT_and_Infrastructure/Aurora_Phase1_Technical_Findings_Draft.pdf"
+
+# The keys of runs/<sample>/notes-summary.json, one per pass.
+SUMMARY_KEYS = frozenset(
+    {
+        "documents",
+        "noted",
+        "dropped",
+        "verified",
+        "re_asked",
+        "dropped_items",
+        "tokens_in",
+        "tokens_out",
+        "dollars",
+        "seconds",
+        "model",
+        "pass",
+        "sample",
+    }
+)
 
 _LEDGER_ROW = re.compile(r"^\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|$")
 
@@ -91,16 +112,21 @@ def reply(text: str, tokens_in: int = 1000, tokens_out: int = 200) -> dict:
 
 
 class FakeTransport(httpx.MockTransport):
-    """A transport that records every request and answers each with the next canned reply."""
+    """A transport that records every request and answers each with the next canned reply.
+
+    The pass runs eight documents at once, so the record and the pop are taken under a lock.
+    """
 
     def __init__(self, replies: list[dict]):
         self.requests: list[httpx.Request] = []
         self._replies = list(replies)
+        self._lock = threading.Lock()
         super().__init__(self._handle)
 
     def _handle(self, request: httpx.Request) -> httpx.Response:
-        self.requests.append(request)
-        body = self._replies.pop(0)
+        with self._lock:
+            self.requests.append(request)
+            body = self._replies.pop(0)
         return httpx.Response(200, json=body)
 
 
@@ -390,13 +416,26 @@ CANNED_NOTE = {
 }
 
 
+def canned_note_without_the_bad_items() -> dict:
+    """CANNED_NOTE with the two items verification drops taken out, as a second reply."""
+    clean = json.loads(json.dumps(CANNED_NOTE))
+    del clean["flags"][1]
+    del clean["figures"][1]
+    return clean
+
+
 def test_one_document_main_writes_a_verified_note_a_verify_log_and_one_ledger_line(tmp_path, capsys):
     sections = atlas_sections()
     doc_sections = [record for record in sections if record["doc"] == DR_069]
     assert doc_sections
     ledger_path = tmp_path / "LEDGER.md"
     write_ledger(ledger_path, [("2026-09-05", "", "", "", 0, 0, 0.0, 50.0)])
-    transport = FakeTransport([reply(json.dumps(CANNED_NOTE), tokens_in=2500, tokens_out=400)])
+    transport = FakeTransport(
+        [
+            reply(json.dumps(CANNED_NOTE), tokens_in=2500, tokens_out=400),
+            reply(json.dumps(canned_note_without_the_bad_items()), tokens_in=3000, tokens_out=300),
+        ]
+    )
     gateway = Gateway(api_key="k", transport=transport)
     out = tmp_path / "out"
 
@@ -413,7 +452,8 @@ def test_one_document_main_writes_a_verified_note_a_verify_log_and_one_ledger_li
     assert "estimate" in printed
     assert str(estimate_tokens(document_text)) in printed or "tokens" in printed
     assert "$" in printed
-    assert len(transport.requests) == 1
+    # Two items of the canned reply fail verification, so the document is asked again.
+    assert len(transport.requests) == 2
 
     # The model saw the section text in ordinal order and no anchor.
     body = json.loads(transport.requests[0].content)
@@ -447,18 +487,18 @@ def test_one_document_main_writes_a_verified_note_a_verify_log_and_one_ledger_li
     assert len(note["concealed"]) == 1
     assert note["concealed"][0]["anchor"] == f"{DR_069}#p2l23"
 
-    assert note["usage"]["tokens_in"] == 2500
-    assert note["usage"]["tokens_out"] == 400
-    assert note["usage"]["dollars"] == pytest.approx(price(MODEL, 2500, 400))
-    assert note["usage"]["calls"] == 1
+    assert note["usage"]["tokens_in"] == 5500
+    assert note["usage"]["tokens_out"] == 700
+    assert note["usage"]["dollars"] == pytest.approx(price(MODEL, 5500, 700))
+    assert note["usage"]["calls"] == 2
     assert note["usage"]["seconds"] >= 0
 
-    # The verify log: one record per dropped item, sorted by document then field then item.
+    # The verify log: one record per failed item, sorted by document then field then item.
     log_path = out / "notes-verify.jsonl"
     records = [json.loads(line) for line in log_path.read_text(encoding="utf-8").splitlines()]
     assert [(r["field"], r["item"], r["outcome"], r["attempt"]) for r in records] == [
-        ("figures", 1, "dropped", 1),
-        ("flags", 1, "dropped", 1),
+        ("figures", 1, "re-asked", 1),
+        ("flags", 1, "re-asked", 1),
     ]
     assert records[0]["quote"] == "Peak/cumulative egress on the legacy backup prefix"
     assert records[1]["quote"] == "the attacker was identified as a state actor"
@@ -468,16 +508,22 @@ def test_one_document_main_writes_a_verified_note_a_verify_log_and_one_ledger_li
     rows = ledger_rows(ledger_path)
     assert len(rows) == 2
     assert (rows[-1]["sample"], rows[-1]["phase"], rows[-1]["model"]) == ("atlas", "2", MODEL)
-    assert (rows[-1]["tokens_in"], rows[-1]["tokens_out"]) == (2500, 400)
-    assert rows[-1]["dollars"] == round(price(MODEL, 2500, 400), 4)
+    assert (rows[-1]["tokens_in"], rows[-1]["tokens_out"]) == (5500, 700)
+    assert rows[-1]["dollars"] == round(price(MODEL, 5500, 700), 4)
     assert rows[-1]["balance"] == pytest.approx(round(50.0 - rows[-1]["dollars"], 4))
 
 
 def test_one_document_main_drops_a_note_whose_reply_does_not_parse(tmp_path, capsys):
+    """A reply that is not one JSON object is asked again once, then the note is dropped whole."""
     atlas_sections()
     ledger_path = tmp_path / "LEDGER.md"
     write_ledger(ledger_path, [("2026-09-05", "", "", "", 0, 0, 0.0, 50.0)])
-    transport = FakeTransport([reply("not json at all", tokens_in=2500, tokens_out=10)])
+    transport = FakeTransport(
+        [
+            reply("not json at all", tokens_in=2500, tokens_out=10),
+            reply("still not json", tokens_in=2600, tokens_out=20),
+        ]
+    )
     gateway = Gateway(api_key="k", transport=transport)
     out = tmp_path / "out"
 
@@ -488,15 +534,225 @@ def test_one_document_main_drops_a_note_whose_reply_does_not_parse(tmp_path, cap
     )
     capsys.readouterr()
     assert code == 0
+    assert len(transport.requests) == 2
+    second = json.loads(transport.requests[1].content)["messages"]
+    assert [message["role"] for message in second] == ["system", "user", "assistant", "user"]
+    assert second[2]["content"] == "not json at all"
+    assert "JSON" in second[3]["content"]
     assert not (out / "notes" / "DR-069.json").exists()
     records = [json.loads(line) for line in (out / "notes-verify.jsonl").read_text(encoding="utf-8").splitlines()]
     assert len(records) == 1
-    assert (records[0]["doc"], records[0]["field"], records[0]["outcome"]) == (DR_069, None, "note-dropped")
-    # The call was made and is paid for, so the ledger carries it.
-    assert len(ledger_rows(ledger_path)) == 2
+    assert (records[0]["doc"], records[0]["field"], records[0]["item"]) == (DR_069, None, None)
+    assert (records[0]["outcome"], records[0]["attempt"]) == ("note-dropped", 2)
+    # Both calls were made and are paid for, so the ledger carries them.
+    rows = ledger_rows(ledger_path)
+    assert len(rows) == 2
+    assert (rows[-1]["tokens_in"], rows[-1]["tokens_out"]) == (5100, 30)
+
+
+# ---------------------------------------------------------------- notes: the whole sample
+
+
+MINIMAL_NOTE = {"what": "x", "flags": [], "figures": [], "cross_references": [], "concealed": []}
+
+
+def atlas_sections_by_doc() -> dict[str, list[dict]]:
+    """The sections of runs/atlas, one list per document in ordinal order."""
+    by_doc: dict[str, list[dict]] = {}
+    for record in atlas_sections():
+        by_doc.setdefault(record["doc"], []).append(record)
+    for records in by_doc.values():
+        records.sort(key=lambda record: record["ordinal"])
+    return by_doc
+
+
+def test_all_documents_main_notes_every_document_of_the_key(tmp_path, capsys):
+    """Without --only every document the key names is noted, under one estimate and one row."""
+    by_doc = atlas_sections_by_doc()
+    key = load_key(ROOT / "samples" / "atlas")
+    assert len(key.documents) == 100
+    ledger_path = tmp_path / "LEDGER.md"
+    write_ledger(ledger_path, [("2026-09-05", "", "", "", 0, 0, 0.0, 50.0)])
+    transport = FakeTransport(
+        [reply(json.dumps(MINIMAL_NOTE), tokens_in=2500, tokens_out=400) for _ in key.documents]
+    )
+    gateway = Gateway(api_key="k", transport=transport)
+    out = tmp_path / "out"
+
+    code = main(
+        [str(ROOT / "samples" / "atlas"), str(ROOT / "runs" / "atlas"), "--model", MODEL, "--out", str(out)],
+        gateway=gateway,
+        ledger=Ledger(ledger_path),
+    )
+    printed = capsys.readouterr().out
+    assert code == 0
+    assert len(transport.requests) == 100
+
+    # One estimate, printed before any request, covering every document of the pass.
+    expected_in = sum(
+        estimate_tokens("\n".join(message["content"] for message in build_messages(by_doc[path])))
+        for path in key.documents.values()
+    )
+    assert printed.count("estimate:") == 1
+    assert str(expected_in) in printed
+    assert printed.index("estimate:") < printed.index("noted 100")
+
+    written = sorted(path.name for path in (out / "notes").glob("*.json"))
+    assert written == sorted(note_name(doc_id) for doc_id in key.documents)
+
+    rows = ledger_rows(ledger_path)
+    assert len(rows) == 2
+    assert (rows[-1]["tokens_in"], rows[-1]["tokens_out"]) == (250_000, 40_000)
+
+    raw = (out / "notes-summary.json").read_text(encoding="utf-8")
+    summary = json.loads(raw)
+    assert set(summary) == SUMMARY_KEYS
+    assert list(summary) == sorted(summary)
+    assert raw.endswith("}\n")
+    assert summary["documents"] == 100
+    assert summary["noted"] == 100
+    assert summary["dropped"] == 0
+    assert summary["verified"] == 0
+    assert summary["re_asked"] == 0
+    assert summary["dropped_items"] == 0
+    assert summary["tokens_in"] == 250_000
+    assert summary["tokens_out"] == 40_000
+    assert summary["dollars"] == pytest.approx(price(MODEL, 250_000, 40_000))
+    assert summary["seconds"] >= 0
+    assert (summary["model"], summary["pass"], summary["sample"]) == (MODEL, "a", "atlas")
+
+
+def test_all_documents_reask_asks_again_with_the_failed_quotes(tmp_path, capsys):
+    """A document whose items fail is asked once more, with those quotes and its first reply."""
+    atlas_sections()
+    ledger_path = tmp_path / "LEDGER.md"
+    write_ledger(ledger_path, [("2026-09-05", "", "", "", 0, 0, 0.0, 50.0)])
+    first_text = json.dumps(CANNED_NOTE)
+    transport = FakeTransport(
+        [
+            reply(first_text, tokens_in=2500, tokens_out=400),
+            reply(json.dumps(canned_note_without_the_bad_items()), tokens_in=3000, tokens_out=300),
+        ]
+    )
+    gateway = Gateway(api_key="k", transport=transport)
+    out = tmp_path / "out"
+
+    code = main(
+        [str(ROOT / "samples" / "atlas"), str(ROOT / "runs" / "atlas"), "--model", MODEL, "--only", "DR-069", "--out", str(out)],
+        gateway=gateway,
+        ledger=Ledger(ledger_path),
+    )
+    capsys.readouterr()
+    assert code == 0
+    assert len(transport.requests) == 2
+
+    first_messages = json.loads(transport.requests[0].content)["messages"]
+    second_messages = json.loads(transport.requests[1].content)["messages"]
+    assert [message["role"] for message in second_messages] == ["system", "user", "assistant", "user"]
+    assert second_messages[:2] == first_messages
+    assert second_messages[2]["content"] == first_text
+    asked = second_messages[3]["content"]
+    assert "the attacker was identified as a state actor" in asked
+    assert "Peak/cumulative egress on the legacy backup prefix" in asked
+
+    note = json.loads((out / "notes" / "DR-069.json").read_text(encoding="utf-8"))
+    assert [flag["flag"] for flag in note["flags"]] == ["Exfiltration assessed as probable"]
+    assert [figure["surface"] for figure in note["figures"]] == ["~8.4m"]
+    assert len(note["cross_references"]) == 2
+    assert note["usage"]["calls"] == 2
+    assert note["usage"]["tokens_in"] == 5500
+    assert note["usage"]["tokens_out"] == 700
+    assert note["usage"]["dollars"] == pytest.approx(price(MODEL, 5500, 700))
+
+    records = [json.loads(line) for line in (out / "notes-verify.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert [(r["field"], r["item"], r["outcome"], r["attempt"]) for r in records] == [
+        ("figures", 1, "re-asked", 1),
+        ("flags", 1, "re-asked", 1),
+    ]
+
+
+def test_all_documents_reask_drops_what_still_fails(tmp_path, capsys):
+    """An item that fails again after the re-ask is dropped from the note and logged at attempt 2."""
+    atlas_sections()
+    ledger_path = tmp_path / "LEDGER.md"
+    write_ledger(ledger_path, [("2026-09-05", "", "", "", 0, 0, 0.0, 50.0)])
+    second_note = canned_note_without_the_bad_items()
+    second_note["flags"].append(CANNED_NOTE["flags"][1])
+    transport = FakeTransport(
+        [
+            reply(json.dumps(CANNED_NOTE), tokens_in=2500, tokens_out=400),
+            reply(json.dumps(second_note), tokens_in=3000, tokens_out=300),
+        ]
+    )
+    gateway = Gateway(api_key="k", transport=transport)
+    out = tmp_path / "out"
+
+    code = main(
+        [str(ROOT / "samples" / "atlas"), str(ROOT / "runs" / "atlas"), "--model", MODEL, "--only", "DR-069", "--out", str(out)],
+        gateway=gateway,
+        ledger=Ledger(ledger_path),
+    )
+    capsys.readouterr()
+    assert code == 0
+    assert len(transport.requests) == 2
+
+    note = json.loads((out / "notes" / "DR-069.json").read_text(encoding="utf-8"))
+    assert [flag["flag"] for flag in note["flags"]] == ["Exfiltration assessed as probable"]
+    quotes = {straighten(item["quote"]) for _, _, item in quoted_items(note)}
+    assert "the attacker was identified as a state actor" not in quotes
+
+    records = [json.loads(line) for line in (out / "notes-verify.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert [(r["field"], r["item"], r["outcome"], r["attempt"]) for r in records] == [
+        ("figures", 1, "re-asked", 1),
+        ("flags", 1, "re-asked", 1),
+        ("flags", 1, "dropped", 2),
+    ]
+    order = [(r["doc"], r["field"] or "", r["item"] if r["item"] is not None else -1, r["attempt"]) for r in records]
+    assert order == sorted(order)
+
+
+def test_all_documents_a_document_with_no_sections_is_dropped_without_a_call(tmp_path, capsys):
+    """A key document that sections.jsonl does not carry is logged at attempt 1 and not called."""
+    run = tmp_path / "run"
+    run.mkdir()
+    kept = [record for record in atlas_sections() if record["doc"] == DR_069]
+    assert kept
+    (run / "sections.jsonl").write_text(
+        "".join(json.dumps(record, ensure_ascii=False) + "\n" for record in kept), encoding="utf-8"
+    )
+    ledger_path = tmp_path / "LEDGER.md"
+    write_ledger(ledger_path, [("2026-09-05", "", "", "", 0, 0, 0.0, 50.0)])
+    transport = FakeTransport([reply(json.dumps(MINIMAL_NOTE), tokens_in=2500, tokens_out=400)])
+    gateway = Gateway(api_key="k", transport=transport)
+    out = tmp_path / "out"
+
+    code = main(
+        [str(ROOT / "samples" / "atlas"), str(run), "--model", MODEL, "--out", str(out)],
+        gateway=gateway,
+        ledger=Ledger(ledger_path),
+    )
+    capsys.readouterr()
+    assert code == 0
+    assert len(transport.requests) == 1
+    assert sorted(path.name for path in (out / "notes").glob("*.json")) == ["DR-069.json"]
+
+    records = [json.loads(line) for line in (out / "notes-verify.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert len(records) == 99
+    assert all(r["outcome"] == "note-dropped" for r in records)
+    assert all(r["attempt"] == 1 and r["field"] is None and r["item"] is None for r in records)
+    assert DR_069 not in {r["doc"] for r in records}
+
+    summary = json.loads((out / "notes-summary.json").read_text(encoding="utf-8"))
+    assert (summary["documents"], summary["noted"], summary["dropped"]) == (100, 1, 99)
 
 
 # ---------------------------------------------------------------- notes: the artefact
+
+
+# The three gate samples, in the order the readout prints them.
+ENABLED = ("atlas", "northwind", "northstar-dental")
+
+_NOTED: dict[str, tuple[Path, dict]] = {}
 
 
 @pytest.fixture
@@ -505,7 +761,7 @@ def key(sample_dir):
 
 
 @pytest.fixture
-def notes(run_dir):
+def notes(run_dir, sample):
     """Every note under runs/<sample>/notes/, keyed by file name, or a skip when there are none."""
     notes_dir = run_dir / "notes"
     if not notes_dir.is_dir():
@@ -516,6 +772,7 @@ def notes(run_dir):
         found[path.name] = (raw, json.loads(raw))
     if not found:
         pytest.skip(SKIP_REASON)
+    _NOTED[sample] = (run_dir, found)
     return found
 
 
@@ -652,3 +909,124 @@ def test_one_document_dr_069_is_noted_on_atlas(notes, sample):
     _, note = notes["DR-069.json"]
     assert note["doc"] == DR_069
     assert any("bulk export is probable" in straighten(item["quote"]) for _, _, item in quoted_items(note))
+
+
+def fold(text: str) -> str:
+    """The fold both sides of the recall check take: whitespace, curly quotes, then case."""
+    return straighten(text).casefold()
+
+
+def verify_records(run_dir: Path) -> list[dict]:
+    """The records of runs/<sample>/notes-verify.jsonl, in file order."""
+    path = run_dir / "notes-verify.jsonl"
+    if not path.exists():
+        return []
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def test_all_documents_every_key_document_has_a_note_or_a_drop(notes, key, run_dir):
+    """The pass leaves nothing silent: each key document is a note file or a note-dropped record."""
+    noted = {note["doc"] for _, note in notes.values()}
+    dropped = {record["doc"] for record in verify_records(run_dir) if record["outcome"] == "note-dropped"}
+    for doc_id, path in key.documents.items():
+        assert path in noted or path in dropped, doc_id
+
+
+def test_all_documents_dropped_items_are_absent_from_their_note(notes, run_dir):
+    by_path = {note["doc"]: note for _, note in notes.values()}
+    for record in verify_records(run_dir):
+        if record["outcome"] != "dropped":
+            continue
+        note = by_path.get(record["doc"])
+        if note is None:
+            continue
+        quotes = {straighten(item["quote"]) for _, _, item in quoted_items(note)}
+        assert straighten(record["quote"] or "") not in quotes, record
+
+
+def test_all_documents_summary_counts_the_pass(notes, key, run_dir, sample):
+    path = run_dir / "notes-summary.json"
+    assert path.exists()
+    raw = path.read_text(encoding="utf-8")
+    summary = json.loads(raw)
+    assert set(summary) == SUMMARY_KEYS
+    assert list(summary) == sorted(summary)
+    assert raw.endswith("}\n")
+    assert summary["sample"] == sample
+    assert summary["model"] in PRICES
+    assert summary["pass"] in ("a", "b")
+    assert summary["documents"] == len(key.documents)
+    assert summary["noted"] == len(notes)
+    assert summary["noted"] + summary["dropped"] == summary["documents"]
+    assert summary["verified"] == sum(
+        len(note[field]) for _, note in notes.values() for field in QUOTED_FIELDS
+    )
+    assert summary["tokens_in"] > 0 and summary["tokens_out"] > 0
+    assert summary["dollars"] == pytest.approx(
+        price(summary["model"], summary["tokens_in"], summary["tokens_out"])
+    )
+    assert summary["seconds"] >= 0
+
+
+def test_all_documents_carry_every_planted_quote(notes, key):
+    """Every phase 2 fact of the sample is inside a verified quote of a note of its own documents.
+
+    Both sides are folded the same way: whitespace collapsed, curly quotes straightened, case
+    folded. A fact whose documents have no note fails; it is not skipped.
+    """
+    by_path = {note["doc"]: note for _, note in notes.values()}
+    facts = [fact for fact in key.facts if fact.phase == PHASE]
+    assert facts
+    for fact in facts:
+        assert fact.kind == "quote", fact.id
+        paths = [key.documents[doc_id] for doc_id in fact.documents]
+        noted = [by_path[path] for path in paths if path in by_path]
+        wanted = fold(fact.value)
+        hits = [
+            note["doc"]
+            for note in noted
+            for _, _, item in quoted_items(note)
+            if wanted in fold(item["quote"])
+        ]
+        quotes = [item["quote"] for note in noted for _, _, item in quoted_items(note)]
+        assert hits, f"{fact.id}: {fact.value!r} not inside any verified quote of {paths}; the notes quote {quotes}"
+
+
+def readout(terminalreporter):
+    """Writes, per sample with notes, one pass line and one line per planted quote missed."""
+    if not _NOTED:
+        return
+    terminalreporter.section("phase 2 readout")
+    for sample in ENABLED:
+        if sample not in _NOTED:
+            continue
+        run_dir, found = _NOTED[sample]
+        summary_path = run_dir / "notes-summary.json"
+        summary = json.loads(summary_path.read_text(encoding="utf-8")) if summary_path.exists() else {}
+        key = load_key(ROOT / "samples" / sample)
+        by_path = {note["doc"]: note for _, note in found.values()}
+
+        missed = []
+        hit = 0
+        facts = [fact for fact in key.facts if fact.phase == PHASE]
+        for fact in facts:
+            noted = [by_path[key.documents[doc_id]] for doc_id in fact.documents if key.documents[doc_id] in by_path]
+            wanted = fold(fact.value)
+            if any(wanted in fold(item["quote"]) for note in noted for _, _, item in quoted_items(note)):
+                hit += 1
+            else:
+                missed.append(fact)
+        total = len(facts)
+        recall = (hit / total * 100) if total else 0.0
+        terminalreporter.write_line(
+            f"phase 2 {sample}: documents noted {summary.get('noted', len(found))}, "
+            f"notes dropped {summary.get('dropped', 0)}, "
+            f"quotes verified {summary.get('verified', 0)}, "
+            f"quotes re-asked {summary.get('re_asked', 0)}, "
+            f"quotes dropped {summary.get('dropped_items', 0)}, "
+            f"planted recall {recall:.1f}% ({hit} of {total}), "
+            f"dollars {summary.get('dollars', 0.0):.4f}, "
+            f"seconds {summary.get('seconds', 0.0):.1f}"
+        )
+        for fact in missed:
+            terminalreporter.write_line(f"phase 2 {sample}: missed {fact.id} {fact.value!r}")
