@@ -70,12 +70,29 @@ def _flatten(text: str) -> str:
     return _WHITESPACE.sub(" ", str(text)).strip()
 
 
-def _text_pieces(section: dict) -> list[str]:
-    """The strings of one section the index reads, each matched on its own."""
+def _text_pieces(section: dict) -> list[tuple[str, str]]:
+    """The text pieces of one section the index reads, each with its own anchor.
+
+    A non-workbook section yields one piece anchored to the section itself. A workbook section
+    yields one piece per text cell, each anchored to that cell rather than to the row.
+    """
     if section.get("cells") is None:
         heading = section["heading"] or ""
-        return [f"{heading}\n{section['text']}" if heading else section["text"]]
-    return [cell["value"] for cell in section["cells"] if isinstance(cell["value"], str)]
+        text = f"{heading}\n{section['text']}" if heading else section["text"]
+        return [(text, section["anchor"])]
+    anchor = parse_anchor(section["anchor"])
+    if anchor.kind != "sheet-cell":
+        return [
+            (cell["value"], section["anchor"])
+            for cell in section["cells"]
+            if isinstance(cell["value"], str)
+        ]
+    doc = section["doc"]
+    return [
+        (cell["value"], f"{doc}#{anchor.sheet}!{cell['ref']}")
+        for cell in section["cells"]
+        if isinstance(cell["value"], str)
+    ]
 
 
 def _context(section: dict) -> str:
@@ -256,7 +273,7 @@ def _dates(sections: list[dict]) -> list[dict]:
     """Reads every date out of the sections."""
     occurrences = []
     for section in sections:
-        for piece in _text_pieces(section):
+        for piece, anchor in _text_pieces(section):
             for start, end, iso in date_matches(piece):
                 occurrences.append(
                     (
@@ -265,7 +282,7 @@ def _dates(sections: list[dict]) -> list[dict]:
                         None,
                         piece[start:end],
                         section["doc"],
-                        section["anchor"],
+                        anchor,
                         _context(section),
                     )
                 )
@@ -277,7 +294,7 @@ def _amounts(sections: list[dict]) -> list[dict]:
     headers = _sheet_headers(sections)
     occurrences = []
     for section in sections:
-        for piece in _text_pieces(section):
+        for piece, anchor in _text_pieces(section):
             masked = _mask_dates(piece)
             for match in AMOUNT.finditer(masked):
                 if _joined_to_a_token(piece, match.start()):
@@ -295,16 +312,16 @@ def _amounts(sections: list[dict]) -> list[dict]:
                         unit,
                         surface,
                         section["doc"],
-                        section["anchor"],
+                        anchor,
                         _context(section),
                     )
                 )
         if section.get("cells") is None:
             continue
-        anchor = parse_anchor(section["anchor"])
-        if anchor.kind != "sheet-cell":
+        section_anchor = parse_anchor(section["anchor"])
+        if section_anchor.kind != "sheet-cell":
             continue
-        header = headers.get((section["doc"], anchor.sheet), {})
+        header = headers.get((section["doc"], section_anchor.sheet), {})
         for cell in section["cells"]:
             if not _is_number(cell["value"]):
                 continue
@@ -314,6 +331,7 @@ def _amounts(sections: list[dict]) -> list[dict]:
             value = float(cell["value"]) * _header_scale(column_header)
             if unit is None and value.is_integer():
                 unit = "count"
+            cell_anchor = f"{section['doc']}#{section_anchor.sheet}!{cell['ref']}"
             occurrences.append(
                 (
                     "amount",
@@ -321,7 +339,7 @@ def _amounts(sections: list[dict]) -> list[dict]:
                     unit,
                     str(cell["value"]),
                     section["doc"],
-                    section["anchor"],
+                    cell_anchor,
                     _context(section),
                 )
             )
@@ -364,8 +382,8 @@ def _names(sections: list[dict]) -> list[dict]:
     phrases = []
     words = []
     for section in sections:
-        for piece in _text_pieces(section):
-            place = (section["doc"], section["anchor"], _context(section))
+        for piece, anchor in _text_pieces(section):
+            place = (section["doc"], anchor, _context(section))
             for phrase in _phrases(piece):
                 phrases.append(("name", phrase, None, phrase, *place))
             for match in _WORD.finditer(piece):
@@ -385,7 +403,7 @@ def _identifiers(sections: list[dict]) -> list[dict]:
     """Reads every joined token carrying a digit, which is what an identifier looks like."""
     occurrences = []
     for section in sections:
-        for piece in _text_pieces(section):
+        for piece, anchor in _text_pieces(section):
             for match in _IDENTIFIER.finditer(piece):
                 surface = match.group(0)
                 if not any(character.isdigit() for character in surface):
@@ -397,7 +415,7 @@ def _identifiers(sections: list[dict]) -> list[dict]:
                         None,
                         surface,
                         section["doc"],
-                        section["anchor"],
+                        anchor,
                         _context(section),
                     )
                 )

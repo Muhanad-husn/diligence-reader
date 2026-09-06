@@ -1,10 +1,10 @@
 {
   "atlas": {
-    "index.jsonl": "25c2fa67a929742b404a5b68922bb8ee7034df28495c51991e539bff929b335f",
+    "index.jsonl": "f7f3f8197ec6fb272a5b6e8b8a2383235f381cf08a3388317cefb553861e8703",
     "sections.jsonl": "b456a03e4faa38fdc721996da21d47b6fc3acc9556ceee1540728d11fabed985"
   },
   "northstar-dental": {
-    "index.jsonl": "1d3d5f68723ec3cc26bdcaef5bcb42c271f6d8831ab83e2297149fd18fc8bc1d",
+    "index.jsonl": "781f9d1df88d477ec0d1b1f8048979be08f857f2a746c03b7382eab38488bc13",
     "sections.jsonl": "c961ec70cbc2c2fed37463f34759e406259e8891453d862919ee3ff5f01fa39e"
   },
   "northwind": {
