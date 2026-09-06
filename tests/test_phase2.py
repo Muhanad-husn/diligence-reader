@@ -3008,6 +3008,69 @@ def test_gate_pin_refuses_a_sample_with_no_winner(tmp_path, capsys):
     assert sample in out
 
 
+def test_gate_pin_from_notes_digests_what_is_on_disk(tmp_path, capsys):
+    """pin.main --from-notes digests the notes already on disk, with no bake-off winner and no
+    copy, and leaves the note files untouched."""
+    from rlm import pin
+
+    sample = "atlas"
+    runs_root = tmp_path / "runs"
+    sample_dir = runs_root / sample
+    notes_dir = sample_dir / "notes"
+    notes_dir.mkdir(parents=True)
+    note_bytes = b'{"doc": "DR-001", "model": "z-ai/glm-5.3-flash", "pass": "a"}\n'
+    (notes_dir / "DR-001.json").write_bytes(note_bytes)
+    verify_bytes = b'{"doc": "DR-001", "outcome": "dropped"}\n'
+    (sample_dir / "notes-verify.jsonl").write_bytes(verify_bytes)
+    summary_bytes = json.dumps({"model": "z-ai/glm-5.3-flash", "pass": "a", "sample": sample}).encode(
+        "utf-8"
+    )
+    (sample_dir / "notes-summary.json").write_bytes(summary_bytes)
+
+    digests_path = tmp_path / "phase2-digests.json"
+    code = pin.main(
+        [str(runs_root), "--from-notes", "--samples", sample, "--digests", str(digests_path)]
+    )
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert (notes_dir / "DR-001.json").read_bytes() == note_bytes
+    assert (sample_dir / "notes-verify.jsonl").read_bytes() == verify_bytes
+    assert (sample_dir / "notes-summary.json").read_bytes() == summary_bytes
+    assert not (sample_dir / "bakeoff.json").exists()
+    assert not (sample_dir / "bakeoff").exists()
+
+    digests = json.loads(digests_path.read_text(encoding="utf-8"))
+    assert digests == {
+        sample: {
+            "notes/DR-001.json": hashlib.sha256(note_bytes).hexdigest(),
+            "notes-verify.jsonl": hashlib.sha256(verify_bytes).hexdigest(),
+        }
+    }
+    assert sample in out and "1" in out
+
+
+def test_gate_pin_from_notes_refuses_a_sample_with_no_notes(tmp_path, capsys):
+    """pin.main --from-notes refuses and writes no digest file when a sample has no notes
+    directory."""
+    from rlm import pin
+
+    sample = "atlas"
+    runs_root = tmp_path / "runs"
+    sample_dir = runs_root / sample
+    sample_dir.mkdir(parents=True)
+
+    digests_path = tmp_path / "phase2-digests.json"
+    code = pin.main(
+        [str(runs_root), "--from-notes", "--samples", sample, "--digests", str(digests_path)]
+    )
+    out = capsys.readouterr().out
+
+    assert code == 1
+    assert not digests_path.exists()
+    assert sample in out
+
+
 def test_gate_pinned_notes_match_their_digests(notes, run_dir, sample):
     """Every pinned note file and the verify log match the sha256 tests/phase2-digests.json
     holds for this sample, and the digest names exactly the note files on disk."""
@@ -3024,9 +3087,18 @@ def test_gate_pinned_notes_match_their_digests(notes, run_dir, sample):
     assert listed == set(notes)
 
 
-def test_gate_pinned_notes_are_the_winners_pass_a(notes, run_dir, bakeoff_table):
+def test_gate_pinned_notes_are_the_winners_pass_a(notes, run_dir):
     """Every pinned note, and the pinned summary, is the bake-off winner's pass a."""
-    winner = bakeoff_table["winner"]
+    bakeoff_dir = run_dir / "bakeoff"
+    skip_reason = f"{bakeoff_dir} absent; the pinned notes were not taken from a bake-off"
+    if not bakeoff_dir.is_dir():
+        pytest.skip(skip_reason)
+    bakeoff_path = run_dir / "bakeoff.json"
+    if not bakeoff_path.exists():
+        pytest.skip(skip_reason)
+    table = json.loads(bakeoff_path.read_text(encoding="utf-8"))
+
+    winner = table["winner"]
     assert winner is not None
     for _, note in notes.values():
         assert note["model"] == winner
