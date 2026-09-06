@@ -357,7 +357,12 @@ def note_and_write(
     gateway: Gateway,
     batch: Batch,
 ) -> tuple[str, dict | None, list[dict]]:
-    """Notes one document, prices its calls and writes the note. Runs in one pool thread."""
+    """Notes one document, prices its calls and writes the note. Runs in one pool thread.
+
+    A call that raises drops this document whole so the pool and the batch finish: the
+    exception is caught, printed, and logged as note-dropped at attempt 1. A reply that never
+    parses is not an exception; it is also printed and logged, so nothing here is silent.
+    """
     completions: list[Completion] = []
 
     def call(messages: list[dict]) -> Completion:
@@ -366,8 +371,15 @@ def note_and_write(
         completions.append(completion)
         return completion
 
-    note, records = note_document(doc, model, pass_name, sections, call)
-    if note is not None:
+    try:
+        note, records = note_document(doc, model, pass_name, sections, call)
+    except Exception as exc:
+        print(f"{doc_id}: note dropped, {type(exc).__name__}: {exc}")
+        return doc_id, None, [_log_record(doc, None, None, None, "note-dropped", 1)]
+
+    if note is None:
+        print(f"{doc_id}: note dropped, the reply did not parse")
+    else:
         note["usage"] = call_usage(model, completions)
         write_note(out_dir, doc_id, note)
     return doc_id, note, records
@@ -476,7 +488,6 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
         records.extend(doc_records)
         if note is None:
             dropped += 1
-            print(f"{doc_id}: note dropped, the reply did not parse")
             continue
         noted += 1
         kept = sum(len(note[field]) for field in QUOTED_FIELDS)

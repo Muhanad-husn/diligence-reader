@@ -1,8 +1,8 @@
 """The one module that calls the gateway, and the ledger that pays for the call.
 
 Every model call in this repository goes through Gateway.complete, which posts one chat
-completion to OpenRouter with temperature 0, a fixed seed and JSON output mode. Nothing else
-opens a socket.
+completion to OpenRouter with temperature 0, a fixed seed, JSON output mode and reasoning off.
+Nothing else opens a socket.
 
 Money is a ceiling the code enforces. A batch of calls runs inside Ledger.batch, which prints
 the estimated tokens and the price before anything is sent, refuses when the estimate would
@@ -97,6 +97,7 @@ class Gateway:
             "seed": 0,
             "max_tokens": max_tokens,
             "response_format": {"type": "json_object"},
+            "reasoning": {"enabled": False},
         }
         started = time.monotonic()
         response = self._client.post(
@@ -109,7 +110,7 @@ class Gateway:
         data = response.json()
         usage = data.get("usage") or {}
         return Completion(
-            text=data["choices"][0]["message"]["content"],
+            text=data["choices"][0]["message"].get("content") or "",
             tokens_in=int(usage.get("prompt_tokens", 0)),
             tokens_out=int(usage.get("completion_tokens", 0)),
             seconds=seconds,
