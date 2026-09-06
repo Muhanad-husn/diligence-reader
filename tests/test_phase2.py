@@ -1279,7 +1279,10 @@ def quoted_items(note: dict):
             yield field, index, item
 
 
-def test_one_document_note_is_well_shaped(notes, key):
+def assert_notes_well_shaped(notes, key):
+    """The shape every note of a phase 2 pass must have. Shared by the sample-level notes test
+    and the bake-off artefact test, so a note is held to the same standard wherever it is
+    written."""
     ids_by_path = {path: doc_id for doc_id, path in key.documents.items()}
     for name, (raw, note) in notes.items():
         assert raw == json.dumps(note, indent=1, sort_keys=True, ensure_ascii=False) + "\n", name
@@ -1307,7 +1310,13 @@ def test_one_document_note_is_well_shaped(notes, key):
         assert usage["dollars"] == pytest.approx(price(note["model"], usage["tokens_in"], usage["tokens_out"])), name
 
 
-def test_one_document_every_quote_is_verified_and_anchored_by_code(notes, sections_by_doc):
+def test_one_document_note_is_well_shaped(notes, key):
+    assert_notes_well_shaped(notes, key)
+
+
+def assert_notes_quotes_verified(notes, sections_by_doc):
+    """Every quote of every note is verified and anchored by code. Shared by the sample-level
+    notes test and the bake-off artefact test."""
     for name, (_, note) in notes.items():
         doc_sections = sections_by_doc[note["doc"]]
         for field, index, item in quoted_items(note):
@@ -1320,6 +1329,10 @@ def test_one_document_every_quote_is_verified_and_anchored_by_code(notes, sectio
             assert item["anchor"] in {record["anchor"] for record in doc_sections}, where
         for index, figure in enumerate(note["figures"]):
             assert straighten(figure["surface"]) in straighten(figure["quote"]), (name, "figures", index)
+
+
+def test_one_document_every_quote_is_verified_and_anchored_by_code(notes, sections_by_doc):
+    assert_notes_quotes_verified(notes, sections_by_doc)
 
 
 def test_one_document_carries_its_planted_quotes(notes, key):
@@ -2164,3 +2177,193 @@ def test_bakeoff_every_ledger_row_reconciles_at_a_price_the_table_has_carried():
             for rate_in, rate_out in known_prices(row["model"])
         }
         assert row["dollars"] in paid, row
+
+
+# ------------------------------------------------------------ bakeoff artefact
+
+BAKEOFF_SKIP = "bake-off not run for this sample yet"
+ROW_KEYS = {"model", "slug", "tier", "probe", "passes", "dollars", "agreement", "recall", "seconds"}
+
+
+@pytest.fixture
+def bakeoff_table(run_dir):
+    """The table of runs/<sample>/bakeoff.json, or a skip when the bake-off has not run there."""
+    path = run_dir / "bakeoff.json"
+    if not path.exists():
+        pytest.skip(BAKEOFF_SKIP)
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def assert_row_measured_fields(row: dict) -> None:
+    """Each measured field of a row is "not run" or has the shape the table promises."""
+    probe = row["probe"]
+    if probe != bakeoff.NOT_RUN:
+        assert isinstance(probe, dict), row
+        for seen in probe.values():
+            assert set(seen) == {"hits", "of", "missed"}, row
+            assert isinstance(seen["hits"], int) and isinstance(seen["of"], int), row
+            assert isinstance(seen["missed"], list), row
+            assert seen["hits"] + len(seen["missed"]) == seen["of"], row
+
+    passes = row["passes"]
+    if passes != bakeoff.NOT_RUN:
+        assert isinstance(passes, bool), row
+
+    for field in ("dollars", "seconds"):
+        value = row[field]
+        if value != bakeoff.NOT_RUN:
+            assert isinstance(value, (int, float)) and not isinstance(value, bool), row
+
+    agreement = row["agreement"]
+    if agreement != bakeoff.NOT_RUN:
+        assert isinstance(agreement, dict), row
+        for share in agreement.values():
+            assert isinstance(share, (int, float)) and not isinstance(share, bool), row
+            assert 0 <= share <= 1, row
+
+    recall_field = row["recall"]
+    if recall_field != bakeoff.NOT_RUN:
+        assert isinstance(recall_field, dict), row
+        for seen in recall_field.values():
+            assert set(seen) == {"a", "b"}, row
+            for pass_name in ("a", "b"):
+                hit, total = seen[pass_name]
+                assert isinstance(hit, int) and isinstance(total, int), row
+                assert 0 <= hit <= total, row
+
+
+def test_bakeoff_artefact_table_is_well_shaped(sample, run_dir, bakeoff_table):
+    """runs/<sample>/bakeoff.json is the table rlm.bakeoff.build_table and write_table promise."""
+    path = run_dir / "bakeoff.json"
+    raw = path.read_text(encoding="utf-8")
+    table = json.loads(raw)
+    assert raw == json.dumps(table, indent=1, sort_keys=True, ensure_ascii=False) + "\n"
+    assert raw.endswith("}\n")
+    assert set(table) == {"date", "samples", "prices", "rows", "winner"}
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", table["date"])
+    assert sample in table["samples"]
+
+    ordered_models = list(bakeoff.TIERS["flash"]) + list(bakeoff.TIERS["pro"])
+    assert [row["model"] for row in table["rows"]] == ordered_models
+
+    present = {row["model"] for row in table["rows"]}
+    assert table["prices"] == {model: list(PRICES[model]) for model in present}
+
+    for row in table["rows"]:
+        assert set(row) == ROW_KEYS, row["model"]
+        assert row["slug"] == bakeoff.slug(row["model"])
+        assert row["tier"] in bakeoff.TIERS
+        assert row["model"] in bakeoff.TIERS[row["tier"]]
+        assert_row_measured_fields(row)
+
+
+def test_bakeoff_artefact_winner_is_the_cheapest_passing_row(bakeoff_table):
+    """The winner is the passing row measured cheapest, or none when nothing passed."""
+    table = bakeoff_table
+    passing = [row for row in table["rows"] if row["passes"] is True]
+    if not passing:
+        assert table["winner"] is None
+        return
+
+    cheapest = min(passing, key=lambda row: row["dollars"])
+    assert table["winner"] == cheapest["model"]
+
+    for row in passing:
+        agreement = row["agreement"]
+        assert agreement != bakeoff.NOT_RUN, row
+        assert set(agreement) == set(table["samples"]), row
+        assert all(share == 1.0 for share in agreement.values()), row
+
+        recall_field = row["recall"]
+        assert recall_field != bakeoff.NOT_RUN, row
+        assert set(recall_field) == set(table["samples"]), row
+        for seen in recall_field.values():
+            assert seen["a"][0] == seen["a"][1], row
+            assert seen["b"][0] == seen["b"][1], row
+
+
+def test_bakeoff_artefact_every_probed_row_agrees_with_its_notes(sample, run_dir, key, bakeoff_table):
+    """A row's probe count for the current sample is what bakeoff.recall reads off its notes."""
+    for row in bakeoff_table["rows"]:
+        probe = row["probe"]
+        if not isinstance(probe, dict) or sample not in probe:
+            continue
+        notes_dir = run_dir / "bakeoff" / row["slug"] / "probe" / "notes"
+        fact_ids = bakeoff.probe_facts(sample, key)
+        found = bakeoff.recall(notes_dir, key, fact_ids)
+        missed = sorted(fact_id for fact_id, hit in found.items() if not hit)
+        expected = {"hits": len(found) - len(missed), "of": len(found), "missed": missed}
+        assert probe[sample] == expected, row["model"]
+
+
+def test_bakeoff_artefact_every_pass_directory_has_the_slice_02_shape(
+    sample, run_dir, key, sections_by_doc, bakeoff_table
+):
+    """Every probe, a or b directory a model earned looks like a slice 02 note pass."""
+    bakeoff_root = run_dir / "bakeoff"
+    if not bakeoff_root.is_dir():
+        return
+    row_by_slug = {row["slug"]: row for row in bakeoff_table["rows"]}
+
+    for slug_dir in sorted(bakeoff_root.iterdir()):
+        row = row_by_slug.get(slug_dir.name)
+        assert row is not None, slug_dir.name
+        for pass_name in ("probe", "a", "b"):
+            pass_dir = slug_dir / pass_name
+            if not pass_dir.is_dir():
+                continue
+            where = (slug_dir.name, pass_name)
+
+            verify_path = pass_dir / "notes-verify.jsonl"
+            assert verify_path.exists(), where
+            records = [
+                json.loads(line)
+                for line in verify_path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+            note_dropped = any(record["outcome"] == "note-dropped" for record in records)
+
+            notes_dir = pass_dir / "notes"
+            note_files = sorted(notes_dir.glob("*.json")) if notes_dir.is_dir() else []
+            assert note_files or note_dropped, where
+
+            summary_path = pass_dir / "notes-summary.json"
+            assert summary_path.exists(), where
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            assert summary["model"] == row["model"], where
+            assert summary["sample"] == sample, where
+
+            notes = {}
+            for note_path in note_files:
+                raw = note_path.read_text(encoding="utf-8")
+                notes[note_path.name] = (raw, json.loads(raw))
+            if notes:
+                assert_notes_well_shaped(notes, key)
+                assert_notes_quotes_verified(notes, sections_by_doc)
+
+
+def test_bakeoff_artefact_ledger_carries_every_pass(sample, run_dir, bakeoff_table):
+    """Every notes-summary.json the bake-off wrote for this sample has a ledger row that covers
+    its tokens: the founder's rules give a model at most a lower, refused first attempt and a
+    full rerun, so >= lets either the refused row or the rerun row satisfy the check."""
+    bakeoff_root = run_dir / "bakeoff"
+    if not bakeoff_root.is_dir():
+        return
+    ledger = ledger_rows(ROOT / "LEDGER.md")
+
+    for slug_dir in sorted(bakeoff_root.iterdir()):
+        for pass_name in ("probe", "a", "b"):
+            summary_path = slug_dir / pass_name / "notes-summary.json"
+            if not summary_path.exists():
+                continue
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            matching = [
+                ledger_row
+                for ledger_row in ledger
+                if ledger_row["sample"] == sample
+                and ledger_row["phase"] == "2"
+                and ledger_row["model"] == summary["model"]
+                and ledger_row["tokens_in"] >= summary["tokens_in"]
+                and ledger_row["tokens_out"] >= summary["tokens_out"]
+            ]
+            assert matching, (slug_dir.name, pass_name, summary)
