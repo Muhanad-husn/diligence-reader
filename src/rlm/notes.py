@@ -4,18 +4,26 @@ The model sees the document's section text in ordinal order and nothing else: no
 key, no other document. It answers with one JSON object holding what the document is, its
 flags, its figures, its cross references and what it conceals, quoting the document verbatim.
 
-Code then verifies every quote against the document's own sections. A quote passes when its
-text, with whitespace collapsed and curly quotes and apostrophes straightened, is a substring
-of one section's text treated the same way, or of two adjacent sections joined by one space.
-Case is not folded. The anchor written into the note is the anchor of the section where the
-quote starts, and the model's own anchor, if it writes one, is discarded. A figure passes when
-its quote passes and its surface string is inside that quote.
+Code then verifies every item against the document's own sections. An item must carry every
+required key of its field as a string: a flag has flag, quote and consequence, a figure has
+surface and quote, a cross reference has kind, value and quote, and a concealed item has claim
+and quote. An item that answers with the model's own key names instead fails. A quote passes
+when its text, with whitespace collapsed and curly quotes and apostrophes straightened, is a
+substring of one section's text treated the same way, or of two adjacent sections joined by one
+space. Case is not folded. The anchor written into the note is the anchor of the section where
+the quote starts, and the model's own anchor, if it writes one, is discarded. A figure passes
+when its quote passes and its surface string is inside that quote. Two items of one field that
+match on every key are kept once.
 
-A document whose items fail is asked again once, with its first reply and the list of quotes
-that were not found, and the second reply becomes the note. What fails again is dropped from
-the note and written to notes-verify.jsonl. A reply that is not one JSON object is asked again
-the same way, and a second reply that does not parse drops the note whole. There is no third
-call. A document the key names but sections.jsonl does not carry is dropped without a call.
+A document whose items fail is asked again once, with its first reply and, for each failed
+item, its field, its quote and the reason it failed. The second reply becomes the note. What
+fails again is dropped from the note and written to notes-verify.jsonl. A reply that is not one
+JSON object, or that has no what or none of the four lists, is asked again with the exact key
+names, and a second reply that fails the same way drops the note whole. There is no third call.
+A document the key names but sections.jsonl does not carry is dropped without a call.
+
+Every reply text is written verbatim to runs/<sample>/notes-raw/<document>.<attempt>.txt, so a
+pass can be read back without calling the model again.
 
 The documents run eight at a time inside one ledger batch, so a pass is one line of LEDGER.md
 and one runs/<sample>/notes-summary.json.
@@ -48,13 +56,28 @@ QUOTED_FIELDS = ("flags", "figures", "cross_references", "concealed")
 
 CROSS_REFERENCE_KINDS = frozenset({"code", "name", "person", "document", "regulator", "ticket"})
 
-# The keys code keeps from each item of a quoted field, beside the anchor it writes.
+# The keys code keeps from each item of a quoted field, beside the anchor it writes. Every one
+# of them must be a string in the reply or the item does not verify.
 FIELD_KEYS: dict[str, tuple[str, ...]] = {
     "flags": ("flag", "quote", "consequence"),
     "figures": ("surface", "quote"),
     "cross_references": ("kind", "value", "quote"),
     "concealed": ("claim", "quote"),
 }
+
+# The keys that name an item inside its field, written to the verify log as detail.
+DETAIL_KEYS: dict[str, tuple[str, ...]] = {
+    "flags": ("flag",),
+    "figures": ("surface",),
+    "cross_references": ("kind", "value"),
+    "concealed": ("claim",),
+}
+
+# The keys of one line of notes-verify.jsonl.
+LOG_KEYS = frozenset({"doc", "field", "item", "quote", "detail", "outcome", "attempt"})
+
+# The keys a parsed reply must carry: what, and at least one of the four lists.
+REPLY_LISTS = QUOTED_FIELDS
 
 # The hard output cap of one note, and the estimate of its cost before the call.
 MAX_OUTPUT_TOKENS = 6000
@@ -80,23 +103,35 @@ Answer with one JSON object and nothing else, with exactly these keys:
                 "quote": "the document's own words, verbatim"}]
 }
 
+Use exactly the key names above. An item that uses any other name is dropped.
+
 Rules for every quote:
-- Copy the document's characters exactly. Do not paraphrase, correct, shorten inside, or
-  reword. A quote that is not verbatim is dropped.
+- Copy the document's characters exactly. A quote is text lifted out of the document, never a
+  sentence about the document. Do not paraphrase, correct, shorten inside, or reword. A quote
+  that is not verbatim is dropped.
+- Start a quote at the subject of its clause and carry its verb. Never start in the middle of
+  a clause.
+- In a table, a row is written with its cells separated by " | ". Quote one cell's own text
+  whole and exactly as that cell writes it. Do not join cells, drop the separator, or restate
+  a row in your own words.
 - Keep a quote short: enough words to find it and to carry the point, no more.
 - Do not invent a quote. If you cannot quote it, leave the item out.
-- A figure's surface string must appear inside its own quote.
+- A figure's surface is copied out of its own quote, character for character, in the form that
+  quote writes it. Do not take it from anywhere else in the document.
 - Do not write an anchor, a page, a line or a section number. Those are added later.
 
 A diligence reader is buying this business and needs what the document says against it.
 Quote every one of these that the document carries:
 - a hedge or a qualifier that weakens a finding, and the sentence that carries it
 - a conclusion that is softened, restated or reclassified from something harder
-- a warranty, a representation or a covenant, in the words that bind it
+- every warranty, representation or covenant, in the words that bind it, and in particular a
+  statement that something has not happened, does not exist or is not owed
 - an exclusion, a carve-out or a condition that could deny a claim
 - a deadline, a notice period or a clock, and whether it has run
-- a policy, a control, a limit or a standard that is breached, blocked or exceeded
-- a right to terminate, suspend, withhold or accelerate
+- a policy, a control, a limit or a standard that is breached, blocked or exceeded, and the
+  reason given for it in the words the document gives
+- a right to terminate, suspend, withhold, accelerate or claim, quoted from the party that
+  holds it through what that party may do, not from its condition alone
 - a reserve, a provision or a charge, and the words that size it
 - a range of exposure and both of its ends
 - a dated turning point: the week, month or date on which a number or a trend moves
@@ -106,16 +141,22 @@ better than a few long ones. Leave a list empty when the document gives you noth
 
 USER_PREFIX = "The document, one section per line, in order:\n\n"
 
-REASK_ITEMS = """These quotes are not in the document as you wrote them:
+REASK_ITEMS = """These items of your reply did not verify. Each line is the field, the reason,
+then the quote as you wrote it:
 
-{quotes}
+{items}
 
-Return the whole JSON object again, with the same keys. For each quote above, either copy the
-document's characters exactly or leave that item out. Keep every other item as it was."""
+Return the whole JSON object again, with exactly these keys: what, flags, figures,
+cross_references, concealed. Each flag has flag, quote and consequence; each figure has surface
+and quote; each cross reference has kind, value and quote; each concealed item has claim and
+quote. Fix every item listed above or leave it out, and keep every other item as it was."""
 
 REASK_JSON = (
-    "Your reply was not one JSON object. Answer again with one JSON object and nothing else: "
-    "no prose, no code fence, no explanation."
+    "Your reply was not one JSON object with the keys asked for. Answer again with one JSON "
+    "object and nothing else, no prose and no code fence, using exactly these key names: what, "
+    "flags, figures, cross_references, concealed. Each flag has flag, quote and consequence; "
+    "each figure has surface and quote; each cross reference has kind, value and quote; each "
+    "concealed item has claim and quote. Do not rename a key."
 )
 
 
@@ -179,36 +220,92 @@ def parse_reply(text: str) -> dict | None:
     return data if isinstance(data, dict) else None
 
 
-def _log_record(doc: str, field: str | None, item: int | None, quote: str | None, outcome: str, attempt: int) -> dict:
-    return {"doc": doc, "field": field, "item": item, "quote": quote, "outcome": outcome, "attempt": attempt}
+def _log_record(
+    doc: str,
+    field: str | None,
+    item: int | None,
+    quote: str | None,
+    outcome: str,
+    attempt: int,
+    detail: str | None = None,
+) -> dict:
+    return {
+        "doc": doc,
+        "field": field,
+        "item": item,
+        "quote": quote,
+        "detail": detail,
+        "outcome": outcome,
+        "attempt": attempt,
+    }
+
+
+def item_detail(field: str, item: object) -> str | None:
+    """Names one item inside its field: the flag, the surface, kind and value, or the claim.
+
+    None when the item is not an object or one of the naming keys is missing or not a string.
+    """
+    if not isinstance(item, dict):
+        return None
+    values = [item.get(key) for key in DETAIL_KEYS[field]]
+    if not all(isinstance(value, str) for value in values):
+        return None
+    return ": ".join(values)
+
+
+def well_shaped(reply: dict) -> bool:
+    """Says whether a parsed reply carries what as a non-empty string and one of the four lists."""
+    what = reply.get("what")
+    if not isinstance(what, str) or not what.strip():
+        return False
+    return any(isinstance(reply.get(field), list) for field in REPLY_LISTS)
+
+
+def _item_reason(field: str, item: object, sections: list[dict]) -> str | None:
+    """Why one item of a quoted field does not verify, or None when it does."""
+    if not isinstance(item, dict):
+        return "missing key quote"
+    for key in FIELD_KEYS[field]:
+        if not isinstance(item.get(key), str):
+            return f"missing key {key}"
+    if locate_quote(item["quote"], sections) is None:
+        return "quote not found verbatim"
+    if field == "figures" and straighten(item["surface"]) not in straighten(item["quote"]):
+        return "surface not inside the quote"
+    if field == "cross_references" and item["kind"] not in CROSS_REFERENCE_KINDS:
+        return "kind not one of " + ", ".join(sorted(CROSS_REFERENCE_KINDS))
+    return None
 
 
 def verify_items(doc: str, field: str, items: object, sections: list[dict]) -> tuple[list[dict], list[dict]]:
     """Verifies one quoted field, returning the items that pass and one record per drop.
 
-    An item whose quote does not locate is dropped, as is a figure whose surface is not inside
-    its quote and a cross reference of an unknown kind. The item index in a record is the
-    model's own 0-based position.
+    An item fails when it does not carry every required key of its field as a string, when its
+    quote does not locate in the document, when a figure's surface is not inside its quote, or
+    when a cross reference's kind is not one of the six. Each failure record carries the item's
+    detail and the reason it failed; the reason is for the re-ask and is not logged. Two items
+    that match on every key are kept once. The item index in a record is the model's own 0-based
+    position.
     """
     kept: list[dict] = []
     dropped: list[dict] = []
+    seen: set[tuple[str, ...]] = set()
     if not isinstance(items, list):
         return kept, dropped
     for index, item in enumerate(items):
         quote = item.get("quote") if isinstance(item, dict) else None
         quote = quote if isinstance(quote, str) else None
-        anchor = locate_quote(quote, sections) if quote else None
-        if anchor is None:
-            dropped.append(_log_record(doc, field, index, quote, "dropped", 1))
+        reason = _item_reason(field, item, sections)
+        if reason is not None:
+            record = _log_record(doc, field, index, quote, "dropped", 1, item_detail(field, item))
+            dropped.append(dict(record, reason=reason))
             continue
-        built = {key: item.get(key, "") for key in FIELD_KEYS[field]}
-        if field == "figures" and straighten(str(built["surface"])) not in straighten(quote):
-            dropped.append(_log_record(doc, field, index, quote, "dropped", 1))
+        built = {key: item[key] for key in FIELD_KEYS[field]}
+        signature = tuple(built[key] for key in FIELD_KEYS[field])
+        if signature in seen:
             continue
-        if field == "cross_references" and built["kind"] not in CROSS_REFERENCE_KINDS:
-            dropped.append(_log_record(doc, field, index, quote, "dropped", 1))
-            continue
-        built["anchor"] = anchor
+        seen.add(signature)
+        built["anchor"] = locate_quote(built["quote"], sections)
         kept.append(built)
     return kept, dropped
 
@@ -237,6 +334,16 @@ def write_note(out_dir: Path, doc_id: str, note: dict) -> Path:
     notes_dir.mkdir(parents=True, exist_ok=True)
     path = notes_dir / note_name(doc_id)
     path.write_text(json.dumps(note, indent=1, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
+    return path
+
+
+def write_raw(out_dir: Path, doc_id: str, attempt: int, text: str) -> Path:
+    """Writes one reply's text verbatim under notes-raw, named by document and attempt."""
+    raw_dir = out_dir / "notes-raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    stem = note_name(doc_id)[: -len(".json")]
+    path = raw_dir / f"{stem}.{attempt}.txt"
+    path.write_text(text, encoding="utf-8")
     return path
 
 
@@ -293,9 +400,16 @@ def reask_messages(messages: list[dict], first_text: str, asking: str) -> list[d
     ]
 
 
-def failed_quotes(records: list[dict]) -> str:
-    """The failed quotes of one document, one per line, as the re-ask lists them."""
-    return "\n".join(f'- "{record["quote"] or ""}"' for record in records)
+def failed_items(records: list[dict]) -> str:
+    """The failed items of one document, one line each: the field, the reason, then the quote."""
+    return "\n".join(
+        f'- {record["field"]}: {record["reason"]}: "{record["quote"] or ""}"' for record in records
+    )
+
+
+def log_record(record: dict) -> dict:
+    """One line of notes-verify.jsonl: a failure record without the reason the re-ask carries."""
+    return {key: value for key, value in record.items() if key in LOG_KEYS}
 
 
 def call_usage(model: str, completions: list[Completion]) -> dict:
@@ -317,33 +431,34 @@ def note_document(doc: str, model: str, pass_name: str, sections: list[dict], ca
     call sends one list of messages and returns its Completion. The note is None when it is
     dropped whole. The records are this document's lines of the verify log: an item that failed
     on the first call is re-asked, an item that fails on the second is dropped, and a reply that
-    does not parse twice is one note-dropped record. usage is left to the caller.
+    twice fails to parse or to carry the keys asked for is one note-dropped record. usage is
+    left to the caller.
     """
     messages = build_messages(sections)
     first = call(messages)
     parsed = parse_reply(first.text)
 
-    if parsed is None:
+    if parsed is None or not well_shaped(parsed):
         second = call(reask_messages(messages, first.text, REASK_JSON))
         parsed = parse_reply(second.text)
-        if parsed is None:
+        if parsed is None or not well_shaped(parsed):
             return None, [_log_record(doc, None, None, None, "note-dropped", 2)]
         note, failures = build_note(doc, model, pass_name, parsed, sections, {})
-        return note, [dict(record, outcome="dropped", attempt=2) for record in failures]
+        return note, [log_record(dict(record, outcome="dropped", attempt=2)) for record in failures]
 
     note, failures = build_note(doc, model, pass_name, parsed, sections, {})
     if not failures:
         return note, []
 
-    records = [dict(record, outcome="re-asked", attempt=1) for record in failures]
-    asking = REASK_ITEMS.format(quotes=failed_quotes(failures))
+    records = [log_record(dict(record, outcome="re-asked", attempt=1)) for record in failures]
+    asking = REASK_ITEMS.format(items=failed_items(failures))
     second = call(reask_messages(messages, first.text, asking))
     answered = parse_reply(second.text)
-    if answered is None:
-        records.extend(dict(record, outcome="dropped", attempt=2) for record in failures)
+    if answered is None or not well_shaped(answered):
+        records.extend(log_record(dict(record, outcome="dropped", attempt=2)) for record in failures)
         return note, records
     note, again = build_note(doc, model, pass_name, answered, sections, {})
-    records.extend(dict(record, outcome="dropped", attempt=2) for record in again)
+    records.extend(log_record(dict(record, outcome="dropped", attempt=2)) for record in again)
     return note, records
 
 
@@ -357,11 +472,13 @@ def note_and_write(
     gateway: Gateway,
     batch: Batch,
 ) -> tuple[str, dict | None, list[dict]]:
-    """Notes one document, prices its calls and writes the note. Runs in one pool thread.
+    """Notes one document, prices its calls, keeps each reply and writes the note.
 
-    A call that raises drops this document whole so the pool and the batch finish: the
-    exception is caught, printed, and logged as note-dropped at attempt 1. A reply that never
-    parses is not an exception; it is also printed and logged, so nothing here is silent.
+    Runs in one pool thread. Every reply text is written to notes-raw before it is read, so a
+    pass can be tuned from what the model actually said. A call that raises drops this document
+    whole so the pool and the batch finish: the exception is caught, printed, and logged as
+    note-dropped at attempt 1. A reply that never parses is not an exception; it is also printed
+    and logged, so nothing here is silent.
     """
     completions: list[Completion] = []
 
@@ -369,6 +486,7 @@ def note_and_write(
         completion = gateway.complete(model, messages, max_tokens=MAX_OUTPUT_TOKENS)
         batch.record(completion)
         completions.append(completion)
+        write_raw(out_dir, doc_id, len(completions), completion.text)
         return completion
 
     try:
