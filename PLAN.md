@@ -123,6 +123,24 @@ each on any model.
 two-run agreement on planted facts, seconds. The cheapest row that passes wins. A Flash model
 is tried first; a Pro tier is tried only where every Flash fails.
 
+**Phase 2 bake-off, run 2026-09-06** (`runs/<sample>/bakeoff.json`). Before its two full passes
+a model is probed once on the seven documents whose planted sentences DeepSeek Flash missed in
+slices 02 and 03 (six of `atlas`, one of `northwind`); a model that misses any of the seven
+probe facts is recorded as failing and runs no full pass. No model cleared the probe, so no row
+has two passes, no row passes, and there is no winner.
+
+| Model | Probe atlas | Probe northwind | Passes | Dollars | Agreement | Seconds |
+|---|---|---|---|---|---|---|
+| DeepSeek V4 Flash | 4 of 6, missed exposure-range, reserve-recommended | 0 of 1, missed captable-coc-confirmation | no | 0.0022 | not run | 64 |
+| GLM 5.3 Flash | 5 of 6, missed reserve-recommended | 1 of 1 | no | 0.0056 | not run | 77 |
+| Luna | 5 of 6, missed reserve-recommended | 1 of 1 | no | 0.0312 | not run | 75 |
+| DeepSeek V4 Pro | 6 of 6 | 0 of 1, missed captable-coc-confirmation | no | 0.0381 | not run | 70 |
+| GLM 5.3 | 5 of 6, missed covenant-termination | 0 of 1, missed captable-coc-confirmation | no | 0.2263 | not run | 314 |
+
+GLM 5.3's two misses are documents whose reply came back empty at the 6000 output token cap
+with reasoning on; the other rows' misses are sentences the model did not quote while quoting
+their neighbours. The bake-off cost $0.30; phase 2 has spent $0.53 of its $8.
+
 ## 6. Money
 
 `LEDGER.md` is the running total: one line per gateway call batch, with sample, phase, model,

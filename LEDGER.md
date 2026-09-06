@@ -18,3 +18,17 @@ Ceiling $50. Written by the code that makes gateway calls; a line added by hand 
 | 2026-09-06 | northstar-dental | 2 | deepseek/deepseek-v4-flash-0731 | 26049 | 12054 | 0.0039 | 49.7884 |
 | 2026-09-06 | northwind | 2 | deepseek/deepseek-v4-flash-0731 | 88243 | 34058 | 0.0119 | 49.7765 |
 | 2026-09-06 | northstar-dental | 2 | deepseek/deepseek-v4-flash-0731 | 27601 | 12381 | 0.0040 | 49.7725 |
+| 2026-09-06 | atlas | 2 | deepseek/deepseek-v4-flash-0731 | 19584 | 9152 | 0.0019 | 49.7706 |
+| 2026-09-06 | northwind | 2 | deepseek/deepseek-v4-flash-0731 | 2752 | 1930 | 0.0003 | 49.7703 |
+| 2026-09-06 | atlas | 2 | z-ai/glm-5.3-flash | 0 | 0 | 0.0000 | 49.7703 |
+| 2026-09-06 | northwind | 2 | z-ai/glm-5.3-flash | 0 | 0 | 0.0000 | 49.7703 |
+| 2026-09-06 | atlas | 2 | openai/gpt-5.6-luna | 14037 | 14390 | 0.0201 | 49.7502 |
+| 2026-09-06 | northwind | 2 | openai/gpt-5.6-luna | 9463 | 7668 | 0.0111 | 49.7391 |
+| 2026-09-06 | atlas | 2 | deepseek/deepseek-v4-pro | 25396 | 13757 | 0.0348 | 49.7043 |
+| 2026-09-06 | northwind | 2 | deepseek/deepseek-v4-pro | 2729 | 1209 | 0.0034 | 49.7009 |
+| 2026-09-06 | atlas | 2 | z-ai/glm-5.3 | 0 | 0 | 0.0000 | 49.7009 |
+| 2026-09-06 | northwind | 2 | z-ai/glm-5.3 | 0 | 0 | 0.0000 | 49.7009 |
+| 2026-09-06 | atlas | 2 | z-ai/glm-5.3-flash | 21398 | 13296 | 0.0049 | 49.6960 |
+| 2026-09-06 | northwind | 2 | z-ai/glm-5.3-flash | 2819 | 1950 | 0.0007 | 49.6953 |
+| 2026-09-06 | atlas | 2 | z-ai/glm-5.3 | 23182 | 30272 | 0.1657 | 49.5296 |
+| 2026-09-06 | northwind | 2 | z-ai/glm-5.3 | 5607 | 12000 | 0.0606 | 49.4690 |
