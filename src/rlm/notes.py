@@ -16,6 +16,14 @@ writes one, is discarded. A figure passes
 when its quote passes and its surface string is inside that quote. Two items of one field that
 match on every key are kept once.
 
+Code then harvests the figures the model did not write. Every unit of the document that carries
+a currency amount or a percentage becomes a figure of the note: a unit is one sentence of a text
+section, whitespace collapsed so a sentence that runs over the page's line ends is one quote, or
+one cell of a table row. A plain count or magnitude with no sign, 24 months or 912.8m, is left
+to the model. The harvested items go through the same verification as the model's, they carry
+the anchor of the section they were read from, and one that matches a model figure on every key
+is kept once. The model's items lead the field and the harvested ones follow in document order.
+
 A document whose items fail is asked again once, with its first reply and, for each failed
 item, its field, its quote and the reason it failed. The note is then the union, field by
 field, of what verified on the first reply and what verifies on the second, so a second reply
@@ -42,6 +50,7 @@ import sys
 import time
 from pathlib import Path
 
+from rlm.amounts import AMOUNT
 from rlm.gateway import Batch, Completion, Gateway, Ledger, estimate_tokens, price
 from rlm.key import load_key
 
@@ -91,6 +100,10 @@ _CURLY = {"“": '"', "”": '"', "‘": "'", "’": "'"}
 # characters, are left alone, since those are not emphasis.
 _EMPHASIS_STAR = re.compile(r"(?<!\s)\*|\*(?!\s)")
 _EMPHASIS_UNDERSCORE = re.compile(r"(?<!\w)_|_(?!\w)")
+# The end of a sentence: a full stop, question mark or exclamation mark, then whitespace.
+_SENTENCE_END = re.compile(r"(?<=[.?!])\s+")
+# How ingest joins the cells of a table row into the row's text.
+_CELL_JOIN = " | "
 
 SYSTEM_PROMPT = """You read one document of a diligence data room and write one note about it.
 
@@ -212,6 +225,55 @@ def locate_quote(quote: str, sections: list[dict]) -> str | None:
     return None
 
 
+def section_units(section: dict) -> list[str]:
+    """The units of one section, each with its whitespace collapsed.
+
+    A table row is one unit per cell, so a figure quotes the cell and not the whole row. Every
+    other section is one unit per sentence, split after a full stop, question mark or exclamation
+    mark followed by whitespace, so a sentence that runs over the page's line ends is one unit.
+    """
+    if section.get("cells") is not None:
+        pieces = [straighten(str(cell["value"])) for cell in section["cells"]]
+    elif section.get("kind") == "row":
+        pieces = straighten(section["text"]).split(_CELL_JOIN)
+    else:
+        pieces = _SENTENCE_END.split(straighten(section["text"]))
+    return [unit for unit in (piece.strip() for piece in pieces) if unit]
+
+
+def amount_surfaces(unit: str) -> list[str]:
+    """Every currency amount and percentage a unit writes, as the unit writes it.
+
+    A number with no dollar sign and no percent sign is a plain count or magnitude and is left
+    to the model. A percentage the unit puts in brackets is read without its opening bracket,
+    since the match ends at the percent sign and the closing bracket is outside it.
+    """
+    found: list[str] = []
+    for match in AMOUNT.finditer(unit):
+        if not (match.group("currency") or match.group("percent")):
+            continue
+        surface = match.group(0).strip()
+        if surface.startswith("(") and ")" not in surface:
+            surface = surface[1:].strip()
+        if surface:
+            found.append(surface)
+    return found
+
+
+def harvest_figures(sections: list[dict]) -> list[dict]:
+    """Every unit of one document carrying an amount, as figure items in document order.
+
+    A unit with two amounts gives two items sharing one quote. The anchor is the anchor of the
+    section the unit was read from.
+    """
+    return [
+        {"surface": surface, "quote": unit, "anchor": section["anchor"]}
+        for section in sections
+        for unit in section_units(section)
+        for surface in amount_surfaces(unit)
+    ]
+
+
 def note_name(doc_id: str) -> str:
     """The file name of one document's note."""
     return doc_id.replace("/", "__") + ".json"
@@ -302,7 +364,9 @@ def _item_reason(field: str, item: object, sections: list[dict]) -> str | None:
     return None
 
 
-def verify_items(doc: str, field: str, items: object, sections: list[dict]) -> tuple[list[dict], list[dict]]:
+def verify_items(
+    doc: str, field: str, items: object, sections: list[dict], keep_anchor: bool = False
+) -> tuple[list[dict], list[dict]]:
     """Verifies one quoted field, returning the items that pass and one record per drop.
 
     An item fails when it does not carry every required key of its field as a string, when its
@@ -311,6 +375,10 @@ def verify_items(doc: str, field: str, items: object, sections: list[dict]) -> t
     detail and the reason it failed; the reason is for the re-ask and is not logged. Two items
     that match on every key are kept once. The item index in a record is the model's own 0-based
     position.
+
+    With keep_anchor the item's own anchor is kept instead of the one code locates. The harvest
+    passes it, because a unit already names the section it was read from, while a short cell such
+    as $0 reads verbatim in an earlier row too.
     """
     kept: list[dict] = []
     dropped: list[dict] = []
@@ -330,7 +398,8 @@ def verify_items(doc: str, field: str, items: object, sections: list[dict]) -> t
         if signature in seen:
             continue
         seen.add(signature)
-        built["anchor"] = locate_quote(built["quote"], sections)
+        own = item.get("anchor") if keep_anchor else None
+        built["anchor"] = own if isinstance(own, str) else locate_quote(built["quote"], sections)
         kept.append(built)
     return kept, dropped
 
@@ -466,8 +535,29 @@ def merge_items(first: list[dict], second: list[dict]) -> list[dict]:
     return merged
 
 
+def add_harvest(doc: str, note: dict, sections: list[dict]) -> list[dict]:
+    """Adds every unit of the document carrying an amount to the note's figures.
+
+    The harvested items are verified the way a model item is and follow the model's own items in
+    document order. One that matches a model figure on surface, quote and anchor is left out.
+    Returns one log record per harvested item that did not verify, dropped at attempt 1; in
+    practice there are none, since a unit is a substring of its own section.
+    """
+    kept, dropped = verify_items(doc, "figures", harvest_figures(sections), sections, keep_anchor=True)
+    note["figures"] = merge_items(note["figures"], kept)
+    return [log_record(record) for record in dropped]
+
+
 def note_document(doc: str, model: str, pass_name: str, sections: list[dict], call) -> tuple[dict | None, list[dict]]:
-    """Notes one document, asking again once when the reply or one of its items fails.
+    """Notes one document from the model, then harvests the figures the model did not write."""
+    note, records = model_note(doc, model, pass_name, sections, call)
+    if note is None:
+        return None, records
+    return note, records + add_harvest(doc, note, sections)
+
+
+def model_note(doc: str, model: str, pass_name: str, sections: list[dict], call) -> tuple[dict | None, list[dict]]:
+    """Notes one document from the model alone, asking again once when the reply or an item fails.
 
     call sends one list of messages and returns its Completion. The note is None when it is
     dropped whole. usage is left to the caller.

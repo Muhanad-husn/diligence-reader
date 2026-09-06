@@ -123,23 +123,29 @@ each on any model.
 two-run agreement on planted facts, seconds. The cheapest row that passes wins. A Flash model
 is tried first; a Pro tier is tried only where every Flash fails.
 
-**Phase 2 bake-off, run 2026-09-06** (`runs/<sample>/bakeoff.json`). Before its two full passes
-a model is probed once on the seven documents whose planted sentences DeepSeek Flash missed in
-slices 02 and 03 (six of `atlas`, one of `northwind`); a model that misses any of the seven
-probe facts is recorded as failing and runs no full pass. No model cleared the probe, so no row
-has two passes, no row passes, and there is no winner.
+**Phase 2 bake-off, rerun 2026-09-06 with figure sentences harvested by code**
+(`runs/<sample>/bakeoff.json`). Before its two full passes a model is probed once on the seven
+documents whose planted sentences DeepSeek Flash missed in slices 02 and 03 (six of `atlas`, one
+of `northwind`); a model that misses any of the seven probe facts is recorded as failing and runs
+no full pass. The first run of the day, before the harvest, had no model clear the probe. With the
+harvest two models clear it and run their passes; neither carries every planted fact in both
+passes, so no row passes and there is no winner. Recall is pass a and pass b per sample;
+agreement is `atlas`, `northwind`, `northstar-dental`.
 
-| Model | Probe atlas | Probe northwind | Passes | Dollars | Agreement | Seconds |
-|---|---|---|---|---|---|---|
-| DeepSeek V4 Flash | 4 of 6, missed exposure-range, reserve-recommended | 0 of 1, missed captable-coc-confirmation | no | 0.0022 | not run | 64 |
-| GLM 5.3 Flash | 5 of 6, missed reserve-recommended | 1 of 1 | no | 0.0056 | not run | 77 |
-| Luna | 5 of 6, missed reserve-recommended | 1 of 1 | no | 0.0312 | not run | 75 |
-| DeepSeek V4 Pro | 6 of 6 | 0 of 1, missed captable-coc-confirmation | no | 0.0381 | not run | 70 |
-| GLM 5.3 | 5 of 6, missed covenant-termination | 0 of 1, missed captable-coc-confirmation | no | 0.2263 | not run | 314 |
+| Model | Probe atlas | Probe northwind | Recall | Passes | Dollars | Agreement | Seconds |
+|---|---|---|---|---|---|---|---|
+| DeepSeek V4 Flash | 5 of 6, missed covenant-termination | 1 of 1 | not run | no | 0.0034 | not run | 130 |
+| GLM 5.3 Flash | 6 of 6 | 1 of 1 | atlas 15/15 and 15/15; northwind 5/5 and 4/5; northstar-dental 2/2 and 2/2 | no | 0.1803 | 1.0, 0.8, 1.0 | 2606 |
+| Luna | 6 of 6 | 1 of 1 | atlas 15/15 and 15/15; northwind 5/5 and 4/5; northstar-dental 2/2 and 2/2 | no | 0.7567 | 1.0, 0.8, 1.0 | 600 |
+| DeepSeek V4 Pro | 5 of 6, missed rotation-blocked | 1 of 1 | not run | no | 0.0387 | not run | 97 |
+| GLM 5.3 | not run | not run | not run | not run | not run | not run | not run |
 
-GLM 5.3's two misses are documents whose reply came back empty at the 6000 output token cap
-with reasoning on; the other rows' misses are sentences the model did not quote while quoting
-their neighbours. The bake-off cost $0.30; phase 2 has spent $0.53 of its $8.
+GLM 5.3 Flash and Luna both miss the same sentence in pass b only, `tidewater-subprocessor-gap`
+of `subprocessor_register.pdf.md`, which both quote in pass a; the raw pass b replies never
+contain it. DeepSeek Pro's probe miss is a reply of `{}` and then one that is not JSON on DR-074.
+GLM 5.3 was not run: its probe in the first run of the day lost two of seven documents to the
+6000 output token cap with reasoning on, and its two passes would cost about $3 to fail the same
+way. The rerun cost $0.98; phase 2 has spent $1.51 of its $8.
 
 ## 6. Money
 
