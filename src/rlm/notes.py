@@ -113,8 +113,10 @@ REASK_ITEMS = """These quotes are not in the document as you wrote them:
 Return the whole JSON object again, with the same keys. For each quote above, either copy the
 document's characters exactly or leave that item out. Keep every other item as it was."""
 
-REASK_JSON = """Your reply was not one JSON object. Answer again with one JSON object and
-nothing else: no prose, no code fence, no explanation."""
+REASK_JSON = (
+    "Your reply was not one JSON object. Answer again with one JSON object and nothing else: "
+    "no prose, no code fence, no explanation."
+)
 
 
 def straighten(text: str) -> str:
