@@ -16,8 +16,10 @@ when its quote passes and its surface string is inside that quote. Two items of 
 match on every key are kept once.
 
 A document whose items fail is asked again once, with its first reply and, for each failed
-item, its field, its quote and the reason it failed. The second reply becomes the note. What
-fails again is dropped from the note and written to notes-verify.jsonl. A reply that is not one
+item, its field, its quote and the reason it failed. The note is then the union, field by
+field, of what verified on the first reply and what verifies on the second, so a second reply
+that answers with fewer items loses nothing; an item both replies write is kept once. What
+fails on the second reply is dropped and written to notes-verify.jsonl. A reply that is not one
 JSON object, or that has no what or none of the four lists, is asked again with the exact key
 names, and a second reply that fails the same way drops the note whole. There is no third call.
 A document the key names but sections.jsonl does not carry is dropped without a call.
@@ -425,14 +427,39 @@ def call_usage(model: str, completions: list[Completion]) -> dict:
     }
 
 
+def merge_items(first: list[dict], second: list[dict]) -> list[dict]:
+    """The union of one field's verified items from two attempts, the first attempt's in front.
+
+    An item of the second attempt that matches an item already kept on every key is left out.
+    """
+    merged = list(first)
+    seen = {tuple(sorted(item.items())) for item in merged}
+    for item in second:
+        signature = tuple(sorted(item.items()))
+        if signature in seen:
+            continue
+        seen.add(signature)
+        merged.append(item)
+    return merged
+
+
 def note_document(doc: str, model: str, pass_name: str, sections: list[dict], call) -> tuple[dict | None, list[dict]]:
     """Notes one document, asking again once when the reply or one of its items fails.
 
     call sends one list of messages and returns its Completion. The note is None when it is
-    dropped whole. The records are this document's lines of the verify log: an item that failed
-    on the first call is re-asked, an item that fails on the second is dropped, and a reply that
-    twice fails to parse or to carry the keys asked for is one note-dropped record. usage is
-    left to the caller.
+    dropped whole. usage is left to the caller.
+
+    The note's items are the union, per field, of the items that verify on the first reply and
+    the items that verify on the second: the first reply's in the order it wrote them, then the
+    second reply's new ones in the order it wrote them, an item that matches one already kept on
+    every key left out. A second reply that answers with fewer items than the first therefore
+    loses nothing. The note's what is the first reply's. When the second reply does not parse or
+    is not well shaped the note is the first reply's verified items alone.
+
+    The records are this document's lines of the verify log: an item that failed on the first
+    call is re-asked; an item of the second reply that fails is dropped at attempt 2, and when
+    the second reply does not parse the first call's failures are what is dropped at attempt 2.
+    A reply that twice fails to parse or to carry the keys asked for is one note-dropped record.
     """
     messages = build_messages(sections)
     first = call(messages)
@@ -457,7 +484,9 @@ def note_document(doc: str, model: str, pass_name: str, sections: list[dict], ca
     if answered is None or not well_shaped(answered):
         records.extend(log_record(dict(record, outcome="dropped", attempt=2)) for record in failures)
         return note, records
-    note, again = build_note(doc, model, pass_name, answered, sections, {})
+    second_note, again = build_note(doc, model, pass_name, answered, sections, {})
+    for field in QUOTED_FIELDS:
+        note[field] = merge_items(note[field], second_note[field])
     records.extend(log_record(dict(record, outcome="dropped", attempt=2)) for record in again)
     return note, records
 
