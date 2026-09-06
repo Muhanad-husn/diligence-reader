@@ -17,6 +17,7 @@ import datetime
 import math
 import os
 import re
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -117,7 +118,11 @@ class Gateway:
 
 
 class Batch:
-    """One run of calls that becomes one ledger row. Accumulates the reported token counts."""
+    """One run of calls that becomes one ledger row. Accumulates the reported token counts.
+
+    A pass runs several documents at once, so record is called from many threads and takes a
+    lock.
+    """
 
     def __init__(self, ledger: "Ledger", sample: str, phase: int, model: str, tokens_in: int, tokens_out: int):
         self._ledger = ledger
@@ -128,11 +133,13 @@ class Batch:
         self.estimated_out = tokens_out
         self.tokens_in = 0
         self.tokens_out = 0
+        self._lock = threading.Lock()
 
     def record(self, completion: Completion) -> Completion:
         """Adds one completion's reported tokens to the batch and returns it."""
-        self.tokens_in += completion.tokens_in
-        self.tokens_out += completion.tokens_out
+        with self._lock:
+            self.tokens_in += completion.tokens_in
+            self.tokens_out += completion.tokens_out
         return completion
 
     def __enter__(self) -> "Batch":
