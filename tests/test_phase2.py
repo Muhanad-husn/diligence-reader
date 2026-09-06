@@ -6,6 +6,7 @@ sample whose notes directory is absent is skipped."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
@@ -1927,6 +1928,22 @@ def readout(terminalreporter):
         for fact in missed:
             terminalreporter.write_line(f"phase 2 {sample}: missed {fact.id} {fact.value!r}")
 
+        bakeoff_path = run_dir / "bakeoff.json"
+        if not bakeoff_path.exists():
+            continue
+        table = json.loads(bakeoff_path.read_text(encoding="utf-8"))
+        winner = table.get("winner")
+        if not winner:
+            continue
+        row = next((r for r in table["rows"] if r["model"] == winner), None)
+        agreement = row["agreement"].get(sample) if row and isinstance(row.get("agreement"), dict) else None
+        if agreement is None:
+            continue
+        terminalreporter.write_line(
+            f"phase 2 {sample}: bake-off agreement {agreement:.2f} between pass a and pass b of "
+            f"{winner}, spread {100 - agreement * 100:.0f}"
+        )
+
 
 # ---------------------------------------------------------------- bakeoff
 
@@ -2920,3 +2937,108 @@ def test_bakeoff_artefact_ledger_carries_every_pass(sample, run_dir, bakeoff_tab
                 and ledger_row["tokens_out"] >= summary["tokens_out"]
             ]
             assert matching, (slug_dir.name, pass_name, summary)
+
+
+# ---- gate
+
+
+def test_gate_pin_copies_the_winners_pass_a_and_writes_digests(tmp_path, capsys):
+    """pin.main copies the winning model's pass a into place and pins its digests."""
+    from rlm import pin
+
+    sample = "atlas"
+    model = "z-ai/glm-5.3-flash"
+    slug = "glm-5.3-flash"
+
+    runs_root = tmp_path / "runs"
+    sample_dir = runs_root / sample
+    pass_dir = sample_dir / "bakeoff" / slug / "a"
+    (pass_dir / "notes").mkdir(parents=True)
+    note_bytes = b'{"doc": "DR-001", "model": "z-ai/glm-5.3-flash", "pass": "a"}\n'
+    (pass_dir / "notes" / "DR-001.json").write_bytes(note_bytes)
+    verify_bytes = b'{"doc": "DR-001", "outcome": "dropped"}\n'
+    (pass_dir / "notes-verify.jsonl").write_bytes(verify_bytes)
+    summary_bytes = json.dumps({"model": model, "pass": "a", "sample": sample}).encode("utf-8")
+    (pass_dir / "notes-summary.json").write_bytes(summary_bytes)
+
+    stale_dir = sample_dir / "notes"
+    stale_dir.mkdir(parents=True)
+    (stale_dir / "old.json").write_text("stale", encoding="utf-8")
+
+    (sample_dir / "bakeoff.json").write_text(json.dumps({"winner": model}), encoding="utf-8")
+
+    digests_path = tmp_path / "phase2-digests.json"
+    code = pin.main([str(runs_root), "--samples", sample, "--digests", str(digests_path)])
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert not (stale_dir / "old.json").exists()
+    assert (sample_dir / "notes" / "DR-001.json").read_bytes() == note_bytes
+    assert (sample_dir / "notes-verify.jsonl").read_bytes() == verify_bytes
+    assert (sample_dir / "notes-summary.json").read_bytes() == summary_bytes
+
+    digests = json.loads(digests_path.read_text(encoding="utf-8"))
+    assert digests == {
+        sample: {
+            "notes/DR-001.json": hashlib.sha256(note_bytes).hexdigest(),
+            "notes-verify.jsonl": hashlib.sha256(verify_bytes).hexdigest(),
+        }
+    }
+    assert sample in out and model in out
+
+
+def test_gate_pin_refuses_a_sample_with_no_winner(tmp_path, capsys):
+    """pin.main refuses and copies nothing when a sample's bake-off names no winner."""
+    from rlm import pin
+
+    sample = "atlas"
+    runs_root = tmp_path / "runs"
+    sample_dir = runs_root / sample
+    sample_dir.mkdir(parents=True)
+    (sample_dir / "bakeoff.json").write_text(json.dumps({"winner": None}), encoding="utf-8")
+
+    digests_path = tmp_path / "phase2-digests.json"
+    code = pin.main([str(runs_root), "--samples", sample, "--digests", str(digests_path)])
+    out = capsys.readouterr().out
+
+    assert code == 1
+    assert not (sample_dir / "notes").exists()
+    assert not (sample_dir / "notes-verify.jsonl").exists()
+    assert not digests_path.exists()
+    assert sample in out
+
+
+def test_gate_pinned_notes_match_their_digests(notes, run_dir, sample):
+    """Every pinned note file and the verify log match the sha256 tests/phase2-digests.json
+    holds for this sample, and the digest names exactly the note files on disk."""
+    digests_path = ROOT / "tests" / "phase2-digests.json"
+    digests = json.loads(digests_path.read_text(encoding="utf-8"))
+    if sample not in digests:
+        pytest.skip("no digest pinned for this sample yet")
+    entries = digests[sample]
+    for name, wanted in entries.items():
+        got = hashlib.sha256((run_dir / name).read_bytes()).hexdigest()
+        assert got == wanted, name
+
+    listed = {name[len("notes/"):] for name in entries if name.startswith("notes/")}
+    assert listed == set(notes)
+
+
+def test_gate_pinned_notes_are_the_winners_pass_a(notes, run_dir, bakeoff_table):
+    """Every pinned note, and the pinned summary, is the bake-off winner's pass a."""
+    winner = bakeoff_table["winner"]
+    assert winner is not None
+    for _, note in notes.values():
+        assert note["model"] == winner
+        assert note["pass"] == "a"
+
+    summary = json.loads((run_dir / "notes-summary.json").read_text(encoding="utf-8"))
+    assert summary["model"] == winner
+    assert summary["pass"] == "a"
+
+
+def test_gate_ledger_phase_2_lines_sum_under_the_cap():
+    """LEDGER.md's phase 2 lines sum under the phase cap, and the phase actually spent something."""
+    rows = ledger_rows(ROOT / "LEDGER.md")
+    spent = sum(row["dollars"] for row in rows if row["phase"] == "2")
+    assert 0 < spent < PHASE_CAP
