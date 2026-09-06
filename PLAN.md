@@ -101,13 +101,13 @@ issue of the next phase exists before the gate issue closes.
 ## 5. Models
 
 Five candidates, chosen per task by the bake-off tables in phases 2 and 5, never by preference.
-Prices read from the gateway on 2026-09-05, per million tokens, prompt then completion.
+Prices read from the gateway on 2026-09-06, per million tokens, prompt then completion.
 
 | Model | Id | In | Out |
 |---|---|---|---|
 | Luna | `openai/gpt-5.6-luna` | 0.200 | 1.200 |
-| DeepSeek V4 Flash | `deepseek/deepseek-v4-flash-0731` | 0.065 | 0.180 |
-| DeepSeek V4 Pro | `deepseek/deepseek-v4-pro` | 0.870 | 1.740 |
+| DeepSeek V4 Flash | `deepseek/deepseek-v4-flash-0731` | 0.050 | 0.100 |
+| DeepSeek V4 Pro | `deepseek/deepseek-v4-pro` | 0.657 | 1.314 |
 | GLM 5.3 | `z-ai/glm-5.3` | 1.400 | 4.400 |
 | GLM 5.3 Flash | `z-ai/glm-5.3-flash` | 0.075 | 0.250 |
 
@@ -115,7 +115,7 @@ No Gemini. No model from outside this table without the founder's word. Prices a
 rewritten here the day a bake-off runs.
 
 What one full note pass on sample 1 costs at these prices (about 90k tokens in, about 60k out
-with a tight schema): DeepSeek Flash $0.02, GLM Flash $0.02, Luna $0.09, DeepSeek Pro $0.18,
+with a tight schema): DeepSeek Flash $0.01, GLM Flash $0.02, Luna $0.09, DeepSeek Pro $0.14,
 GLM 5.3 $0.39. A five-model bake-off on sample 1 is under $1. Samples 2 and 3 are under a cent
 each on any model.
 

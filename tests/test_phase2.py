@@ -324,11 +324,11 @@ def test_gateway_batch_refuses_past_the_phase_cap_before_any_request(tmp_path):
     ledger = Ledger(path)
     transport = FakeTransport([reply("{}")])
     gateway = Gateway(api_key="k", transport=transport)
-    # $7.90 spent in phase 2; 2m tokens in at $0.065/m is $0.13 more, past the $8 cap.
-    assert ledger.spent(PHASE) + price(MODEL, 2_000_000, 0) > PHASE_CAP
+    # $7.90 spent in phase 2; 4m tokens in at $0.050/m is $0.20 more, past the $8 cap.
+    assert ledger.spent(PHASE) + price(MODEL, 4_000_000, 0) > PHASE_CAP
 
     with pytest.raises(CapExceeded):
-        with ledger.batch("atlas", PHASE, MODEL, tokens_in=2_000_000, tokens_out=0) as batch:
+        with ledger.batch("atlas", PHASE, MODEL, tokens_in=4_000_000, tokens_out=0) as batch:
             batch.record(gateway.complete(MODEL, [{"role": "user", "content": "u"}], max_tokens=10))
 
     assert transport.requests == []
@@ -348,7 +348,7 @@ def test_gateway_batch_refuses_past_the_total_ceiling_before_any_request(tmp_pat
     ledger = Ledger(path)
     transport = FakeTransport([reply("{}")])
     gateway = Gateway(api_key="k", transport=transport)
-    # $0.05 left of the $50; 2m tokens in is $0.13, past the ceiling, though phase 2 has spent nothing.
+    # $0.05 left of the $50; 2m tokens in is $0.10, past the ceiling, though phase 2 has spent nothing.
     assert ledger.spent(PHASE) == 0.0
 
     with pytest.raises(CapExceeded):
@@ -1839,7 +1839,7 @@ def test_bakeoff_two_passes_on_two_samples_fill_one_row_and_name_the_winner(tmp_
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", table["date"])
     assert set(table["prices"]) == set(PRICES)
     assert table["prices"][GLM_FLASH] == [0.075, 0.250]
-    assert first.endswith(b"}\n")
+    assert (runs_root / "northwind" / "bakeoff.json").read_text(encoding="utf-8").endswith("}\n")
 
     row = row_of(table, GLM_FLASH)
     assert row["passes"] is True
