@@ -583,8 +583,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--model", required=True)
     parser.add_argument(
         "--only",
+        action="append",
         default=None,
-        help="a document id or its path in the sample; without it every document is noted",
+        help="a document id or its path in the sample, repeatable; without it every document "
+        "is noted",
     )
     parser.add_argument("--pass", dest="pass_name", default="a", choices=["a", "b"])
     parser.add_argument("--out", default=None)
@@ -600,15 +602,19 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
 
     key = load_key(sample_dir)
     ids_by_path = {path: doc_id for doc_id, path in key.documents.items()}
-    if args.only is None:
+    if not args.only:
         chosen = list(key.documents.items())
-    elif args.only in key.documents:
-        chosen = [(args.only, key.documents[args.only])]
-    elif args.only in ids_by_path:
-        chosen = [(ids_by_path[args.only], args.only)]
     else:
-        print(f"no such document in the key: {args.only}")
-        return 2
+        wanted = set()
+        for only in args.only:
+            if only in key.documents:
+                wanted.add(only)
+            elif only in ids_by_path:
+                wanted.add(ids_by_path[only])
+            else:
+                print(f"no such document in the key: {only}")
+                return 2
+        chosen = [(doc_id, doc) for doc_id, doc in key.documents.items() if doc_id in wanted]
 
     sections_by_doc = read_sections(run_dir)
     prompts = [(doc_id, doc) for doc_id, doc in chosen if sections_by_doc.get(doc)]

@@ -1,8 +1,8 @@
 """The one module that calls the gateway, and the ledger that pays for the call.
 
 Every model call in this repository goes through Gateway.complete, which posts one chat
-completion to OpenRouter with temperature 0, a fixed seed, JSON output mode and reasoning off.
-Nothing else opens a socket.
+completion to OpenRouter with temperature 0, a fixed seed, JSON output mode and the reasoning
+object REASONING gives its model. Nothing else opens a socket.
 
 Money is a ceiling the code enforces. A batch of calls runs inside Ledger.batch, which prints
 the estimated tokens and the price before anything is sent, refuses when the estimate would
@@ -25,13 +25,37 @@ from types import TracebackType
 
 import httpx
 
-# Per million tokens, prompt then completion, as PLAN.md section 5 reads.
+# Per million tokens, prompt then completion, as PLAN.md section 5 reads, from the gateway's
+# model list on 2026-09-06.
 PRICES: dict[str, tuple[float, float]] = {
     "openai/gpt-5.6-luna": (0.200, 1.200),
-    "deepseek/deepseek-v4-flash-0731": (0.065, 0.180),
-    "deepseek/deepseek-v4-pro": (0.870, 1.740),
+    "deepseek/deepseek-v4-flash-0731": (0.050, 0.100),
+    "deepseek/deepseek-v4-pro": (0.657, 1.314),
     "z-ai/glm-5.3": (1.400, 4.400),
     "z-ai/glm-5.3-flash": (0.075, 0.250),
+}
+
+# The tables the repository has priced a call at before, newest first. A ledger row written
+# before a price moved reconciles at one of these, so it is kept here.
+PAST_PRICES: tuple[dict[str, tuple[float, float]], ...] = (
+    {
+        "openai/gpt-5.6-luna": (0.200, 1.200),
+        "deepseek/deepseek-v4-flash-0731": (0.065, 0.180),
+        "deepseek/deepseek-v4-pro": (0.870, 1.740),
+        "z-ai/glm-5.3": (1.400, 4.400),
+        "z-ai/glm-5.3-flash": (0.075, 0.250),
+    },
+)
+
+# The reasoning object each model's request carries. The two GLM endpoints answer 400 when
+# reasoning is disabled, so they carry a low effort object instead; every other model of PRICES
+# carries reasoning off.
+REASONING: dict[str, dict] = {
+    "openai/gpt-5.6-luna": {"enabled": False},
+    "deepseek/deepseek-v4-flash-0731": {"enabled": False},
+    "deepseek/deepseek-v4-pro": {"enabled": False},
+    "z-ai/glm-5.3": {"effort": "low"},
+    "z-ai/glm-5.3-flash": {"effort": "low"},
 }
 
 # The total ceiling and the per phase caps, from PLAN.md section 6.
@@ -72,6 +96,20 @@ def price(model: str, tokens_in: int, tokens_out: int) -> float:
     return tokens_in * rate_in / 1_000_000 + tokens_out * rate_out / 1_000_000
 
 
+def known_prices(model: str) -> list[tuple[float, float]]:
+    """Every rate the repository has priced a model at, the current one first.
+
+    Raises KeyError for a model outside the current table. A past table that repeats the
+    current rate is left out, so each rate appears once.
+    """
+    rates = [PRICES[model]]
+    for table in PAST_PRICES:
+        rate = table.get(model)
+        if rate is not None and rate not in rates:
+            rates.append(rate)
+    return rates
+
+
 class Gateway:
     """Posts chat completions to the gateway. The transport is injectable so a test can fake it."""
 
@@ -85,6 +123,28 @@ class Gateway:
         self.base_url = base_url.rstrip("/")
         self._client = httpx.Client(transport=transport, timeout=TIMEOUT_SECONDS)
 
+    def models(self) -> dict[str, tuple[float, float]]:
+        """Reads the gateway's model list into one rate per model, per million tokens.
+
+        The list prices per token as a string; each rate is multiplied by a million and rounded
+        to six decimals. Raises httpx.HTTPStatusError when the gateway answers outside 2xx.
+        """
+        response = self._client.get(
+            f"{self.base_url}/models",
+            headers={"Authorization": f"Bearer {self.api_key}"},
+        )
+        response.raise_for_status()
+        found: dict[str, tuple[float, float]] = {}
+        for entry in response.json().get("data", []):
+            pricing = entry.get("pricing") or {}
+            if "prompt" not in pricing or "completion" not in pricing:
+                continue
+            found[entry["id"]] = (
+                round(float(pricing["prompt"]) * 1_000_000, 6),
+                round(float(pricing["completion"]) * 1_000_000, 6),
+            )
+        return found
+
     def complete(self, model: str, messages: list[dict], max_tokens: int) -> Completion:
         """Sends one chat completion and returns its text with the reported usage.
 
@@ -97,7 +157,7 @@ class Gateway:
             "seed": 0,
             "max_tokens": max_tokens,
             "response_format": {"type": "json_object"},
-            "reasoning": {"enabled": False},
+            "reasoning": REASONING.get(model, {"enabled": False}),
         }
         started = time.monotonic()
         response = self._client.post(

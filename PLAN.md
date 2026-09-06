@@ -101,13 +101,13 @@ issue of the next phase exists before the gate issue closes.
 ## 5. Models
 
 Five candidates, chosen per task by the bake-off tables in phases 2 and 5, never by preference.
-Prices read from the gateway on 2026-09-05, per million tokens, prompt then completion.
+Prices read from the gateway on 2026-09-06, per million tokens, prompt then completion.
 
 | Model | Id | In | Out |
 |---|---|---|---|
 | Luna | `openai/gpt-5.6-luna` | 0.200 | 1.200 |
-| DeepSeek V4 Flash | `deepseek/deepseek-v4-flash-0731` | 0.065 | 0.180 |
-| DeepSeek V4 Pro | `deepseek/deepseek-v4-pro` | 0.870 | 1.740 |
+| DeepSeek V4 Flash | `deepseek/deepseek-v4-flash-0731` | 0.050 | 0.100 |
+| DeepSeek V4 Pro | `deepseek/deepseek-v4-pro` | 0.657 | 1.314 |
 | GLM 5.3 | `z-ai/glm-5.3` | 1.400 | 4.400 |
 | GLM 5.3 Flash | `z-ai/glm-5.3-flash` | 0.075 | 0.250 |
 
@@ -115,13 +115,31 @@ No Gemini. No model from outside this table without the founder's word. Prices a
 rewritten here the day a bake-off runs.
 
 What one full note pass on sample 1 costs at these prices (about 90k tokens in, about 60k out
-with a tight schema): DeepSeek Flash $0.02, GLM Flash $0.02, Luna $0.09, DeepSeek Pro $0.18,
+with a tight schema): DeepSeek Flash $0.01, GLM Flash $0.02, Luna $0.09, DeepSeek Pro $0.14,
 GLM 5.3 $0.39. A five-model bake-off on sample 1 is under $1. Samples 2 and 3 are under a cent
 each on any model.
 
 **Bake-off table, filled per phase, one row per model:** passes the gate (yes or no), dollars,
 two-run agreement on planted facts, seconds. The cheapest row that passes wins. A Flash model
 is tried first; a Pro tier is tried only where every Flash fails.
+
+**Phase 2 bake-off, run 2026-09-06** (`runs/<sample>/bakeoff.json`). Before its two full passes
+a model is probed once on the seven documents whose planted sentences DeepSeek Flash missed in
+slices 02 and 03 (six of `atlas`, one of `northwind`); a model that misses any of the seven
+probe facts is recorded as failing and runs no full pass. No model cleared the probe, so no row
+has two passes, no row passes, and there is no winner.
+
+| Model | Probe atlas | Probe northwind | Passes | Dollars | Agreement | Seconds |
+|---|---|---|---|---|---|---|
+| DeepSeek V4 Flash | 4 of 6, missed exposure-range, reserve-recommended | 0 of 1, missed captable-coc-confirmation | no | 0.0022 | not run | 64 |
+| GLM 5.3 Flash | 5 of 6, missed reserve-recommended | 1 of 1 | no | 0.0056 | not run | 77 |
+| Luna | 5 of 6, missed reserve-recommended | 1 of 1 | no | 0.0312 | not run | 75 |
+| DeepSeek V4 Pro | 6 of 6 | 0 of 1, missed captable-coc-confirmation | no | 0.0381 | not run | 70 |
+| GLM 5.3 | 5 of 6, missed covenant-termination | 0 of 1, missed captable-coc-confirmation | no | 0.2263 | not run | 314 |
+
+GLM 5.3's two misses are documents whose reply came back empty at the 6000 output token cap
+with reasoning on; the other rows' misses are sentences the model did not quote while quoting
+their neighbours. The bake-off cost $0.30; phase 2 has spent $0.53 of its $8.
 
 ## 6. Money
 
