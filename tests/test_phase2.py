@@ -15,6 +15,7 @@ import httpx
 import pytest
 
 from rlm import bakeoff
+from rlm.amounts import AMOUNT
 from rlm.gateway import (
     PAST_PRICES,
     PRICES,
@@ -38,6 +39,7 @@ from rlm.notes import (
     SYSTEM_PROMPT,
     build_messages,
     document_text,
+    harvest_figures,
     item_detail,
     locate_quote,
     main,
@@ -694,6 +696,7 @@ def test_one_document_main_writes_a_verified_note_a_verify_log_and_one_ledger_li
     assert note["flags"][0]["anchor"] == f"{DR_069}#p2l13"
     assert note["flags"][0]["consequence"] == "Contradicts the final report's softer wording."
 
+    # DR-069 writes no currency amount and no percentage, so the harvest adds nothing here.
     assert [figure["surface"] for figure in note["figures"]] == ["~8.4m"]
     assert note["figures"][0]["anchor"] in {f"{DR_069}#p1l49", f"{DR_069}#p1t1r5"}
 
@@ -831,7 +834,13 @@ def test_all_documents_main_notes_every_document_of_the_key(tmp_path, capsys):
     assert summary["documents"] == 100
     assert summary["noted"] == 100
     assert summary["dropped"] == 0
-    assert summary["verified"] == 0
+    # Every reply carried nothing, so every verified item is one code harvested.
+    harvested = sum(
+        len(json.loads(path.read_text(encoding="utf-8"))["figures"])
+        for path in (out / "notes").glob("*.json")
+    )
+    assert harvested > 0
+    assert summary["verified"] == harvested
     assert summary["re_asked"] == 0
     assert summary["dropped_items"] == 0
     assert summary["tokens_in"] == 250_000
@@ -1232,6 +1241,283 @@ def test_all_documents_every_reply_is_written_to_notes_raw(tmp_path, capsys):
     assert (raw_dir / "DR-069.2.txt").read_text(encoding="utf-8") == second_text
 
 
+# ---------------------------------------------------------------- figure sentences
+
+
+CONTINGENCY = "data_room/02_Financials_and_Tax/Contingency_Reserve_Memo.pdf"
+CAP_TABLE = "sample_data_room/Northwind_Logistics/cap_table_summary.pdf.md"
+
+# The sentence of DR-029 that runs over three lines of the PDF and only one model quoted.
+RESERVE_SENTENCE = (
+    "This memorandum sets out the basis for the contingency reserve recognised in the draft "
+    "FY2025 financial statements in respect of trust-and-safety matters, including the "
+    "operational account-integrity programme (the Trust Reset programme), and explains why "
+    "management recommends a reserve of $12m at this time."
+)
+
+
+def northwind_sections() -> list[dict]:
+    path = ROOT / "runs" / "northwind" / "sections.jsonl"
+    if not path.exists():
+        pytest.skip("runs/northwind/sections.jsonl absent; run phase 1 ingest first")
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+
+
+def row_section(ordinal: int, cells: list[str], doc: str = DR_069) -> dict:
+    """One table row section as ingest writes it: its cells, and its text joined by " | "."""
+    return {
+        "anchor": f"{doc}#p1t1r{ordinal}",
+        "doc": doc,
+        "heading": None,
+        "kind": "row",
+        "ordinal": ordinal,
+        "text": " | ".join(cells),
+        "warning": None,
+        "cells": [
+            {"ref": f"t1r{ordinal}c{number}", "value": value}
+            for number, value in enumerate(cells, 1)
+        ],
+    }
+
+
+def carries_a_sign(surface: str) -> bool:
+    """Says whether a surface is a currency amount or a percentage and not a plain count."""
+    match = AMOUNT.search(surface)
+    return match is not None and bool(match.group("currency") or match.group("percent"))
+
+
+def assert_figure_verifies(figure: dict, sections: list[dict]) -> None:
+    """A harvested figure carries the three keys, a signed surface inside its own quote, and an
+    anchor of the document it was read from, and its quote is in that document verbatim."""
+    assert set(figure) == {"surface", "quote", "anchor"}
+    assert carries_a_sign(figure["surface"]), figure
+    assert straighten(figure["surface"]) in straighten(figure["quote"]), figure
+    assert locate_quote(figure["quote"], sections) is not None, figure
+    assert figure["anchor"] in {record["anchor"] for record in sections}, figure
+
+
+def test_one_document_harvest_reads_a_sentence_over_line_breaks_as_one_unit():
+    """A sentence broken by the PDF's own line ends is one quote, its whitespace collapsed."""
+    sections = [
+        section(
+            1,
+            "This memorandum sets out the basis for the reserve recognised in the draft\n"
+            "FY2025 statements, and explains why management recommends a reserve of\n"
+            "$12m at this time.",
+        )
+    ]
+    assert harvest_figures(sections) == [
+        {
+            "surface": "$12m",
+            "quote": "This memorandum sets out the basis for the reserve recognised in the draft "
+            "FY2025 statements, and explains why management recommends a reserve of $12m at "
+            "this time.",
+            "anchor": sections[0]["anchor"],
+        }
+    ]
+
+
+def test_one_document_harvest_trims_the_bracket_off_a_spelled_out_percentage():
+    """A percentage the document writes in brackets is harvested without its opening bracket."""
+    sections = [
+        section(
+            1,
+            "The acquisition of more than fifty percent (50%) of the equity constitutes a Change of Control.",
+        )
+    ]
+    items = harvest_figures(sections)
+    assert [item["surface"] for item in items] == ["50%"]
+    assert items[0]["quote"].endswith("constitutes a Change of Control.")
+
+
+def test_one_document_harvest_gives_one_item_per_amount_sharing_one_quote():
+    sections = [section(1, "Management sizes the exposure at $240m to $465m before insurance.")]
+    items = harvest_figures(sections)
+    assert [item["surface"] for item in items] == ["$240m", "$465m"]
+    assert {item["quote"] for item in items} == {
+        "Management sizes the exposure at $240m to $465m before insurance."
+    }
+
+
+def test_one_document_harvest_leaves_a_count_or_a_magnitude_without_a_sign_alone():
+    """Plain counts and magnitudes are what the model is for; code takes only signed amounts."""
+    sections = [section(1, "The window ran 24 months and moved 912.8m records on a 45-day clock.")]
+    assert harvest_figures(sections) == []
+
+
+def test_one_document_harvest_reads_one_cell_of_a_table_row_at_a_time():
+    sections = [row_section(1, ["FY2025 revenue", "$1,480m", "28.7%", "12 months"])]
+    items = harvest_figures(sections)
+    assert [(item["surface"], item["quote"]) for item in items] == [
+        ("$1,480m", "$1,480m"),
+        ("28.7%", "28.7%"),
+    ]
+    assert all(item["anchor"] == sections[0]["anchor"] for item in items)
+
+
+def test_one_document_harvest_splits_a_row_written_only_as_cells_joined_by_a_pipe():
+    sections = [row_section(1, ["Reserve", "$12m", "30.1%"])]
+    sections[0].pop("cells")
+    assert [item["quote"] for item in harvest_figures(sections)] == ["$12m", "30.1%"]
+
+
+def test_one_document_harvest_splits_a_section_at_its_full_stops():
+    sections = [section(1, "The reserve is $12m. Counsel puts the claim at 30.1% of the range.")]
+    assert [(item["surface"], item["quote"]) for item in harvest_figures(sections)] == [
+        ("$12m", "The reserve is $12m."),
+        ("30.1%", "Counsel puts the claim at 30.1% of the range."),
+    ]
+
+
+def test_one_document_harvest_reads_the_dr_029_reserve_sentence_out_of_the_memo():
+    """The sentence that runs over three lines of the memo comes out whole, at its own line."""
+    sections = [record for record in atlas_sections() if record["doc"] == CONTINGENCY]
+    assert sections
+    found = [
+        item
+        for item in harvest_figures(sections)
+        if "management recommends a reserve of $12m at this time" in item["quote"]
+    ]
+    assert len(found) == 1
+    assert found[0]["surface"] == "$12m"
+    assert found[0]["quote"] == RESERVE_SENTENCE
+    assert found[0]["anchor"] == f"{CONTINGENCY}#p1l23"
+
+
+def test_one_document_harvest_reads_the_change_of_control_sentence_out_of_the_cap_table():
+    sections = [record for record in northwind_sections() if record["doc"] == CAP_TABLE]
+    assert sections
+    found = [
+        item
+        for item in harvest_figures(sections)
+        if "constitutes a Change of Control" in item["quote"]
+    ]
+    assert [item["surface"] for item in found] == ["50%"]
+    assert found[0]["anchor"] == f"{CAP_TABLE}#l98"
+
+
+def test_one_document_main_harvests_the_figures_a_reply_left_out(tmp_path, capsys):
+    """A reply with no figures still gives a note carrying every sentence that names an amount."""
+    sections = [record for record in atlas_sections() if record["doc"] == CONTINGENCY]
+    assert sections
+    ledger_path = tmp_path / "LEDGER.md"
+    write_ledger(ledger_path, [("2026-09-05", "", "", "", 0, 0, 0.0, 50.0)])
+    transport = FakeTransport([reply(json.dumps(MINIMAL_NOTE), tokens_in=2500, tokens_out=100)])
+    gateway = Gateway(api_key="k", transport=transport)
+    out = tmp_path / "out"
+
+    code = main(
+        [
+            str(ROOT / "samples" / "atlas"),
+            str(ROOT / "runs" / "atlas"),
+            "--model",
+            MODEL,
+            "--only",
+            "DR-029",
+            "--out",
+            str(out),
+        ],
+        gateway=gateway,
+        ledger=Ledger(ledger_path),
+    )
+    capsys.readouterr()
+    assert code == 0
+    # The reply was well shaped and nothing in it failed, so the document was asked once.
+    assert len(transport.requests) == 1
+
+    note = json.loads((out / "notes" / "DR-029.json").read_text(encoding="utf-8"))
+    assert set(note) == NOTE_KEYS
+    assert (note["flags"], note["cross_references"], note["concealed"]) == ([], [], [])
+    assert any(
+        "management recommends a reserve of $12m at this time" in figure["quote"]
+        for figure in note["figures"]
+    )
+    for figure in note["figures"]:
+        assert_figure_verifies(figure, sections)
+    assert note["usage"]["calls"] == 1
+
+    # Nothing the harvest wrote failed verification, so the log carries no record for it.
+    assert (out / "notes-verify.jsonl").read_text(encoding="utf-8").strip() == ""
+
+
+def test_one_document_main_keeps_a_harvested_figure_the_model_already_quoted_once(tmp_path, capsys):
+    """A figure the model quoted exactly as code harvests it is in the note once, the model's."""
+    sections = [record for record in atlas_sections() if record["doc"] == CONTINGENCY]
+    assert sections
+    ledger_path = tmp_path / "LEDGER.md"
+    write_ledger(ledger_path, [("2026-09-05", "", "", "", 0, 0, 0.0, 50.0)])
+    canned = {
+        "what": "A memo on the contingency reserve.",
+        "flags": [],
+        "figures": [{"surface": "$12m", "quote": RESERVE_SENTENCE}],
+        "cross_references": [],
+        "concealed": [],
+    }
+    transport = FakeTransport([reply(json.dumps(canned), tokens_in=2500, tokens_out=200)])
+    gateway = Gateway(api_key="k", transport=transport)
+    out = tmp_path / "out"
+
+    code = main(
+        [
+            str(ROOT / "samples" / "atlas"),
+            str(ROOT / "runs" / "atlas"),
+            "--model",
+            MODEL,
+            "--only",
+            "DR-029",
+            "--out",
+            str(out),
+        ],
+        gateway=gateway,
+        ledger=Ledger(ledger_path),
+    )
+    capsys.readouterr()
+    assert code == 0
+    assert len(transport.requests) == 1
+
+    note = json.loads((out / "notes" / "DR-029.json").read_text(encoding="utf-8"))
+    same = [
+        figure
+        for figure in note["figures"]
+        if (figure["surface"], figure["quote"]) == ("$12m", RESERVE_SENTENCE)
+    ]
+    assert len(same) == 1
+    # The model's own items lead the field and the harvested ones follow.
+    assert note["figures"][0] == same[0]
+    assert note["figures"][0]["anchor"] == f"{CONTINGENCY}#p1l23"
+    for figure in note["figures"]:
+        assert_figure_verifies(figure, sections)
+
+
+def test_all_documents_the_harvest_recalls_the_cap_table_change_of_control(tmp_path, capsys):
+    """Every northwind reply carries nothing, and the planted change of control is still found."""
+    northwind_sections()
+    key = load_key(ROOT / "samples" / "northwind")
+    ledger_path = tmp_path / "LEDGER.md"
+    write_ledger(ledger_path, [("2026-09-05", "", "", "", 0, 0, 0.0, 50.0)])
+    transport = FakeTransport(
+        [reply(json.dumps(MINIMAL_NOTE), tokens_in=2500, tokens_out=100) for _ in key.documents]
+    )
+    gateway = Gateway(api_key="k", transport=transport)
+    out = tmp_path / "out"
+
+    code = main(
+        [
+            str(ROOT / "samples" / "northwind"),
+            str(ROOT / "runs" / "northwind"),
+            "--model",
+            MODEL,
+            "--out",
+            str(out),
+        ],
+        gateway=gateway,
+        ledger=Ledger(ledger_path),
+    )
+    capsys.readouterr()
+    assert code == 0
+    assert bakeoff.recall(out / "notes", key)["captable-coc-confirmation"] is True
+
+
 # ---------------------------------------------------------------- notes: the artefact
 
 
@@ -1613,13 +1899,21 @@ class BakeoffTransport(httpx.MockTransport):
 
     replies maps a model id to the map perfect_replies builds; a model with no map answers
     every document with the minimal note. usage maps a model id to the tokens its replies
-    report. The pool sends eight documents at once, so the record is taken under a lock.
+    report. broken maps a model id to the texts of the documents it answers with a reply that
+    is not JSON, so those notes are dropped whole and nothing is harvested for them. The pool
+    sends eight documents at once, so the record is taken under a lock.
     """
 
-    def __init__(self, replies: dict[str, dict[str, dict]], usage: dict[str, tuple[int, int]] | None = None):
+    def __init__(
+        self,
+        replies: dict[str, dict[str, dict]],
+        usage: dict[str, tuple[int, int]] | None = None,
+        broken: dict[str, tuple[str, ...]] | None = None,
+    ):
         self.requests: list[httpx.Request] = []
         self._replies = replies
         self._usage = usage or {}
+        self._broken = broken or {}
         self._lock = threading.Lock()
         super().__init__(self._handle)
 
@@ -1631,12 +1925,14 @@ class BakeoffTransport(httpx.MockTransport):
         with self._lock:
             self.requests.append(request)
         sent = "\n".join(message["content"] for message in body["messages"])
+        tokens_in, tokens_out = self._usage.get(body["model"], (1000, 200))
+        if any(text in sent for text in self._broken.get(body["model"], ())):
+            return httpx.Response(200, json=reply("not json at all", tokens_in, tokens_out))
         answer = MINIMAL_NOTE
         longest = 0
         for text, candidate in self._replies.get(body["model"], {}).items():
             if len(text) > longest and text in sent:
                 answer, longest = candidate, len(text)
-        tokens_in, tokens_out = self._usage.get(body["model"], (1000, 200))
         return httpx.Response(200, json=reply(json.dumps(answer), tokens_in, tokens_out))
 
 
@@ -1927,14 +2223,13 @@ def test_bakeoff_a_failing_flash_model_escalates_to_the_pro_tier(tmp_path, capsy
         **perfect_replies("northwind", runs_root / "northwind"),
         **perfect_replies("northstar-dental", runs_root / "northstar-dental"),
     }
-    replies = {
-        DS_FLASH: {
-            **perfect_replies("northwind", runs_root / "northwind", drop=("captable-coc-confirmation",)),
-            **perfect_replies("northstar-dental", runs_root / "northstar-dental"),
-        },
-        DS_PRO: perfect,
-    }
-    transport = BakeoffTransport(replies)
+    # Code harvests the probe sentence out of the cap table whatever the model quotes, so the
+    # flash model fails that probe the one way left: its reply never parses, so the document
+    # has no note at all.
+    transport = BakeoffTransport(
+        {DS_FLASH: perfect, DS_PRO: perfect},
+        broken={DS_FLASH: ("5.2 Application to the Transaction",)},
+    )
     gateway = Gateway(api_key="k", transport=transport)
 
     code = bakeoff.main(
@@ -1954,8 +2249,9 @@ def test_bakeoff_a_failing_flash_model_escalates_to_the_pro_tier(tmp_path, capsy
     capsys.readouterr()
     assert code == 0
 
-    # One probe call for the flash model, then the pro model's probe and its four passes.
-    assert len(transport.requests) == 1 + 1 + 12 + 12 + 13 + 13
+    # Two probe calls for the flash model, which is asked again once, then the pro model's
+    # probe and its four passes.
+    assert len(transport.requests) == 2 + 1 + 12 + 12 + 13 + 13
     assert len(ledger_rows(ledger_path)) == 1 + 6
 
     table = json.loads((runs_root / "northwind" / "bakeoff.json").read_text(encoding="utf-8"))
