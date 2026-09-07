@@ -145,10 +145,14 @@ class Gateway:
             )
         return found
 
-    def complete(self, model: str, messages: list[dict], max_tokens: int) -> Completion:
+    def complete(
+        self, model: str, messages: list[dict], max_tokens: int, json: bool = True
+    ) -> Completion:
         """Sends one chat completion and returns its text with the reported usage.
 
-        Raises httpx.HTTPStatusError when the gateway answers outside the 2xx range.
+        The body asks for a JSON object unless json is false, which is how a call that wants
+        prose back is made. Raises httpx.HTTPStatusError when the gateway answers outside the
+        2xx range.
         """
         body = {
             "model": model,
@@ -156,9 +160,10 @@ class Gateway:
             "temperature": 0,
             "seed": 0,
             "max_tokens": max_tokens,
-            "response_format": {"type": "json_object"},
             "reasoning": REASONING.get(model, {"enabled": False}),
         }
+        if json:
+            body["response_format"] = {"type": "json_object"}
         started = time.monotonic()
         response = self._client.post(
             f"{self.base_url}/chat/completions",
