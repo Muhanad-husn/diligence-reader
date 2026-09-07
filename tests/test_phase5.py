@@ -17,6 +17,9 @@ rather than written again here: each body line, with its list marker dropped, is
 sentence ending punctuation followed by whitespace, and a sentence is cited when its text,
 with trailing whitespace and trailing sentence punctuation trimmed, ends in a citation.
 Headings, blank lines, the recommendation line and the Calculation lines are not body lines.
+A full stop inside a quotation ends nothing: the report quotes dossier rows whole and a row
+often carries a full stop of its own, which is the room's punctuation and not the writer's,
+so the split skips any position inside a pair of quotation marks.
 
 The rest of the tests run on a fake transport and need no key and no network: the default
 model, a model outside the price table, the json flag of the gateway, the refusal when the
@@ -445,6 +448,23 @@ def test_sentences_skip_the_headings_the_recommendation_and_the_calculation():
     assert all(writer.is_cited(sentence) for sentence in found)
     assert not writer.is_cited("A sentence with no citation.")
     assert not writer.is_cited("A sentence citing nothing [DR-001].")
+
+
+def test_sentences_do_not_break_on_a_full_stop_inside_a_quotation():
+    """A quoted row carries the room's own full stops, and those end no sentence of ours."""
+    text = (
+        "## Findings ranked by materiality\n\n"
+        'The draft says "It is probable. The volume agrees" [DR-001 | a/b.pdf#p1l1]. '
+        'The final says "no determination" [DR-002 | c/d.pdf#p1l2].\n'
+    )
+
+    found = writer.sentences(text)
+
+    assert found == [
+        'The draft says "It is probable. The volume agrees" [DR-001 | a/b.pdf#p1l1].',
+        'The final says "no determination" [DR-002 | c/d.pdf#p1l2].',
+    ]
+    assert all(writer.is_cited(sentence) for sentence in found)
 
 
 def test_citations_read_the_document_and_the_anchor():
