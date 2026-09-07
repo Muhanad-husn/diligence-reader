@@ -15,11 +15,13 @@ skipped.
 check_numbers asks that every number of a cited sentence is a number of one of its cited
 sections, and every day of it a day of one of them. Both sides are read with the days cut out
 first and rlm.grade.normalise applied, so 240 million and $240m are one number and 912,800,000
-is not 912.8m. On the sentence's side only a digit run standing as its own token counts, which
-is what keeps a DR id, a ticket like NQ-17, a key name like kid=vpauth-legacy-2019 and an
-object like legacy_uap_backup_2021.tar.gz out of the numbers; the citations are cut out before
-the sentence is read. On the section's side every digit run counts, because the room may write
-its figure inside a compound the report unpacks. The `Calculation:` line carries no citation
+is not 912.8m. A figure is read whole on both sides: 30.1% is 30.1 and $185,000.00 is
+185000.00, the surfaces normalise leaves. On the sentence's side only a figure standing as its
+own token counts, which is what keeps a DR id, a ticket like NQ-17, a key name like
+kid=vpauth-legacy-2019 and an object like legacy_uap_backup_2021.tar.gz out of the numbers;
+the citations are cut out before the sentence is read. On the section's side the whole figure
+counts and so does every digit run inside it, because the room may write its figure inside a
+compound the report unpacks. The `Calculation:` line carries no citation
 and is read on its own: its operands, the numbers inside the brackets and the range, have to
 be numbers of the cited sentences of the same section or of those sentences' sections. Its
 divisor, its result and its rounded number are the arithmetic of the line and are not looked
@@ -95,6 +97,12 @@ _STANDALONE_NUMBER = re.compile(
 )
 
 _DIGIT_RUN = re.compile(r"\d+")
+
+# One number read whole: a run of digits with any decimal part still on it. 30.1 is one number
+# and 185000.00 is one number, which is the surface rlm.grade.normalise leaves once the
+# currency mark and the thousands marks are gone. A full stop with no digit after it is the
+# end of a sentence and is not part of the number.
+_WHOLE_NUMBER = re.compile(r"\d+(?:\.\d+)*")
 
 # The citation group at the end of a sentence or a line, with the full stop after it.
 _TRAILING = re.compile(r"((?:\s*\[[^\[\]|]+\|[^\[\]|]+\])+)\s*[.!?\"']*\s*$")
@@ -231,17 +239,26 @@ def failure(check: str, line: str, reason: str) -> dict:
 
 
 def sentence_numbers(text: str) -> set[str]:
-    """Every number a sentence claims, as digit runs, with days, citations and ids left out."""
+    """Every number a sentence claims, read whole, with days, citations and ids left out.
+
+    A decimal figure is one number and a money figure with cents is one number: 30.1% is 30.1
+    and $185,000.00 is 185000.00, the surfaces normalise leaves.
+    """
     folded = normalise(cut_days(strip_citations(text)))
     found: set[str] = set()
     for match in _STANDALONE_NUMBER.finditer(folded):
-        found.update(_DIGIT_RUN.findall(match.group(1)))
+        found.update(_WHOLE_NUMBER.findall(match.group(1)))
     return found
 
 
 def source_numbers(text: str) -> set[str]:
-    """Every digit run the room's own words hold, read the same way but from anywhere."""
-    return set(_DIGIT_RUN.findall(normalise(cut_days(text))))
+    """Every number the room's own words hold, whole and in its parts, read from anywhere.
+
+    A figure the room writes whole answers a sentence that writes it whole, and each digit run
+    inside it answers a sentence that writes that run on its own.
+    """
+    folded = normalise(cut_days(text))
+    return set(_WHOLE_NUMBER.findall(folded)) | set(_DIGIT_RUN.findall(folded))
 
 
 def calculation_operands(line: str) -> set[str]:

@@ -97,6 +97,39 @@ _LIST_MARKER = re.compile(r"^(?:[-*+]\s+|\d+[.)]\s+)")
 # The marks that open and close a quotation, straight and curly.
 _QUOTE_MARKS = '"“”'
 _SENTENCE_PUNCTUATION = ".!?"
+
+# The abbreviations whose full stop ends no sentence. A room writes Invoice No. 4471 and
+# TelemetryWorks Inc. in the middle of a line, and the full stop belongs to the abbreviation.
+# A single letter followed by a full stop is an initial and is read the same way, which is
+# what keeps J. Okonkwo, U.S. and e.g. together.
+ABBREVIATIONS = (
+    "no.",
+    "nos.",
+    "inc.",
+    "ltd.",
+    "co.",
+    "corp.",
+    "llc.",
+    "vs.",
+    "v.",
+    "e.g.",
+    "i.e.",
+    "etc.",
+    "mr.",
+    "ms.",
+    "dr.",
+    "st.",
+)
+
+# The text up to and including a full stop, where that full stop closes an abbreviation or an
+# initial. What stands in front of the abbreviation is the start of the line, a space, an
+# opening bracket, a quotation mark or a full stop of another initial.
+_ABBREVIATION = re.compile(
+    r"(?:^|[\s(\[\"“”'.])(?:"
+    + "|".join(re.escape(word) for word in ABBREVIATIONS)
+    + r"|[a-z]\.)$",
+    re.IGNORECASE,
+)
 _FENCE_OPEN = re.compile(r"^```[a-zA-Z]*\n")
 _FENCE_CLOSE = re.compile(r"\n```\s*$")
 
@@ -830,7 +863,8 @@ def split_sentences(line: str) -> list[str]:
     A sentence ends at a full stop, an exclamation mark or a question mark followed by
     whitespace. A row quoted whole often carries a full stop of its own, and that full stop
     ends nothing: it is the row's punctuation, not the writer's, so a break inside a quotation
-    is not a sentence end.
+    is not a sentence end. The full stop of an abbreviation of ABBREVIATIONS, and of an
+    initial, ends nothing either, so the words after it stay in the same sentence.
     """
     found = []
     start = 0
@@ -846,6 +880,9 @@ def split_sentences(line: str) -> list[str]:
             if rest.startswith("|"):
                 # A pipe is the edge of a field, not the start of a sentence: a schedule line
                 # reading `- VistaPort Media Inc. | "..." | [DR-000 | ...]` is one sentence.
+                continue
+            if _ABBREVIATION.search(line[: index + 1]):
+                # The full stop closes an abbreviation or an initial, so it ends no sentence.
                 continue
             part = line[start : index + 1].strip()
             if part:
