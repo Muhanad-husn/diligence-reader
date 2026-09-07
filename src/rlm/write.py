@@ -66,8 +66,9 @@ from rlm.notes import reask_messages
 
 PHASE = 5
 
-# The bake-off of 2026-09-06 chose this model, and the whole dossier fits its context.
-DEFAULT_MODEL = "z-ai/glm-5.3-flash"
+# The phase 5 bake-off of 2026-09-07 chose this model: the only row whose pass a reads recall
+# 100 with a passing verifier on all three samples and a rubric over 85 on sample 1.
+DEFAULT_MODEL = "z-ai/glm-5.3"
 
 # The report is a few thousand words; this cap is what the phase pays for. It was 8000 until
 # 2026-09-07, when the digest grew to give every document of the matter a timeline row and
