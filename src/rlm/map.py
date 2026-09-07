@@ -13,16 +13,33 @@ about as often as by matter; a value both notes wrote down as a worry is the mat
 Date and version edges are kept as they are, because neither is a coincidence of vocabulary.
 
 The matter is seeded at the document whose three strongest links are the strongest in the room.
-Every document is then scored by what it shares with the seed, plus one round of that score
+The cluster around that seed is a set, not a cut: a document is in it because a named link put
+it there, and every document carries the link it came by, so the set reads backwards to the
+seed. Only non-date edges are followed, and never an edge whose value is a bare count, because
+a room shares `5` and `2025` the way it shares the alphabet. Each rule below runs once, on the
+set the rules before it built, and is not repeated.
+
+A document joins as `shared` where it has such an edge to the seed. It joins as `version` where
+it is the draft or the final of a pair the set already touches. It joins as `consequence` where
+the matter broke a series it holds, or where it is a model written after the matter that still
+carries a figure the broken series left behind. It joins as `reach` where two different
+documents of the set each share a rare value with it and those are two different values, a
+value being rare when at most a quarter of the room carries it, or where one rare value it
+shares with one document of the set is an exact money figure, which names a matter as well as
+a code does. It joins as `compare` where a set document's note names it at a place that asks,
+in the room's own words, for the two to be read against each other. It joins as `covenant`
+where one of its flags is quoted with a termination word and writes the same run of words as
+a flag of the seed.
+
+Every document is also scored by what it shares with the seed, plus one round of that score
 spread along the edges, each neighbour's contribution divided by its own total weight so that
-the room's index and its Q&A log, which link to everything, pass on almost nothing. The cluster
-is the prefix of the ranked list still scoring at least a hundredth of the highest score the
-room itself produced. The top score is the seed's, which the map sets at one and a half times
-the room's best, so a cut taken against it is a cut taken against a number the map invented;
-the cut is taken against the next score down.
+the room's index and its Q&A log, which link to everything, pass on almost nothing. The score
+orders the set and orders the room outside it; it does not decide either. Each document of the
+set is lifted by the room's highest score, so the set is the head of the ranking and the scores
+still fall.
 
 The matter then carries two things a graph of shared values cannot see. Its `versions` are the
-index's draft and final pairs where at least one of the two is in the cluster, with the two
+index's draft and final pairs where at least one of the two is in the set already, with the two
 dates and the two status lists the map already read. Its `consequences` are the links the map
 finds by mechanism. A `series-break` is a table of periods in the room whose numbers turn: the
 step from one period to the next starts running one way and each step is bigger than the
@@ -33,13 +50,8 @@ matter moved both, and both are the matter's consequence. A `model-after` is a d
 name, folder or note says model, forecast, plan or synergy, dated after the matter, whose note
 still carries a figure the broken series left behind: the same number, ignoring the currency
 and the unit letter, so 615m and 615 are one figure and 4100 is not 410. The figure has to be a
-figure of another cluster document's note as well. The matter keeps every such model, because a
+figure of another set document's note as well. The matter keeps every such model, because a
 number that outlived the matter in two models is two models to correct, not one.
-
-Each consequence adds a twentieth of the highest score to its document before the ranking is
-taken, which is five times the cluster cut. A document the room barely mentions is lifted inside
-the cluster by a consequence alone, and a document that shares the matter's own codes still
-outranks it.
 
 Nothing here reads the key's facts, its required documents or its decoys, opens a socket or
 calls a model. The key is read for the id and path of each document and for nothing else.
@@ -58,6 +70,17 @@ import time
 from pathlib import Path
 
 from rlm.key import load_key
+from rlm.words import (
+    COMPARE_WORDS,
+    TERMINATION_WORDS,
+    document_of,
+    fold,
+    folded_words,
+    named_by,
+    one_line,
+    sections_by_document,
+    shared_run,
+)
 
 # What each kind of shared value is worth before it is divided by the number of documents that
 # carry it. A note that wrote a value down is better evidence than an index that saw it; a
@@ -78,13 +101,12 @@ DATE_WINDOW = 7
 # A value more than this share of the room carries is background, not a link.
 BREADTH_SHARE = 0.5
 
-# A document stays in the cluster while it scores at least this share of the highest score the
-# room produced, which is the score below the seed's.
-CLUSTER_SHARE = 0.01
+# A value more than this share of the room carries cannot reach a document into the set. A value
+# that merely links two documents may be twice as common as one that pulls a third in.
+REACH_SHARE = 0.25
 
-# What one consequence adds to a document's score, as a share of the highest score. Five times
-# the cluster cut: a consequence alone puts a document inside the cluster and no further.
-CONSEQUENCE_SHARE = 5 * CLUSTER_SHARE
+# The kinds of link that put a document in the set, in the order the map writes them.
+VIA_KINDS = ("compare", "consequence", "covenant", "reach", "seed", "shared", "version")
 
 # How many steps in a row have to run the same way for a column of numbers to have turned.
 TURN_RUN = 3
@@ -102,7 +124,7 @@ MATTER_FACT = "matter-documents"
 WHY_LIMIT = 3
 
 _WORD = re.compile(r"[A-Za-z][A-Za-z\-]+")
-_LOOSE = re.compile(r"[^a-z0-9]+")
+_COUNT = re.compile(r"[0-9][0-9,]*")
 _LETTERS = re.compile(r"[A-Za-z]+")
 _FIGURE = re.compile(r"([0-9]+(?:\.[0-9]+)?)(?:[a-z%]{0,2})")
 _MONEY = re.compile(r"[,$\s]")
@@ -123,13 +145,13 @@ _MONTHS = (
 )
 
 
-def fold(value) -> str:
-    """The comparable form of a value: lower case, with every run of punctuation a single space.
+def is_count(value) -> bool:
+    """Whether a value is a bare count: digits and commas, once its ends are trimmed.
 
-    `kid=vpauth-legacy-2019` and `kid vpauth legacy 2019` fold to the same thing, so a value can
-    be looked for inside the words of a flag whatever punctuation either side used.
+    `5`, `2025` and `1,840` are counts, and a count is not a value of the matter: a room shares
+    them the way it shares the alphabet. `912.8m`, `$12m` and `NQ-17` name something.
     """
-    return _LOOSE.sub(" ", str(value).casefold()).strip()
+    return bool(_COUNT.fullmatch(str(value).strip()))
 
 
 def value_weight(kind: str, carriers: int) -> float:
@@ -143,28 +165,6 @@ def value_weight(kind: str, carriers: int) -> float:
     if carriers < 2:
         raise ValueError(f"a shared value needs two documents, not {carriers}")
     return KIND_WEIGHTS[kind] / carriers
-
-
-def cluster_size(scores: list[float]) -> int:
-    """How many of the ranked documents are in the cluster.
-
-    Scores come in descending order. The cut is a share of a score, so it moves with the room
-    and is not a count fitted to any one sample: a document is in the cluster while it scores
-    at least a hundredth of the highest score the room itself produced. That is the second
-    score, not the first: the first is the seed's, which the map sets at one and a half times
-    the room's best, and a cut taken against it is a cut taken against the map's own arithmetic.
-    A room of one document has no second score and the first stands in for it.
-    """
-    if not scores or scores[0] <= 0:
-        return 0
-    basis = scores[1] if len(scores) > 1 and scores[1] > 0 else scores[0]
-    cut = basis * CLUSTER_SHARE
-    size = 0
-    for score in scores:
-        if score < cut:
-            break
-        size += 1
-    return size
 
 
 def read_jsonl(path: Path) -> list[dict]:
@@ -235,11 +235,6 @@ def ordinary_words(sections: list[dict]) -> set[str]:
             elif word.islower():
                 lower[word] += 1
     return {word for word in upper if lower[word.lower()] >= upper[word]}
-
-
-def document_of(anchor: str, ids_by_path: dict[str, str]) -> str | None:
-    """The document id an anchor belongs to, or None where the anchor names no key document."""
-    return ids_by_path.get(anchor.rsplit("#", 1)[0])
 
 
 def as_iso(value) -> datetime.date | None:
@@ -575,15 +570,15 @@ def reasons(edges: list[dict], scores: dict[str, float]) -> dict[str, list[str]]
     return ranked
 
 
-def matter_date(
-    seed: list[str], cluster: list[str], dated: dict[str, list[str]]
-) -> str | None:
-    """The day the matter starts: the earliest day the seed shares with another cluster document.
+def matter_date(seed: list[str], core: list[str], dated: dict[str, list[str]]) -> str | None:
+    """The day the matter starts: the earliest day the seed shares with a document of the core.
 
-    Where the seed shares no day, its own earliest day stands; where it carries no day at all,
-    the matter has no date.
+    The core is the seed and the documents that share a value with it, which is the set before
+    any consequence is read, because the consequences are found by that day. Where the seed
+    shares no day, its own earliest day stands; where it carries no day at all, the matter has
+    no date.
     """
-    others = [doc for doc in cluster if doc not in seed]
+    others = [doc for doc in core if doc not in seed]
     for head in seed:
         shared = [
             day
@@ -598,19 +593,242 @@ def matter_date(
     return None
 
 
-def clustered(order: list[str], scores: dict[str, float]) -> list[str]:
-    """The documents above the cut, by id."""
-    ordered = sorted(order, key=lambda doc: (-scores[doc], doc))
-    return sorted(ordered[: cluster_size([scores[doc] for doc in ordered])])
+def value_edges(edges: list[dict]) -> dict[tuple[str, str], dict[str, tuple[float, int]]]:
+    """The values the set is built along, by pair of documents, each with its weight and its
+    number of carriers.
+
+    Date edges are left out, because two documents dated in the same week are not linked by a
+    value, and so is any value that is a bare count. The number of carriers is read back off the
+    weight the edge was given, which is the kind's weight divided by that number. Where a pair
+    shares one value twice over, by an index the room saw and by a note that wrote it down, the
+    heavier of the two stands.
+    """
+    shared: dict[tuple[str, str], dict[str, tuple[float, int]]] = {}
+    for edge in edges:
+        value = edge["value"]
+        if edge["kind"] == "date" or is_count(value):
+            continue
+        held = (edge["weight"], max(2, round(KIND_WEIGHTS[edge["kind"]] / edge["weight"])))
+        for one, other in ((edge["a"], edge["b"]), (edge["b"], edge["a"])):
+            side = shared.setdefault((one, other), {})
+            if held[0] > side.get(value, (0.0, 0))[0]:
+                side[value] = held
+    return shared
+
+
+def shared_links(
+    seed: list[str], shared: dict[tuple[str, str], dict[str, tuple[float, int]]], order: list[str]
+) -> dict[str, dict]:
+    """Every document with a value in common with the seed, and the values it came by.
+
+    A row lists the heaviest WHY_LIMIT of those values, which are the rarest of them, so a
+    reader sees what the document and the seed share and not how much of the room they share.
+    """
+    found: dict[str, dict] = {}
+    for doc in order:
+        if doc in seed:
+            continue
+        heads: list[str] = []
+        values: dict[str, float] = {}
+        for head in seed:
+            held = shared.get((doc, head), {})
+            if not held:
+                continue
+            heads.append(head)
+            for value, (weight, _) in held.items():
+                values[value] = max(values.get(value, 0.0), weight)
+        if not values:
+            continue
+        best = sorted(values, key=lambda value: (-values[value], value))[:WHY_LIMIT]
+        found[doc] = {"from": sorted(heads), "kind": "shared", "values": sorted(best)}
+    return found
+
+
+def version_links(versions: list[dict], inside: set[str]) -> dict[str, dict]:
+    """The other half of every version pair the set already holds one half of.
+
+    A draft and its final are one document written twice, so the set takes both or neither.
+    """
+    found: dict[str, dict] = {}
+    for pair in versions:
+        for doc, other in (tuple(pair["docs"]), tuple(reversed(pair["docs"]))):
+            if doc in inside or other not in inside:
+                continue
+            found[doc] = {
+                "from": [other],
+                "kind": "version",
+                "values": sorted(pair["docs"]),
+            }
+    return found
+
+
+def break_links(broken: list[dict], seed: list[str]) -> dict[str, dict]:
+    """Every document whose series turned in the matter's own week, linked to the seed."""
+    return {
+        row["doc"]: {"from": sorted(seed), "kind": "consequence", "values": [row["period"]]}
+        for row in broken
+    }
+
+
+def model_links(
+    modelled: list[dict], notes: dict[str, dict], inside: set[str]
+) -> dict[str, dict]:
+    """Every model written after the matter, linked to the set documents that hold its figure.
+
+    The figure is the number the model still assumes and the broken series left behind, and the
+    documents behind the model are the ones whose notes carry that same number.
+    """
+    carried: dict[str, list[str]] = {}
+    for doc in sorted(inside):
+        for figure in notes.get(doc, {}).get("figures", []):
+            number = figure_number(figure["surface"])
+            if number:
+                carried.setdefault(number, []).append(doc)
+    found: dict[str, dict] = {}
+    for row in modelled:
+        number = None
+        for figure in notes.get(row["doc"], {}).get("figures", []):
+            if figure["anchor"] == row["anchor"]:
+                number = figure_number(figure["surface"])
+                break
+        if number is None:
+            continue
+        holders = sorted(set(carried.get(number, [])) - {row["doc"]})
+        if not holders:
+            continue
+        found[row["doc"]] = {
+            "from": holders,
+            "kind": "consequence",
+            "values": [number],
+        }
+    return found
+
+
+def reach_links(
+    shared: dict[tuple[str, str], dict[str, tuple[float, int]]],
+    inside: set[str],
+    order: list[str],
+) -> dict[str, dict]:
+    """Every document the set reaches by rare values, from two places or from one money figure.
+
+    A rare value is one at most REACH_SHARE of the room carries. One rare value in common with
+    one document of the set is a coincidence of vocabulary; the same document named twice over,
+    from two places, by two different values, is the matter.
+
+    A money figure is the exception, because an exact figure only a few documents carry names a
+    matter as well as a code does: one such figure shared with one document of the set reaches
+    the document on its own. The row then carries that one document and that one figure, the
+    heaviest of them where the document has several, and the earliest by value and by id where
+    two weigh the same.
+    """
+    breadth = REACH_SHARE * len(order)
+    found: dict[str, dict] = {}
+    for doc in order:
+        if doc in inside:
+            continue
+        holders: dict[str, set[str]] = {}
+        money: tuple[float, str, str] | None = None
+        for other in sorted(inside):
+            for value, (weight, carriers) in shared.get((doc, other), {}).items():
+                if carriers > breadth:
+                    continue
+                holders.setdefault(value, set()).add(other)
+                if value.startswith("$"):
+                    mark = (-weight, value, other)
+                    if money is None or mark < money:
+                        money = mark
+        heads = {other for held in holders.values() for other in held}
+        if len(holders) >= 2 and len(heads) >= 2:
+            found[doc] = {"from": sorted(heads), "kind": "reach", "values": sorted(holders)}
+        elif money is not None:
+            found[doc] = {"from": [money[2]], "kind": "reach", "values": [money[1]]}
+    return found
+
+
+def compare_links(
+    inside: set[str],
+    nodes: dict[str, dict],
+    notes: dict[str, dict],
+    sections: list[dict],
+    ids_by_path: dict[str, str],
+) -> dict[str, dict]:
+    """Every document a document of the set asks, in the room's own words, to be read against.
+
+    A note names another document by its id or its file name, and the section it names it in
+    carries a compare word. That is the room asking for the two to be put side by side, which is
+    a reason to hold the second document whatever else it shares.
+    """
+    held = sections_by_document(sections, ids_by_path)
+    named = named_by(nodes)
+    found: dict[str, dict] = {}
+    for doc in sorted(inside):
+        note = notes.get(doc)
+        if not note:
+            continue
+        texts = dict(held.get(doc, []))
+        for reference in sorted(
+            note["cross_references"], key=lambda item: (item["anchor"], str(item["value"]))
+        ):
+            other = named.get(str(reference["value"]).strip().upper())
+            if other is None or other == doc or other in inside or other in found:
+                continue
+            text = texts.get(reference["anchor"])
+            if not text or not COMPARE_WORDS.search(text):
+                continue
+            found[other] = {
+                "from": [doc],
+                "kind": "compare",
+                "values": [str(reference["value"])],
+            }
+    return found
+
+
+def covenant_links(
+    seed: list[str], notes: dict[str, dict], inside: set[str], order: list[str]
+) -> dict[str, dict]:
+    """Every document outside the set whose termination clause writes the seed's own subject.
+
+    A flag quoted with a termination word that shares a run of words with a flag of the seed is
+    a right to end an agreement over the very thing the seed found. Whether that clause gives
+    the right or takes it away is not read here: the dossier reads the clause out of the note.
+    """
+    said = [
+        folded_words(flag["quote"])
+        for head in seed
+        if head in notes
+        for flag in notes[head]["flags"]
+    ]
+    found: dict[str, dict] = {}
+    for doc in order:
+        note = notes.get(doc)
+        if doc in inside or not note:
+            continue
+        for flag in note["flags"]:
+            if not TERMINATION_WORDS.search(one_line(flag["quote"])):
+                continue
+            written = folded_words(flag["quote"])
+            for words in said:
+                run = shared_run(written, words)
+                if run is None:
+                    continue
+                found[doc] = {
+                    "from": sorted(seed),
+                    "kind": "covenant",
+                    "values": [" ".join(run)],
+                }
+                break
+            if doc in found:
+                break
+    return found
 
 
 def version_pairs(
     records: list[dict],
     ids_by_path: dict[str, str],
     nodes: dict[str, dict],
-    cluster: set[str],
+    inside: set[str],
 ) -> list[dict]:
-    """The index's draft and final pairs that touch the cluster, the draft first.
+    """The index's draft and final pairs that touch the set, the draft first.
 
     A pair carries its two documents, the two dates the index read off them and the two status
     lists the map's own nodes carry.
@@ -622,7 +840,7 @@ def version_pairs(
         value = record["value"]
         draft = ids_by_path.get(value.get("draft"))
         final = ids_by_path.get(value.get("final"))
-        if not draft or not final or not ({draft, final} & cluster):
+        if not draft or not final or not ({draft, final} & inside):
             continue
         if not value.get("draft_date") or not value.get("final_date"):
             continue
@@ -724,7 +942,7 @@ def series_break(
 def model_after(
     notes: dict[str, dict],
     nodes: dict[str, dict],
-    cluster: set[str],
+    inside: set[str],
     date: str | None,
     before: set[str],
 ) -> list[dict]:
@@ -733,7 +951,7 @@ def model_after(
     A model is a document whose file name, whose folder or whose note's own words say model,
     forecast, plan or synergy. It is a consequence of the matter where its first date is after
     the matter, where one of its note's figures is a number the broken series carried before it
-    turned, and where another cluster document's note carries that figure as well. The anchor is
+    turned, and where another document of the set carries that figure as well. The anchor is
     the figure's place in the model, and the first such figure of the note stands for the model.
     A number that outlived the matter in two models is two models to correct, so every model is
     kept and not only the earliest. The models come back sorted by document.
@@ -741,7 +959,7 @@ def model_after(
     if not date or not before:
         return []
     carried: dict[str, set[str]] = {}
-    for doc in cluster:
+    for doc in inside:
         for figure in notes.get(doc, {}).get("figures", []):
             number = figure_number(figure["surface"])
             if number:
@@ -825,25 +1043,48 @@ def build_map(sample_dir: Path, run_dir: Path) -> dict:
     scores = score_documents(linked, seed, order)
 
     nodes = {node["doc"]: node for node in documents}
-    cluster = clustered(order, scores)
-    date = matter_date(seed, cluster, dated)
-    versions = version_pairs(records, ids_by_path, nodes, set(cluster))
+    shared = value_edges(edges)
+    why = reasons(edges, scores)
+
+    via: dict[str, dict] = {head: {"from": [], "kind": "seed", "values": []} for head in seed}
+    inside = set(seed)
+
+    def hold(links: dict[str, dict]) -> None:
+        """Puts every document a rule found into the set, leaving the links already there."""
+        for doc, link in links.items():
+            if doc not in via:
+                via[doc] = link
+                inside.add(doc)
+
+    hold(shared_links(seed, shared, order))
+    core = sorted(inside)
+
+    date = matter_date(seed, core, dated)
+    versions = version_pairs(records, ids_by_path, nodes, set(inside))
+    hold(version_links(versions, set(inside)))
 
     by_anchor = {section["anchor"]: section for section in sections}
     broken, before = series_break(row_series(records, by_anchor, ids_by_path), date, seed)
-    modelled = model_after(notes, nodes, set(cluster), date, before)
+    hold(break_links(broken, seed))
+    modelled = model_after(notes, nodes, set(inside), date, before)
+    hold(model_links(modelled, notes, set(inside)))
     consequences = sorted(broken + modelled, key=lambda row: (row["kind"], row["doc"]))
 
-    bonus = max(scores.values(), default=0.0) * CONSEQUENCE_SHARE
-    for row in consequences:
-        scores[row["doc"]] = round(scores[row["doc"]] + bonus, 6)
+    hold(reach_links(shared, set(inside), order))
+    hold(compare_links(set(inside), nodes, notes, sections, ids_by_path))
+    hold(covenant_links(seed, notes, set(inside), order))
 
-    why = reasons(edges, scores)
-    ordered = sorted(order, key=lambda doc: (-scores[doc], doc))
-    ranked = [{"doc": doc, "score": scores[doc], "why": why.get(doc, [])} for doc in ordered]
+    lift = max(scores.values(), default=0.0)
+    for doc in inside:
+        scores[doc] = round(scores[doc] + lift, 6)
+    ordered = sorted(order, key=lambda doc: (doc not in inside, -scores[doc], doc))
+    ranked = [
+        {"doc": doc, "score": scores[doc], "via": via.get(doc), "why": why.get(doc, [])}
+        for doc in ordered
+    ]
 
     matter = {
-        "cluster": clustered(order, scores),
+        "cluster": sorted(inside),
         "consequences": consequences,
         "date": date,
         "id": 1,

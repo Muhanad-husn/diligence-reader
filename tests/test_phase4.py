@@ -460,7 +460,16 @@ def test_dossier_prints_one_readout_line(dossiered, sample):
     ]
     assert len(lines) == 2, dossiered.printed
     for line in lines:
-        for word in ("documents", "timeline", "names", "figures", "consequences", "seconds"):
+        for word in (
+            "documents",
+            "set",
+            "tokens",
+            "timeline",
+            "names",
+            "figures",
+            "consequences",
+            "seconds",
+        ):
             assert word in line
 
 

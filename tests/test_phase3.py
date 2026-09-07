@@ -33,8 +33,10 @@ from rlm.map import (
     EDGE_KINDS,
     KIND_WEIGHTS,
     MATTER_FACT,
-    cluster_size,
+    REACH_SHARE,
+    VIA_KINDS,
     figure_number,
+    is_count,
     main,
     turn_index,
     value_weight,
@@ -165,20 +167,30 @@ def test_value_weight_falls_with_the_number_of_documents():
         value_weight("identifier", 1)
 
 
-def test_cluster_size_takes_the_prefix_above_the_cut():
-    """The cut keeps every document scoring at least a hundredth of the room's own top score.
+def test_is_count_reads_a_bare_number_as_a_count_and_nothing_else():
+    """A value of digits alone is a count the whole room shares, not a value of the matter.
 
-    The first score is the seed's, which the map sets above the room, so the cut is taken
-    against the second: the highest score the room itself produced.
+    `5`, `2025` and `1,840` are counts; `912.8m`, `$12m`, `7.2`, `24 months` and `NQ-17` name
+    something.
     """
-    assert cluster_size([1.0, 0.5, 0.02, 0.011, 0.009, 0.0]) == 5
-    assert cluster_size([1.0]) == 1
-    assert cluster_size([]) == 0
-    assert cluster_size([0.0, 0.0]) == 0
-    # A score under the cut ends the prefix, whatever follows it.
-    assert cluster_size([1.0, 0.5, 0.02, 0.004, 0.009]) == 3
-    # The cut is a share of a score, so scaling every score changes nothing.
-    assert cluster_size([2.0, 1.0, 0.04, 0.022, 0.018]) == 5
+    for value in ("5", "2025", "1,840", "  41500 "):
+        assert is_count(value)
+    for value in ("912.8m", "$12m", "7.2", "24 months", "NQ-17", "AURORA", "(30) days"):
+        assert not is_count(value)
+
+
+def test_reach_share_is_a_share_of_the_room_under_a_half():
+    """A value that reaches a document from the set is rarer than one that merely links two."""
+    assert 0 < REACH_SHARE < 0.5
+    assert set(VIA_KINDS) == {
+        "compare",
+        "consequence",
+        "covenant",
+        "reach",
+        "seed",
+        "shared",
+        "version",
+    }
 
 
 def test_turn_index_finds_where_a_column_stops_wobbling():
@@ -290,10 +302,84 @@ def test_map_ranked_covers_every_document_in_descending_score(mapped, key):
     scores = [row["score"] for row in ranked]
     assert scores == sorted(scores, reverse=True)
     for row in ranked:
-        assert set(row) == {"doc", "score", "why"}
+        assert set(row) == {"doc", "score", "via", "why"}
         assert isinstance(row["why"], list)
         assert all(isinstance(reason, str) and reason for reason in row["why"])
     assert matter["cluster"] == sorted(row["doc"] for row in ranked[: len(matter["cluster"])])
+
+
+def test_map_every_cluster_document_is_reached_from_the_seed(mapped, key):
+    """The cluster is explained, not cut: each document names the link that put it there.
+
+    A ranked row's `via` is None outside the cluster. Inside, it names the kind of link, the
+    cluster documents it came from and the values it came by, and following `from` back from
+    any document reaches the seed. A `shared` or `reach` link is a non-date edge of the map
+    between the document and one of its `from` documents carrying that value, and a `reach`
+    takes two different documents and two different values, or one document and one money
+    figure, which names a matter on its own; a `consequence` is a row of the
+    matter's consequences, a `version` a document of one of its version pairs; the seed's own
+    via is the seed kind with nothing behind it.
+    """
+    matter = mapped.document["matters"][0]
+    cluster = set(matter["cluster"])
+    seed = set(matter["seed"])
+    rows = {row["doc"]: row for row in matter["ranked"]}
+    edges: dict[tuple[str, str], set[str]] = {}
+    for edge in mapped.document["edges"]:
+        if edge["kind"] == "date":
+            continue
+        for pair in ((edge["a"], edge["b"]), (edge["b"], edge["a"])):
+            edges.setdefault(pair, set()).add(edge["value"])
+    consequences = {row["doc"] for row in matter["consequences"]}
+    versioned = {doc for pair in matter["versions"] for doc in pair["docs"]}
+
+    for doc, row in rows.items():
+        if doc not in cluster:
+            assert row["via"] is None, doc
+            continue
+        via = row["via"]
+        assert isinstance(via, dict) and set(via) == {"from", "kind", "values"}, doc
+        assert via["kind"] in VIA_KINDS, doc
+        assert via["from"] == sorted(via["from"]) and set(via["from"]) <= cluster - {doc}, doc
+        assert all(isinstance(value, str) and value for value in via["values"]), doc
+        if doc in seed:
+            assert via["kind"] == "seed" and via["from"] == [] and via["values"] == []
+            continue
+        assert via["from"], doc
+        if via["kind"] in ("shared", "reach"):
+            assert via["values"], doc
+            for value in via["values"]:
+                assert not is_count(value), (doc, value)
+                assert any(value in edges.get((doc, other), set()) for other in via["from"]), (
+                    doc,
+                    value,
+                )
+        if via["kind"] == "reach":
+            witnessed = len(via["from"]) >= 2 and len(set(via["values"])) >= 2
+            money = (
+                len(via["from"]) == 1
+                and len(via["values"]) == 1
+                and via["values"][0].startswith("$")
+            )
+            assert witnessed or money, doc
+        if via["kind"] == "consequence":
+            assert doc in consequences, doc
+        if via["kind"] == "version":
+            assert doc in versioned, doc
+
+    reached = set(seed)
+    frontier = list(seed)
+    behind: dict[str, set[str]] = {}
+    for doc in cluster:
+        for other in rows[doc]["via"]["from"]:
+            behind.setdefault(other, set()).add(doc)
+    while frontier:
+        doc = frontier.pop()
+        for other in behind.get(doc, ()):
+            if other not in reached:
+                reached.add(other)
+                frontier.append(other)
+    assert reached == cluster, sorted(cluster - reached)
 
 
 def test_map_first_matter_versions_pair_the_draft_and_the_final(mapped, key):
