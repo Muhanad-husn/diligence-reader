@@ -19,6 +19,7 @@ readout still prints the count of decoys in the cluster for every sample."""
 from __future__ import annotations
 
 import datetime
+import hashlib
 import json
 import shutil
 from dataclasses import dataclass
@@ -372,6 +373,80 @@ def test_map_prints_one_readout_line(mapped, sample):
     for line in lines:
         for word in ("nodes", "edges", "matters", "cluster", "seconds"):
             assert word in line
+
+
+def test_map_digest_is_pinned(mapped, sample):
+    """The sha256 of the sample's map.json is the one tests/phase3-digests.json holds."""
+    digests = json.loads((ROOT / "tests" / "phase3-digests.json").read_text(encoding="utf-8"))
+    assert sample in digests, f"{sample} has no pinned map digest"
+    assert set(digests[sample]) == {"map.json"}
+    got = hashlib.sha256(mapped.first.read_bytes()).hexdigest()
+    assert got == digests[sample]["map.json"]
+
+
+# ---------------------------------------------------------------- the gate
+
+
+def test_gate_pin_maps_digests_what_is_on_disk(tmp_path, capsys):
+    """pin.main --maps digests each sample's map.json as it sits on disk, copies nothing and
+    writes one digest per sample keyed map.json."""
+    from rlm import pin
+
+    runs_root = tmp_path / "runs"
+    wanted = {}
+    for sample in ("atlas", "northwind"):
+        sample_dir = runs_root / sample
+        sample_dir.mkdir(parents=True)
+        map_bytes = json.dumps({"sample": sample}, indent=1, sort_keys=True).encode() + b"
+"
+        (sample_dir / "map.json").write_bytes(map_bytes)
+        wanted[sample] = {"map.json": hashlib.sha256(map_bytes).hexdigest()}
+
+    digests_path = tmp_path / "phase3-digests.json"
+    code = pin.main(
+        [str(runs_root), "--maps", "--samples", "atlas", "northwind", "--digests", str(digests_path)]
+    )
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert json.loads(digests_path.read_text(encoding="utf-8")) == wanted
+    raw = digests_path.read_text(encoding="utf-8")
+    assert raw == json.dumps(wanted, indent=2, sort_keys=True, ensure_ascii=False) + "
+"
+    assert "atlas" in out and "northwind" in out
+    for sample in wanted:
+        assert (runs_root / sample / "map.json").exists()
+
+
+def test_gate_pin_maps_refuses_a_sample_with_no_map(tmp_path, capsys):
+    """pin.main --maps refuses, names the sample and writes no digest when a map is missing."""
+    from rlm import pin
+
+    runs_root = tmp_path / "runs"
+    (runs_root / "atlas").mkdir(parents=True)
+    (runs_root / "atlas" / "map.json").write_bytes(b"{}
+")
+    (runs_root / "northwind").mkdir(parents=True)
+
+    digests_path = tmp_path / "phase3-digests.json"
+    code = pin.main(
+        [str(runs_root), "--maps", "--samples", "atlas", "northwind", "--digests", str(digests_path)]
+    )
+    out = capsys.readouterr().out
+
+    assert code == 1
+    assert not digests_path.exists()
+    assert "northwind" in out
+
+
+def test_gate_default_digests_path_follows_the_mode():
+    """The default digest file is tests/phase2-digests.json for notes and
+    tests/phase3-digests.json for maps."""
+    from rlm import pin
+
+    assert pin.default_digests_path().name == "phase2-digests.json"
+    assert pin.default_digests_path(maps=True).name == "phase3-digests.json"
+    assert pin.default_digests_path(maps=True).parent == ROOT / "tests"
 
 
 # ---------------------------------------------------------------- the readout
