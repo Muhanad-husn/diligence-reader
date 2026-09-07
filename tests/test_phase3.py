@@ -166,13 +166,19 @@ def test_value_weight_falls_with_the_number_of_documents():
 
 
 def test_cluster_size_takes_the_prefix_above_the_cut():
-    """The cut keeps every document scoring at least a hundredth of the highest score."""
-    assert cluster_size([1.0, 0.5, 0.02, 0.011, 0.009, 0.0]) == 4
+    """The cut keeps every document scoring at least a hundredth of the room's own top score.
+
+    The first score is the seed's, which the map sets above the room, so the cut is taken
+    against the second: the highest score the room itself produced.
+    """
+    assert cluster_size([1.0, 0.5, 0.02, 0.011, 0.009, 0.0]) == 5
     assert cluster_size([1.0]) == 1
     assert cluster_size([]) == 0
     assert cluster_size([0.0, 0.0]) == 0
-    # The cut is a share of the top score, so scaling every score changes nothing.
-    assert cluster_size([2.0, 1.0, 0.04, 0.022, 0.018]) == 4
+    # A score under the cut ends the prefix, whatever follows it.
+    assert cluster_size([1.0, 0.5, 0.02, 0.004, 0.009]) == 3
+    # The cut is a share of a score, so scaling every score changes nothing.
+    assert cluster_size([2.0, 1.0, 0.04, 0.022, 0.018]) == 5
 
 
 def test_turn_index_finds_where_a_column_stops_wobbling():
@@ -313,7 +319,7 @@ def test_map_first_matter_versions_pair_the_draft_and_the_final(mapped, key):
 def test_map_first_matter_series_break_is_within_a_week_of_the_matter_date(
     mapped, key, known_anchors
 ):
-    """The break names the document whose series turned, the period and a row of that period."""
+    """Every break names a document whose series turned, the period and a row of that period."""
     matter = mapped.document["matters"][0]
     breaks = [row for row in matter["consequences"] if row["kind"] == "series-break"]
     for row in breaks:
@@ -326,20 +332,23 @@ def test_map_first_matter_series_break_is_within_a_week_of_the_matter_date(
     started = fact_value(key, "incident-start")
     if not (stepped and started):
         return
-    assert len(breaks) == 1
-    found = breaks[0]
-    assert found["doc"] == stepped[0]
+    # Every series that turns inside the window is kept, not one of them, so sample 1 carries
+    # both the metrics dashboard whose step-down is planted and the weekly KPI file beside it.
+    waved = fact_documents(key, "reset-wave")
+    assert len(breaks) == 2
+    assert [row["doc"] for row in breaks] == sorted({stepped[0], waved[0]})
     began = datetime.date.fromisoformat(started)
-    period = datetime.date.fromisoformat(found["period"])
-    assert period >= began
-    assert (period - began).days <= DATE_WINDOW
-    path = key.documents[found["doc"]]
-    assert parse_anchor(found["anchor"]).doc == path
-    assert found["anchor"] in known_anchors[path]
+    for found in breaks:
+        period = datetime.date.fromisoformat(found["period"])
+        assert period >= began
+        assert (period - began).days <= DATE_WINDOW
+        path = key.documents[found["doc"]]
+        assert parse_anchor(found["anchor"]).doc == path
+        assert found["anchor"] in known_anchors[path]
 
 
 def test_map_first_matter_model_after_is_dated_after_the_matter(mapped, key, known_anchors):
-    """The model names a document written after the matter that still carries its old figure."""
+    """Every model names a document written after the matter that still carries an old figure."""
     matter = mapped.document["matters"][0]
     models = [row for row in matter["consequences"] if row["kind"] == "model-after"]
     for row in models:
@@ -351,13 +360,15 @@ def test_map_first_matter_model_after_is_dated_after_the_matter(mapped, key, kno
     started = fact_value(key, "incident-start")
     if not (modelled and started):
         return
-    assert len(models) == 1
-    found = models[0]
-    assert found["doc"] == modelled[0]
-    assert found["date"] > started
-    path = key.documents[found["doc"]]
-    assert parse_anchor(found["anchor"]).doc == path
-    assert found["anchor"] in known_anchors[path]
+    # Every model dated after the matter that still carries one of the broken series' old
+    # numbers is kept, not the earliest, so sample 1 carries two.
+    assert len(models) == 2
+    assert modelled[0] in {row["doc"] for row in models}
+    for found in models:
+        assert found["date"] > started
+        path = key.documents[found["doc"]]
+        assert parse_anchor(found["anchor"]).doc == path
+        assert found["anchor"] in known_anchors[path]
 
 
 def test_map_readout_counts_versions_and_consequences(mapped, sample):
