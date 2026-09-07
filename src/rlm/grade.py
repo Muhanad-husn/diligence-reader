@@ -19,7 +19,9 @@ import time
 from pathlib import Path
 
 from rlm.carry import days_of, numbers_of, stem, words_of
-from rlm.key import Fact, Key, load_key
+# has_key is imported to be re-exported: rlm.write asks the grader whether a sample has a key
+# to grade against, so that the writer itself never names a key file or opens one.
+from rlm.key import Fact, Key, has_key, load_key
 
 # The two sides of a comparison fact are joined by this literal string and by nothing else.
 COMPARISON_JOIN = " against "
@@ -241,8 +243,9 @@ def run_grader(prompt: str) -> tuple[str, str]:
 
 
 def grade(sample_dir: Path, report_path: Path, run_dir: Path, name: str) -> dict:
-    """Grades one report against one sample's key and writes runs/<sample>/grade-<name>.json.
+    """Grades one report against one sample's key and writes the result to run_dir / name.
 
+    The fourth argument is the file name the result is written under, such as grade.json.
     Recall is measured in code over every fact in the key. The rubric is scored by one model
     call where the key has a rubric. The score is the rubric total where there is a rubric,
     and the recall percentage where there is none.
@@ -274,16 +277,14 @@ def grade(sample_dir: Path, report_path: Path, run_dir: Path, name: str) -> dict
         "seconds": time.monotonic() - started,
     }
     run_dir.mkdir(parents=True, exist_ok=True)
-    (run_dir / f"grade-{name}.json").write_text(
-        json.dumps(result, indent=2) + "\n", encoding="utf-8"
-    )
+    (run_dir / name).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     return result
 
 
 def main(argv: list[str]) -> int:
     """Grades one report from the command line and prints recall, score and the model."""
     if len(argv) != 4:
-        print("usage: python -m rlm.grade <sample_dir> <report> <run_dir> <name>")
+        print("usage: python -m rlm.grade <sample_dir> <report> <run_dir> <out_name>")
         return 2
     sample_dir, report, run_dir, name = argv
     result = grade(Path(sample_dir), Path(report), Path(run_dir), name)

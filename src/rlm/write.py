@@ -28,6 +28,18 @@ cap, and then the first reply is the report and verify.json's report_round says 
 Both calls run inside one ledger batch, which prints the estimated tokens and the price before
 anything is sent and writes one phase 5 row of LEDGER.md, summed over the calls, when they
 return.
+
+`--passes 2` runs the same request twice. Pass a writes into the run directory and pass b into
+`b/` under it, off the same dossier, sections, index and map, so the two differ only by the
+draw. Each pass is its own ledger batch and leaves its own phase 5 row.
+
+Where the sample has an answer key, rlm.grade.grade reads the report each pass wrote and leaves
+grade.json beside it: the recall over the key's facts, the rubric rows with their points and
+reasons, the score, and the grader's model and seconds. Nothing here opens the key; the writer
+asks the grader whether there is one and the grader does the reading. The grader runs on the
+subscription and writes no ledger row. After two passes the absolute difference of the scores
+and pass b's score go into pass a's grade.json, and the run prints one line with both scores,
+the spread, the dollars of the two passes and the seconds of the passes and the grading.
 """
 
 from __future__ import annotations
@@ -37,6 +49,7 @@ import json
 import re
 import sys
 import time
+from collections.abc import Callable
 from itertools import zip_longest
 from pathlib import Path
 
@@ -853,19 +866,53 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=None,
         help="a second file name under the run directory to keep this draw's report under",
     )
+    parser.add_argument(
+        "--passes",
+        type=int,
+        choices=(1, 2),
+        default=1,
+        help="how many times to write the same request, the second one under b/",
+    )
     return parser.parse_args(argv)
 
 
-def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None = None) -> int:
-    """Writes one sample's report.md, verifies it, and sends the failures back once."""
+def graded_line(sample: str, letter: str, result: dict, passes: bool) -> str:
+    """The one line a graded pass prints: its recall, its score, its grader and its verifier."""
+    return (
+        f"graded {sample} pass {letter}: recall {result['recall']} "
+        f"score {result['score']:g} model {result['model']} "
+        f"verify {'passes' if passes else 'fails'}"
+    )
+
+
+def spread_line(sample: str, score_a: float, score_b: float, dollars: float, seconds: float) -> str:
+    """The one line two passes print: both scores, the spread between them, and what they cost."""
+    return (
+        f"grade {sample}: score_a {score_a:g} score_b {score_b:g} "
+        f"spread {abs(score_a - score_b):g} dollars {dollars:.4f} seconds {seconds:.1f}"
+    )
+
+
+def main(
+    argv: list[str],
+    gateway: Gateway | None = None,
+    ledger: Ledger | None = None,
+    grader: Callable[[Path, Path, Path, str], dict] | None = None,
+) -> int:
+    """Writes one sample's report.md, verifies it, grades it, and prints the spread of two passes."""
     # rlm.verify reads a sentence and a citation the way this module does, so it imports from
-    # here. This import sits inside main so that the two modules do not import each other while
-    # they are still loading.
+    # here, and rlm.grade runs a subagent that nothing else here needs. Both imports sit inside
+    # main so that the modules do not import each other while they are still loading.
     from rlm import verify as verifier
+    from rlm.grade import grade as default_grader
+    from rlm.grade import has_key
 
     args = parse_args(argv)
     if args.model not in PRICES:
         print(f"no such model in the price table: {args.model}")
+        return 2
+    if args.from_reply and args.passes != 1:
+        print("--from-reply rebuilds one pass and does not go with --passes 2")
         return 2
 
     sample_dir = Path(args.sample_dir)
@@ -890,9 +937,6 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
     dossier = dossier_path.read_text(encoding="utf-8")
     digest = digest_markdown(dossier)
     rows = build_digest(dossier)
-    run_dir.mkdir(parents=True, exist_ok=True)
-    (run_dir / "digest.md").write_text(digest, encoding="utf-8")
-    print(f"digest {sample_dir.name}: {len(rows)} rows, {estimate_tokens(digest)} tokens")
 
     messages = build_messages(brief_path.read_text(encoding="utf-8"), digest)
 
@@ -909,119 +953,172 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
         """The failures of one report, read against the room the dossier was built from."""
         return verifier.verify(text, sections, index, dossier, mapping)["failures"]
 
-    rounds: list[list[dict]] = []
-    replies: list[str] = []
+    def write_pass(out_dir: Path) -> tuple[dict, dict]:
+        """One write of the request into out_dir, returning its summary and its verify record.
 
-    if args.from_reply:
-        # A saved reply rebuilds the report with no call and no ledger row, which is how the
-        # schedule is changed and measured without paying again for a narrative that has not
-        # changed. The tokens and the seconds of the draw that wrote the reply carry forward
-        # from the summary it left, because they are still what the report cost.
-        replies.append(Path(args.from_reply).read_text(encoding="utf-8"))
-        previous = run_dir / "write-summary.json"
-        before = json.loads(previous.read_text(encoding="utf-8")) if previous.exists() else {}
-        tokens_in = int(before.get("tokens_in", 0))
-        tokens_out = int(before.get("tokens_out", 0))
-        seconds = float(before.get("seconds", 0.0))
-        rounds.append(check(build(replies[0])))
-        print(f"reply {sample_dir.name}: rebuilt from {args.from_reply}, no call made")
-    else:
-        if gateway is None:
-            gateway = Gateway()
-        if ledger is None:
-            ledger = Ledger(Path(__file__).resolve().parents[2] / "LEDGER.md")
+        The room is read from the run directory whichever pass this is, and every file the
+        pass writes lands in out_dir: digest.md, the raw replies, report.md, verify.json and
+        write-summary.json. The calls of one pass are one ledger batch, so two passes leave
+        two rows of LEDGER.md.
+        """
+        nonlocal gateway, ledger
+        out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / "digest.md").write_text(digest, encoding="utf-8")
+        print(f"digest {sample_dir.name}: {len(rows)} rows, {estimate_tokens(digest)} tokens")
 
-        estimated_in = estimate_tokens("\n".join(message["content"] for message in messages))
-        started = time.monotonic()
-        completions = []
-        with ledger.batch(
-            sample_dir.name, PHASE, args.model, tokens_in=estimated_in, tokens_out=MAX_OUTPUT_TOKENS
-        ) as batch:
-            completions.append(
-                batch.record(
-                    gateway.complete(args.model, messages, max_tokens=MAX_OUTPUT_TOKENS, json=False)
-                )
-            )
-            replies.append(completions[0].text)
+        rounds: list[list[dict]] = []
+        replies: list[str] = []
+
+        if args.from_reply:
+            # A saved reply rebuilds the report with no call and no ledger row, which is how
+            # the schedule is changed and measured without paying again for a narrative that
+            # has not changed. The tokens and the seconds of the draw that wrote the reply
+            # carry forward from the summary it left, because they are still what it cost.
+            replies.append(Path(args.from_reply).read_text(encoding="utf-8"))
+            previous = out_dir / "write-summary.json"
+            before = json.loads(previous.read_text(encoding="utf-8")) if previous.exists() else {}
+            tokens_in = int(before.get("tokens_in", 0))
+            tokens_out = int(before.get("tokens_out", 0))
+            seconds = float(before.get("seconds", 0.0))
             rounds.append(check(build(replies[0])))
-            if rounds[0]:
-                # One second call, and only one: the first reply and the failures under it, so
-                # that the model fixes the sentences the room does not carry and leaves the rest
-                # of its report alone. Both calls are in this batch and pay on one ledger row.
-                asking = REASK_FAILURES.format(items=failure_items(rounds[0]))
+            print(f"reply {sample_dir.name}: rebuilt from {args.from_reply}, no call made")
+        else:
+            if gateway is None:
+                gateway = Gateway()
+            if ledger is None:
+                ledger = Ledger(Path(__file__).resolve().parents[2] / "LEDGER.md")
+
+            estimated_in = estimate_tokens("\n".join(message["content"] for message in messages))
+            started = time.monotonic()
+            completions = []
+            with ledger.batch(
+                sample_dir.name,
+                PHASE,
+                args.model,
+                tokens_in=estimated_in,
+                tokens_out=MAX_OUTPUT_TOKENS,
+            ) as batch:
                 completions.append(
                     batch.record(
                         gateway.complete(
-                            args.model,
-                            reask_messages(messages, replies[0], asking),
-                            max_tokens=MAX_OUTPUT_TOKENS,
-                            json=False,
+                            args.model, messages, max_tokens=MAX_OUTPUT_TOKENS, json=False
                         )
                     )
                 )
-                replies.append(completions[1].text)
-        seconds = time.monotonic() - started
-        tokens_in = sum(completion.tokens_in for completion in completions)
-        tokens_out = sum(completion.tokens_out for completion in completions)
-        (run_dir / "report-raw.txt").write_text(replies[-1], encoding="utf-8")
+                replies.append(completions[0].text)
+                rounds.append(check(build(replies[0])))
+                if rounds[0]:
+                    # One second call, and only one: the first reply and the failures under it,
+                    # so that the model fixes the sentences the room does not carry and leaves
+                    # the rest of its report alone. Both calls pay on this batch's one row.
+                    asking = REASK_FAILURES.format(items=failure_items(rounds[0]))
+                    completions.append(
+                        batch.record(
+                            gateway.complete(
+                                args.model,
+                                reask_messages(messages, replies[0], asking),
+                                max_tokens=MAX_OUTPUT_TOKENS,
+                                json=False,
+                            )
+                        )
+                    )
+                    replies.append(completions[1].text)
+            seconds = time.monotonic() - started
+            tokens_in = sum(completion.tokens_in for completion in completions)
+            tokens_out = sum(completion.tokens_out for completion in completions)
+            (out_dir / "report-raw.txt").write_text(replies[-1], encoding="utf-8")
+            if len(replies) > 1:
+                (out_dir / "report-raw-1.txt").write_text(replies[0], encoding="utf-8")
+
+        kept = len(replies)
         if len(replies) > 1:
-            (run_dir / "report-raw-1.txt").write_text(replies[0], encoding="utf-8")
+            rounds.append(check(build(replies[1])))
+            if not is_whole(parse_reply(replies[1])):
+                # The second reply lost headings, which is what a reply cut short at the cap
+                # looks like. The first reply is the report then, and verify.json says so.
+                kept = 1
+                print(
+                    f"verify {sample_dir.name}: second reply cut short, "
+                    "report.md is the first reply"
+                )
+        report = build(replies[kept - 1])
+        write_report(out_dir, report)
+        evidence_lines = [line for line in evidence.splitlines() if line.startswith("- ")]
+        if args.out:
+            (out_dir / args.out).write_text(report, encoding="utf-8")
 
-    kept = len(replies)
-    if len(replies) > 1:
-        rounds.append(check(build(replies[1])))
-        if not is_whole(parse_reply(replies[1])):
-            # The second reply lost headings, which is what a reply cut short at the cap looks
-            # like. The first reply is the report then, and verify.json says so.
-            kept = 1
-            print(f"verify {sample_dir.name}: second reply cut short, report.md is the first reply")
-    report = build(replies[kept - 1])
-    write_report(run_dir, report)
-    evidence_lines = [line for line in evidence.splitlines() if line.startswith("- ")]
-    if args.out:
-        (run_dir / args.out).write_text(report, encoding="utf-8")
-
-    calls = 0 if args.from_reply else len(replies)
-    (run_dir / "verify.json").write_text(
-        json.dumps(
-            {
-                "sample": sample_dir.name,
-                "model": args.model,
-                "rounds": rounds,
-                "report_round": kept,
-                "passes": not rounds[kept - 1],
-                "calls": calls,
-            },
-            indent=2,
+        calls = 0 if args.from_reply else len(replies)
+        record = {
+            "sample": sample_dir.name,
+            "model": args.model,
+            "rounds": rounds,
+            "report_round": kept,
+            "passes": not rounds[kept - 1],
+            "calls": calls,
+        }
+        (out_dir / "verify.json").write_text(
+            json.dumps(record, indent=2) + "\n", encoding="utf-8"
         )
-        + "\n",
-        encoding="utf-8",
-    )
-    for number, failures in enumerate(rounds, start=1):
-        print(verifier.counts_line(sample_dir.name, verifier.counts_of(failures), number))
-        for item in failures:
-            print(verifier.failure_line(item))
+        for number, failures in enumerate(rounds, start=1):
+            print(verifier.counts_line(sample_dir.name, verifier.counts_of(failures), number))
+            for item in failures:
+                print(verifier.failure_line(item))
 
-    summary = {
-        "sample": sample_dir.name,
-        "model": args.model,
-        "digest_rows": len(rows),
-        "evidence_lines": len(evidence_lines),
-        "evidence_chars": len(evidence),
-        "evidence_cut": cut,
-        "sentences": len(sentences(report)),
-        "citations": len(citations(report)),
-        "calls": calls,
-        "verify_failures": len(rounds[kept - 1]),
-        "tokens_in": tokens_in,
-        "tokens_out": tokens_out,
-        "dollars": price(args.model, tokens_in, tokens_out),
-        "seconds": seconds,
-    }
-    (run_dir / "write-summary.json").write_text(
-        json.dumps(summary, indent=2) + "\n", encoding="utf-8"
-    )
-    print(summary_line(summary))
+        summary = {
+            "sample": sample_dir.name,
+            "model": args.model,
+            "digest_rows": len(rows),
+            "evidence_lines": len(evidence_lines),
+            "evidence_chars": len(evidence),
+            "evidence_cut": cut,
+            "sentences": len(sentences(report)),
+            "citations": len(citations(report)),
+            "calls": calls,
+            "verify_failures": len(rounds[kept - 1]),
+            "tokens_in": tokens_in,
+            "tokens_out": tokens_out,
+            "dollars": price(args.model, tokens_in, tokens_out),
+            "seconds": seconds,
+        }
+        (out_dir / "write-summary.json").write_text(
+            json.dumps(summary, indent=2) + "\n", encoding="utf-8"
+        )
+        print(summary_line(summary))
+        return summary, record
+
+    if grader is None:
+        grader = default_grader
+    # Nothing is graded without an answer key, and the key is read by the grader alone.
+    graded = has_key(sample_dir)
+
+    directories = [(run_dir, "a")]
+    if args.passes == 2:
+        directories.append((run_dir / "b", "b"))
+
+    summaries: list[dict] = []
+    grades: list[dict] = []
+    for out_dir, letter in directories:
+        summary, record = write_pass(out_dir)
+        summaries.append(summary)
+        if graded:
+            result = grader(sample_dir, out_dir / "report.md", out_dir, "grade.json")
+            grades.append(result)
+            print(graded_line(sample_dir.name, letter, result, record["passes"]))
+
+    if len(grades) == 2:
+        # The spread of the two draws lives with pass a's grade, which is the graded artefact
+        # of the run; pass b's grade file holds its own score and nothing about pass a.
+        path = run_dir / "grade.json"
+        written = json.loads(path.read_text(encoding="utf-8"))
+        written["score_b"] = grades[1]["score"]
+        written["spread"] = abs(grades[0]["score"] - grades[1]["score"])
+        path.write_text(json.dumps(written, indent=2) + "\n", encoding="utf-8")
+        dollars = sum(summary["dollars"] for summary in summaries)
+        seconds = sum(summary["seconds"] for summary in summaries)
+        seconds += sum(result["seconds"] for result in grades)
+        print(
+            spread_line(sample_dir.name, grades[0]["score"], grades[1]["score"], dollars, seconds)
+        )
     return 0
 
 
