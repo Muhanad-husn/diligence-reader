@@ -37,6 +37,7 @@ and a key with no decoy has no decoy to place."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
@@ -474,6 +475,15 @@ def test_dossier_prints_one_readout_line(dossiered, sample):
             assert word in line
 
 
+def test_dossier_digest_is_pinned(dossiered, sample):
+    """The sha256 of the sample's dossier.md is the one tests/phase4-digests.json holds."""
+    digests = json.loads((ROOT / "tests" / "phase4-digests.json").read_text(encoding="utf-8"))
+    assert sample in digests, f"{sample} has no pinned dossier digest"
+    assert set(digests[sample]) == {"dossier.md"}
+    got = hashlib.sha256(dossiered.first.read_bytes()).hexdigest()
+    assert got == digests[sample]["dossier.md"]
+
+
 # ------------------------------------------------- comparisons and lesser matters
 
 
@@ -863,6 +873,86 @@ def test_dossier_readout_counts_comparisons_and_lesser_matters(dossiered, sample
     for line in lines:
         assert f"comparisons {comparisons}" in line, line
         assert f"lesser matters {lesser}" in line, line
+
+
+# ---------------------------------------------------------------- the gate
+
+
+def test_gate_pin_dossiers_digests_what_is_on_disk(tmp_path, capsys):
+    """pin.main --dossiers digests each sample's dossier.md as it sits on disk, copies nothing
+    and writes one digest per sample keyed dossier.md."""
+    from rlm import pin
+
+    runs_root = tmp_path / "runs"
+    wanted = {}
+    for sample in ("atlas", "northwind"):
+        sample_dir = runs_root / sample
+        sample_dir.mkdir(parents=True)
+        dossier_bytes = f"# {sample}\n".encode()
+        (sample_dir / "dossier.md").write_bytes(dossier_bytes)
+        wanted[sample] = {"dossier.md": hashlib.sha256(dossier_bytes).hexdigest()}
+
+    digests_path = tmp_path / "phase4-digests.json"
+    code = pin.main(
+        [
+            str(runs_root),
+            "--dossiers",
+            "--samples",
+            "atlas",
+            "northwind",
+            "--digests",
+            str(digests_path),
+        ]
+    )
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert json.loads(digests_path.read_text(encoding="utf-8")) == wanted
+    raw = digests_path.read_text(encoding="utf-8")
+    assert raw == json.dumps(wanted, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    assert "atlas" in out and "northwind" in out
+    for sample in wanted:
+        assert (runs_root / sample / "dossier.md").exists()
+
+
+def test_gate_pin_dossiers_refuses_a_sample_with_no_dossier(tmp_path, capsys):
+    """pin.main --dossiers refuses, names the sample and writes no digest when a dossier is
+    missing."""
+    from rlm import pin
+
+    runs_root = tmp_path / "runs"
+    (runs_root / "atlas").mkdir(parents=True)
+    (runs_root / "atlas" / "dossier.md").write_bytes(b"# atlas\n")
+    (runs_root / "northwind").mkdir(parents=True)
+
+    digests_path = tmp_path / "phase4-digests.json"
+    code = pin.main(
+        [
+            str(runs_root),
+            "--dossiers",
+            "--samples",
+            "atlas",
+            "northwind",
+            "--digests",
+            str(digests_path),
+        ]
+    )
+    out = capsys.readouterr().out
+
+    assert code == 1
+    assert not digests_path.exists()
+    assert "northwind" in out
+
+
+def test_gate_default_digests_path_follows_the_mode():
+    """The default digest file is tests/phase4-digests.json for dossiers, and the notes and maps
+    modes still name the files they named before."""
+    from rlm import pin
+
+    assert pin.default_digests_path().name == "phase2-digests.json"
+    assert pin.default_digests_path(maps=True).name == "phase3-digests.json"
+    assert pin.default_digests_path(dossiers=True).name == "phase4-digests.json"
+    assert pin.default_digests_path(dossiers=True).parent == ROOT / "tests"
 
 
 # ---------------------------------------------------------------- the readout
