@@ -66,7 +66,21 @@ from pathlib import Path
 
 from rlm.amounts import date_matches, normalise_amount
 from rlm.key import load_key
-from rlm.map import as_day, as_iso, document_of, figure_number, fold, read_jsonl, read_notes
+from rlm.map import as_day, as_iso, figure_number, read_jsonl, read_notes
+from rlm.words import (
+    COMMON_WORDS,
+    COMPARE_WORDS,
+    SUBJECT_WORDS,
+    TERMINATION_WORDS,
+    closest_section,
+    content_words,
+    document_of,
+    folded_words,
+    named_by,
+    one_line,
+    sections_by_document,
+    shared_run,
+)
 
 # The headings one matter carries, in the order they are written.
 SECTIONS = (
@@ -95,14 +109,6 @@ UNDATED = "9999-99-99"
 # What joins the parts of a comparison row.
 JOIN = " || "
 
-# The words too common in this prose for two statements that share them to be about one thing.
-COMMON_WORDS = frozenset(
-    "the a an and or of to in on at for from by with as is are was were be been not no any "
-    "that this it its their there which what has have had will would may can could should "
-    "we our us they them he she his her".split()
-)
-
-_WHITESPACE = re.compile(r"\s+")
 _DAY = re.compile(r"\b([0-9]{1,2} [A-Z][a-z]+ [0-9]{4}|[0-9]{4}-[0-9]{2}-[0-9]{2})\b")
 
 # What a clause says where it takes a right away.
@@ -115,9 +121,6 @@ VERB_MARKERS = frozenset(
 
 # How many words a negation may sit in front of the verb it takes away.
 CLAUSE_SPAN = 10
-
-# How many words that say something a shared run has to hold to be a subject.
-SUBJECT_WORDS = 2
 
 # A money figure's quote says the figure is a reserve and not an estimate.
 RESERVE_WORDS = re.compile(
@@ -142,16 +145,6 @@ WINDOW_WORD = re.compile(r"\bwithin\b", re.IGNORECASE)
 OPENING_WORDS = re.compile(r"\b(opened|raised|logged)\b", re.IGNORECASE)
 TICKET_WORD = re.compile(r"\bticket\b", re.IGNORECASE)
 
-# What ends an agreement.
-TERMINATION_WORDS = re.compile(r"\b(terminate|terminates|termination)\b", re.IGNORECASE)
-
-# What a document writes where it asks to be read against another document.
-COMPARE_WORDS = re.compile(
-    r"\b(compare|compared|compares|comparison|reconcile|reconciled|reconciles|"
-    r"reconciliation|versus)\b",
-    re.IGNORECASE,
-)
-
 # A warranty carries a negation beside a materiality word. A reservation carries the
 # materiality itself and says it is not settled yet.
 NEGATIONS = re.compile(r"\b(no|not|never|nor)\b", re.IGNORECASE)
@@ -160,15 +153,6 @@ MATERIALITY_WORD = re.compile(r"\bmateriality\b", re.IGNORECASE)
 UNSETTLED_WORDS = re.compile(
     r"\b(determinable|undetermined|premature|deferred|pending)\b", re.IGNORECASE
 )
-
-
-def one_line(text) -> str:
-    """The text with every run of whitespace collapsed to one space and the ends trimmed.
-
-    Nothing else is changed, so a quote stays the note's own words and a markdown mark the note
-    wrote is still there for a reader to see.
-    """
-    return _WHITESPACE.sub(" ", str(text)).strip()
 
 
 def quoted(text) -> str:
@@ -231,11 +215,6 @@ def statements(note: dict) -> list[tuple[str, str, str]]:
     return found
 
 
-def folded_words(text) -> list[str]:
-    """The words of a text, folded, in the order it wrote them."""
-    return fold(one_line(text)).split()
-
-
 def verbs_in(words: list[str]) -> set[str]:
     """The words a text uses as verbs: the ones it writes straight after `to` or a modal."""
     return {words[at] for at in range(1, len(words)) if words[at - 1] in VERB_MARKERS}
@@ -249,29 +228,6 @@ def negated_before(words: list[str], verb: str) -> bool:
         if NEGATION_WORDS & set(words[max(0, at - CLAUSE_SPAN) : at]):
             return True
     return False
-
-
-def shared_run(first: list[str], second: list[str]) -> tuple[str, ...] | None:
-    """The longest run of words the two texts both write, holding SUBJECT_WORDS that say
-    something, or None where they share no such run.
-
-    A run of common English is not a subject: `in the event of a` is how every clause opens, and
-    `of this agreement` says only that both are agreements.
-    """
-    lengths = [0] * (len(second) + 1)
-    best: tuple[str, ...] | None = None
-    for a in range(len(first)):
-        carried = [0] * (len(second) + 1)
-        for b in range(len(second)):
-            if first[a] == second[b]:
-                carried[b + 1] = lengths[b] + 1
-                run = tuple(first[a + 1 - carried[b + 1] : a + 1])
-                if len(content_words(" ".join(run))) >= SUBJECT_WORDS and (
-                    best is None or len(run) > len(best)
-                ):
-                    best = run
-        lengths = carried
-    return best
 
 
 def unique_title_words(nodes: dict[str, dict]) -> dict[str, set[str]]:
@@ -480,11 +436,6 @@ def blind_rows(matter: dict, notes: dict[str, dict], held: list[str]) -> list[st
             what = f"model-after {surface}"
         lines.append(row(when, doc, what, found["anchor"]))
     return lines
-
-
-def content_words(text) -> set[str]:
-    """The words of a text that say something: folded, longer than two letters, not common."""
-    return {word for word in fold(text).split() if len(word) > 2} - COMMON_WORDS
 
 
 def worry_words(note: dict) -> set[str]:
@@ -782,51 +733,6 @@ def covenant_rows(
     return rows
 
 
-def sections_by_document(
-    sections: list[dict], ids_by_path: dict[str, str]
-) -> dict[str, list[tuple[str, str]]]:
-    """Every section of the run as (anchor, one line of text), by the document it sits in."""
-    found: dict[str, list[tuple[str, str]]] = {}
-    for section in sections:
-        doc = document_of(section["anchor"], ids_by_path)
-        if doc is not None:
-            found.setdefault(doc, []).append((section["anchor"], one_line(section["text"])))
-    return found
-
-
-def closest_section(
-    held: list[tuple[str, str]], text, without: set[str] = frozenset()
-) -> tuple[str, str] | None:
-    """The section of a document that shares the most words with a text, earliest anchor first.
-
-    The words in `without` are not counted. None where the document shares no other word with
-    the text at all.
-    """
-    wanted = content_words(text) - set(without)
-    best = None
-    for anchor, written in held:
-        shared = len(wanted & content_words(written))
-        if not shared:
-            continue
-        mark = (-shared, anchor)
-        if best is None or mark < best[0]:
-            best = (mark, (anchor, written))
-    return None if best is None else best[1]
-
-
-def named_by(nodes: dict[str, dict]) -> dict[str, str]:
-    """Every document by a name a cross reference can call it: its id and its file name.
-
-    A file name two documents of the room share names neither of them, because a reference to
-    it says nothing about which one is meant.
-    """
-    carriers: dict[str, set[str]] = {}
-    for doc, node in nodes.items():
-        for name in (doc, Path(node["path"]).name):
-            carriers.setdefault(name.upper(), set()).add(doc)
-    return {name: held.pop() for name, held in carriers.items() if len(held) == 1}
-
-
 def compare_rows(
     matter: dict,
     nodes: dict[str, dict],
@@ -1078,8 +984,27 @@ def write_dossier(text: str, run_dir: Path) -> Path:
     return path
 
 
+def first_matter(text: str) -> str:
+    """The dossier's first matter, from its heading to the next matter's heading or the end."""
+    found: list[str] = []
+    for line in text.splitlines(keepends=True):
+        if line.startswith("## Matter "):
+            if found:
+                break
+            found.append(line)
+        elif found:
+            found.append(line)
+    return "".join(found)
+
+
 def readout_line(sample: str, text: str, seconds: float) -> str:
-    """The one line a dossier run prints: the counts per section and the time it took."""
+    """The one line a dossier run prints: the counts per section and the time it took.
+
+    `set` is how many documents the matter's set holds after the clause rule, which is the
+    number of Documents rows. `tokens` is what the first matter costs to hand a model, estimated
+    at one token per four characters, which is close enough for a line that says whether the
+    matter still fits.
+    """
     counted = {heading: 0 for heading in SECTIONS}
     heading = None
     for line in text.splitlines():
@@ -1087,6 +1012,7 @@ def readout_line(sample: str, text: str, seconds: float) -> str:
             heading = line[4:].strip()
         elif heading and line.startswith("- "):
             counted[heading] += 1
+    tokens = len(first_matter(text)) // 4
     return (
         f"dossier {sample}: documents {counted['Documents']}, "
         f"timeline {counted['Timeline']}, "
@@ -1095,6 +1021,8 @@ def readout_line(sample: str, text: str, seconds: float) -> str:
         f"consequences {counted['Models blind to it']}, "
         f"comparisons {counted['Comparisons']}, "
         f"lesser matters {counted['Lesser matters']}, "
+        f"set {counted['Documents']}, "
+        f"tokens ~{tokens}, "
         f"seconds {seconds:.1f}"
     )
 
