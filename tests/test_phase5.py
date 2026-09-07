@@ -97,7 +97,7 @@ HEADINGS = (
 )
 
 # The model the writer calls when the command line names none.
-MODEL = "z-ai/glm-5.3-flash"
+MODEL = "z-ai/glm-5.3"
 
 # What a ledger a fake run writes into starts as.
 LEDGER_HEADER = (
@@ -716,8 +716,8 @@ def fake_sample(tmp_path):
     return sample_dir, run_dir, Ledger(ledger_path)
 
 
-def test_write_default_model_is_glm_flash(fake_sample):
-    """Without --model the call goes to z-ai/glm-5.3-flash and the report lands on disk."""
+def test_write_default_model_is_glm_5_3(fake_sample):
+    """Without --model the call goes to z-ai/glm-5.3 and the report lands on disk."""
     sample_dir, run_dir, ledger = fake_sample
     transport = FakeTransport([reply(FAKE_REPORT)])
     gateway = Gateway(api_key="test-key", transport=transport)
