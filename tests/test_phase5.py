@@ -1115,6 +1115,80 @@ def test_citations_read_the_document_and_the_anchor():
     ]
 
 
+def test_citations_read_the_short_form_as_the_row_the_anchor_names():
+    """`[<doc>#<line>]` is the same citation as `[<doc> | <doc>#<line>]`."""
+    short = "One thing [a/b.pdf#p1l1] and another [c/d.xlsx#Q&A Log!A11].\n"
+    long = "One thing [a/b.pdf | a/b.pdf#p1l1] and another [c/d.xlsx | c/d.xlsx#Q&A Log!A11].\n"
+
+    assert writer.citations(short) == writer.citations(long)
+    assert writer.citations(short) == [
+        ("a/b.pdf", "a/b.pdf#p1l1"),
+        ("c/d.xlsx", "c/d.xlsx#Q&A Log!A11"),
+    ]
+
+
+def test_a_sentence_ending_in_the_short_form_is_cited():
+    """Both forms end a sentence, and a bracket carrying no anchor ends none."""
+    assert writer.is_cited("A thing [a/b.pdf#p1l1].")
+    assert writer.is_cited("A thing [DR-001 | a/b.pdf#p1l1].")
+    assert not writer.is_cited("A thing [see below].")
+    assert writer.citations("A thing [see below].") == []
+
+
+def test_dossier_pairs_read_the_document_field_whatever_it_holds():
+    """Sample 1 writes a DR id in the document field; samples 2 and 3 write the path."""
+    dossier = "\n".join(
+        [
+            "# Dossier: one",
+            "",
+            "## Matter 1",
+            "",
+            "### Timeline",
+            "",
+            "- 2025-12-11 | DR-001 | a quote | data_room/a/b.pdf#p1l1",
+            "- 2025-12-12 | a/b.pdf | a quote | a/b.pdf#p1l2",
+            "",
+            "### Comparisons",
+            "",
+            "- e/f.md | said once | e/f.md#l1 || g/h.md | said twice | g/h.md#l2",
+            "",
+        ]
+    )
+
+    pairs = dossier_pairs(dossier)
+
+    assert ("DR-001", "data_room/a/b.pdf#p1l1") in pairs
+    assert ("a/b.pdf", "a/b.pdf#p1l2") in pairs
+    assert ("e/f.md", "e/f.md#l1") in pairs
+    assert ("g/h.md", "g/h.md#l2") in pairs
+
+
+def test_a_short_form_citation_on_no_dossier_row_is_still_unknown():
+    """The short form names one row, and a row the dossier never wrote is no row of it."""
+    dossier = "\n".join(
+        [
+            "# Dossier: one",
+            "",
+            "## Matter 1",
+            "",
+            "### Timeline",
+            "",
+            "- 2025-12-11 | a/b.pdf | a quote | a/b.pdf#p1l1",
+            "",
+        ]
+    )
+    pairs = dossier_pairs(dossier)
+
+    assert writer.citations("A thing [a/b.pdf#p1l1].")[0] in pairs
+    assert writer.citations("A thing [a/b.pdf#p9l9].")[0] not in pairs
+
+
+def test_the_prompt_asks_that_every_figure_is_cited_on_the_row_it_came_from():
+    """One rule, beside the citation rules, on the row a figure is copied from."""
+    assert "cited on the row it was copied from" in writer.PROMPT
+    assert "figures from two rows cites both rows" in writer.PROMPT
+
+
 def test_the_writer_never_reads_the_key():
     """No line of the writer reads a sample's answer key. The key is the tests' alone."""
     source = (ROOT / "src" / "rlm" / "write.py").read_text(encoding="utf-8")
@@ -1150,10 +1224,21 @@ ROOM_SECTIONS = [
 ROOM_INDEX = [{"docs": ["a/b.pdf"]}, {"docs": ["c/d.xlsx"]}]
 ROOM_MAP = {"DR-001": "a/b.pdf", "DR-002": "c/d.xlsx"}
 
+# The same room read by a map whose document is its own path, which is how samples 2 and 3
+# write theirs and is where a short form citation names the row it came from.
+ROOM_PATH_MAP = {"a/b.pdf": "a/b.pdf", "c/d.xlsx": "c/d.xlsx"}
+
 
 def citation_failures(sentence: str) -> list[dict]:
     """The citation failures of one sentence read against the fake room."""
     return verifier.check_citations(one_finding(sentence), ROOM_SECTIONS, ROOM_INDEX, ROOM_MAP)
+
+
+def path_citation_failures(sentence: str) -> list[dict]:
+    """The citation failures of one sentence read against the room whose ids are its paths."""
+    return verifier.check_citations(
+        one_finding(sentence), ROOM_SECTIONS, ROOM_INDEX, ROOM_PATH_MAP
+    )
 
 
 def test_check_numbers_takes_a_day_off_the_dossier_row_that_cites_the_section():
@@ -1174,6 +1259,22 @@ def test_check_numbers_takes_a_day_off_the_dossier_row_that_cites_the_section():
 
 def test_check_citations_takes_a_citation_that_resolves():
     assert citation_failures("A thing [DR-001 | a/b.pdf#p1l1].") == []
+
+
+def test_check_citations_takes_the_short_form_of_a_citation():
+    """A room whose document is its path is named by the anchor on its own."""
+    assert path_citation_failures("A thing [a/b.pdf#p1l1].") == []
+    assert path_citation_failures("A thing [a/b.pdf | a/b.pdf#p1l1].") == []
+
+
+def test_check_citations_refuses_a_short_form_naming_no_document_of_the_index():
+    """An anchor beginning with no document of the index fails as an unknown anchor does."""
+    failures = path_citation_failures("A thing [x/y.pdf#p1l1].")
+    reasons = " ".join(failure["reason"] for failure in failures)
+
+    assert [failure["check"] for failure in failures] == ["citations"] * len(failures)
+    assert "x/y.pdf is on no record of the index" in reasons
+    assert "x/y.pdf#p1l1 is no section of the room" in reasons
 
 
 def test_check_citations_refuses_a_sentence_with_no_citation():
