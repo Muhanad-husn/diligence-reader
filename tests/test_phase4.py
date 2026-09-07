@@ -450,9 +450,15 @@ def test_dossier_every_row_anchor_belongs_to_its_document(dossiered, key, known_
 
 
 def test_dossier_rows_are_all_inside_the_document_set(dossiered, key, mapped):
-    """No row names a document outside the matter's own set."""
+    """No row names a document outside the matter's own set.
+
+    The set is the map's cluster less the documents the dossier's clause rule takes out, so it
+    is a part of the cluster and it holds the seed.
+    """
+    cluster = set(mapped["matters"][0]["cluster"])
     listed = {doc for _, doc in document_rows(dossiered.text)}
-    assert listed == set(mapped["matters"][0]["cluster"])
+    assert listed <= cluster, sorted(listed - cluster)
+    assert set(mapped["matters"][0]["seed"]) <= listed
     for row in rows_of(dossiered.text):
         assert row.doc in listed, row.line
 
@@ -720,14 +726,15 @@ def test_dossier_comparisons_reach_outside_the_seed(dossiered, key, mapped):
     assert len(named) > len(mapped["matters"][0]["seed"])
 
 
-def expected_lesser(key, mapped, notes_by_doc) -> list[tuple[float, str]]:
+def expected_lesser(key, listed, notes_by_doc) -> list[tuple[float, str]]:
     """The documents Lesser matters has to list, in the order it has to list them.
 
     Every document outside the matter's set whose note carries a flag, ranked by the largest
     money figure its note holds, largest first, and then by id. A document with a flag and no
-    money figure follows the ones with money.
+    money figure follows the ones with money. The set is what the Documents section lists, so a
+    document the clause rule took out of the set is a lesser matter and is listed here.
     """
-    inside = set(mapped["matters"][0]["cluster"])
+    inside = set(listed)
     found = []
     for doc in sorted(set(key.documents) - inside):
         note = notes_by_doc.get(doc)
@@ -752,7 +759,8 @@ def test_dossier_lesser_matters_ranks_the_rest_of_the_room(
 ):
     """Lesser matters lists every flagged document outside the set, ranked by its largest money
     figure and then by id, each with the figure, a quote and an anchor of its own."""
-    wanted = expected_lesser(key, mapped, notes_by_doc)
+    listed_in_set = {doc for _, doc in document_rows(dossiered.text)}
+    wanted = expected_lesser(key, listed_in_set, notes_by_doc)
     assert wanted, "the room holds no flagged document outside the set"
     listed = lesser_rows(dossiered.text)
     assert [doc for _, doc in wanted] == [row.doc for row in listed]
