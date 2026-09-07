@@ -2723,7 +2723,7 @@ def test_bakeoff_notes_only_is_repeatable(tmp_path, capsys):
     assert (rows[-1]["tokens_in"], rows[-1]["tokens_out"]) == (5000, 800)
 
     summary = json.loads((out / "notes-summary.json").read_text(encoding="utf-8"))
-    assert (summary["documents"], summary["noted"], summary["dropped"]) == (2, 2, 0)
+    assert (summary["documents"], summary["noted"], summary["dropped"]) == (100, 2, 98)
 
 
 def test_bakeoff_notes_only_still_refuses_a_document_the_key_does_not_name(tmp_path, capsys):

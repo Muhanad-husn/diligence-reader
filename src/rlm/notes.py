@@ -37,7 +37,10 @@ Every reply text is written verbatim to runs/<sample>/notes-raw/<document>.<atte
 pass can be read back without calling the model again.
 
 The documents run eight at a time inside one ledger batch, so a pass is one line of LEDGER.md
-and one runs/<sample>/notes-summary.json.
+and one runs/<sample>/notes-summary.json. A pass over every document of the key writes that
+summary from what this call did. A pass over --only documents merges into it instead: the
+counts are read back from what is on disk afterward, and the usage of the documents just
+replaced is swapped for their new usage in the previous totals.
 
 The bake-off of 2026-09-06 chose z-ai/glm-5.3-flash, DEFAULT_MODEL below, as the model this
 phase runs on when --model is left off.
@@ -652,6 +655,41 @@ def note_and_write(
     return doc_id, note, records
 
 
+def read_note(out_dir: Path, doc_id: str) -> dict | None:
+    """Reads one document's note from disk, or None when it has not been written there."""
+    path = out_dir / "notes" / note_name(doc_id)
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def notes_on_disk(out_dir: Path) -> list[dict]:
+    """Every note under out_dir/notes, parsed, in no particular order."""
+    return [json.loads(path.read_text(encoding="utf-8")) for path in (out_dir / "notes").glob("*.json")]
+
+
+def counts_from_disk(out_dir: Path, documents: int) -> dict:
+    """documents, noted, dropped and verified, counted from the notes actually on disk.
+
+    noted is the number of note files; dropped is documents minus noted; verified is the sum,
+    over every note on disk, of its kept quoted items.
+    """
+    notes = notes_on_disk(out_dir)
+    noted = len(notes)
+    verified = sum(len(note[field]) for note in notes for field in QUOTED_FIELDS)
+    return {"documents": documents, "noted": noted, "dropped": documents - noted, "verified": verified}
+
+
+def verify_counts_from_disk(out_dir: Path) -> dict:
+    """re_asked and dropped_items, counted from the merged notes-verify.jsonl on disk."""
+    path = out_dir / "notes-verify.jsonl"
+    records = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return {
+        "re_asked": sum(1 for record in records if record["outcome"] == "re-asked"),
+        "dropped_items": sum(1 for record in records if record["outcome"] == "dropped"),
+    }
+
+
 def write_summary(out_dir: Path, summary: dict) -> Path:
     """Writes notes-summary.json with sorted keys and one trailing newline."""
     path = out_dir / "notes-summary.json"
@@ -691,7 +729,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None = None) -> int:
-    """Notes the chosen documents of one sample and writes the notes, the log and the summary."""
+    """Notes the chosen documents of one sample and writes the notes, the log and the summary.
+
+    Without --only the summary is written from this call alone. With --only it is merged into
+    whatever is on disk: the counts are read back from the notes and the verify log after this
+    call writes them, and the token totals fold this call's usage into the previous summary's,
+    minus the usage the replaced documents carried before.
+    """
     args = parse_args(argv)
     sample_dir = Path(args.sample_dir)
     run_dir = Path(args.run_dir)
@@ -727,6 +771,21 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
         for _, doc in prompts
     )
     estimated_out = MAX_OUTPUT_TOKENS * len(prompts)
+
+    # A partial pass merges into what a prior pass wrote, so the usage of the documents this
+    # call is about to replace is read before note_and_write overwrites their note files.
+    previous_summary = None
+    replaced_tokens_in = replaced_tokens_out = 0
+    if args.only:
+        summary_path = out_dir / "notes-summary.json"
+        if summary_path.exists():
+            previous_summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        for doc_id, _ in prompts:
+            old_note = read_note(out_dir, doc_id)
+            if old_note is not None:
+                usage = old_note["usage"]
+                replaced_tokens_in += usage.get("tokens_in", 0)
+                replaced_tokens_out += usage.get("tokens_out", 0)
 
     records = [_log_record(doc, None, None, None, "note-dropped", 1) for _, doc in missing]
     for doc_id, _ in missing:
@@ -769,21 +828,51 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
         print(f"{doc_id}: {kept} items kept, {failed} dropped")
 
     write_verify_log(out_dir, records, {doc for _, doc in chosen})
-    summary = {
-        "documents": len(chosen),
-        "noted": noted,
-        "dropped": dropped,
-        "verified": verified,
-        "re_asked": sum(1 for record in records if record["outcome"] == "re-asked"),
-        "dropped_items": sum(1 for record in records if record["outcome"] == "dropped"),
-        "tokens_in": batch.tokens_in,
-        "tokens_out": batch.tokens_out,
-        "dollars": price(args.model, batch.tokens_in, batch.tokens_out),
-        "seconds": seconds,
-        "model": args.model,
-        "pass": args.pass_name,
-        "sample": sample_dir.name,
-    }
+
+    if args.only:
+        # documents, noted, dropped and verified come from what is on disk now, not from the
+        # documents this call asked, the way write_verify_log merges into the log on disk
+        # rather than replacing it. tokens_in and tokens_out fold this call's usage into the
+        # previous summary's totals, minus the usage of the documents just replaced; with no
+        # previous summary there is nothing to fold into, so this call's own totals stand.
+        disk_counts = counts_from_disk(out_dir, len(key.documents))
+        verify_counts = verify_counts_from_disk(out_dir)
+        if previous_summary is None:
+            tokens_in, tokens_out = batch.tokens_in, batch.tokens_out
+        else:
+            tokens_in = previous_summary["tokens_in"] - replaced_tokens_in + batch.tokens_in
+            tokens_out = previous_summary["tokens_out"] - replaced_tokens_out + batch.tokens_out
+        summary = {
+            "documents": disk_counts["documents"],
+            "noted": disk_counts["noted"],
+            "dropped": disk_counts["dropped"],
+            "verified": disk_counts["verified"],
+            "re_asked": verify_counts["re_asked"],
+            "dropped_items": verify_counts["dropped_items"],
+            "tokens_in": tokens_in,
+            "tokens_out": tokens_out,
+            "dollars": price(args.model, tokens_in, tokens_out),
+            "seconds": seconds,
+            "model": args.model,
+            "pass": args.pass_name,
+            "sample": sample_dir.name,
+        }
+    else:
+        summary = {
+            "documents": len(chosen),
+            "noted": noted,
+            "dropped": dropped,
+            "verified": verified,
+            "re_asked": sum(1 for record in records if record["outcome"] == "re-asked"),
+            "dropped_items": sum(1 for record in records if record["outcome"] == "dropped"),
+            "tokens_in": batch.tokens_in,
+            "tokens_out": batch.tokens_out,
+            "dollars": price(args.model, batch.tokens_in, batch.tokens_out),
+            "seconds": seconds,
+            "model": args.model,
+            "pass": args.pass_name,
+            "sample": sample_dir.name,
+        }
     write_summary(out_dir, summary)
     print(summary_line(summary))
     return 0
