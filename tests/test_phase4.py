@@ -944,10 +944,13 @@ def test_gate_pin_dossiers_refuses_a_sample_with_no_dossier(tmp_path, capsys):
     assert "northwind" in out
 
 
-def test_gate_default_digests_path_follows_the_dossiers_mode():
-    """The default digest file is tests/phase4-digests.json for dossiers."""
+def test_gate_default_digests_path_follows_the_mode():
+    """The default digest file is tests/phase4-digests.json for dossiers, and the notes and maps
+    modes still name the files they named before."""
     from rlm import pin
 
+    assert pin.default_digests_path().name == "phase2-digests.json"
+    assert pin.default_digests_path(maps=True).name == "phase3-digests.json"
     assert pin.default_digests_path(dossiers=True).name == "phase4-digests.json"
     assert pin.default_digests_path(dossiers=True).parent == ROOT / "tests"
 

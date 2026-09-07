@@ -1,5 +1,5 @@
-"""Pins a sample's notes, map or sections and writes the sha256 of every pinned file into a
-digests file. Four modes.
+"""Pins a sample's notes, map, sections or dossier and writes the sha256 of every pinned file
+into a digests file. Five modes.
 
 The default mode reads runs/<sample>/bakeoff.json's winner and copies that winner's pass a byte
 for byte from runs/<sample>/bakeoff/<slug>/a/ into runs/<sample>/: notes/ replaces the sample's
@@ -27,12 +27,19 @@ with exit 1 before a digest is written for any sample. It only reads each sample
 and index.jsonl as they sit on disk and digests them. The digests go to tests/phase1-digests.json
 by default.
 
+The --dossiers mode does not read a bake-off winner and copies nothing. It requires
+runs/<sample>/dossier.md to exist for every requested sample; a sample missing it is a refusal,
+printed with the sample name, and the run stops with exit 1 before a digest is written for any
+sample. It only reads each sample's dossier.md as it sits on disk and digests it. The digests go
+to tests/phase4-digests.json by default.
+
 Nothing here calls a model or writes LEDGER.md; in every mode the run is bytes on disk, never a
 rerun.
 
 The digest file holds, per sample, the sha256 of every pinned file, sorted keys, matching how
 tests/phase1-digests.json is written. For notes that is every note file (keyed "notes/<name>")
-and notes-verify.jsonl; for maps that is map.json alone (keyed "map.json").
+and notes-verify.jsonl; for maps that is map.json alone (keyed "map.json"); for sections that
+is sections.jsonl and index.jsonl; for dossiers that is dossier.md alone (keyed "dossier.md").
 """
 
 from __future__ import annotations
@@ -50,11 +57,13 @@ from rlm import bakeoff
 SAMPLES = ("atlas", "northwind", "northstar-dental")
 
 
-def default_digests_path(maps: bool = False, sections: bool = False) -> Path:
-    """tests/phase2-digests.json at the repo root, or tests/phase3-digests.json when maps is
-    true, or tests/phase1-digests.json when sections is true. All three sit in the same tests/
-    directory, the parent of the rlm package's src."""
-    if sections:
+def default_digests_path(maps: bool = False, sections: bool = False, dossiers: bool = False) -> Path:
+    """tests/phase2-digests.json at the repo root, tests/phase3-digests.json when maps is true,
+    tests/phase1-digests.json when sections is true, or tests/phase4-digests.json when dossiers
+    is true. All four sit in the same tests/ directory, the parent of the rlm package's src."""
+    if dossiers:
+        name = "phase4-digests.json"
+    elif sections:
         name = "phase1-digests.json"
     elif maps:
         name = "phase3-digests.json"
@@ -183,6 +192,26 @@ def pin_sections(runs_root: Path, samples: list[str], digests_path: Path) -> int
     return 0
 
 
+def pin_dossiers(runs_root: Path, samples: list[str], digests_path: Path) -> int:
+    """Digests each sample's dossier.md as it already sits on disk. Nothing is copied or removed
+    and no bake-off winner is read. A sample missing runs/<sample>/dossier.md is a refusal,
+    printed with the sample name, before a digest is written for any sample."""
+    for sample in samples:
+        if not (runs_root / sample / "dossier.md").exists():
+            print(f"{sample}: runs/{sample}/dossier.md missing, nothing digested")
+            return 1
+
+    all_digests: dict[str, dict[str, str]] = {}
+    for sample in samples:
+        dossier_path = runs_root / sample / "dossier.md"
+        digest = hashlib.sha256(dossier_path.read_bytes()).hexdigest()
+        all_digests[sample] = {"dossier.md": digest}
+        print(f"{sample}: dossier.md digested")
+
+    write_digests(digests_path, all_digests)
+    return 0
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     """Reads the command line of one pin run."""
     parser = argparse.ArgumentParser(prog="python -m rlm.pin")
@@ -192,6 +221,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--from-notes", action="store_true")
     parser.add_argument("--maps", action="store_true")
     parser.add_argument("--sections", action="store_true")
+    parser.add_argument("--dossiers", action="store_true")
     return parser.parse_args(argv)
 
 
@@ -200,9 +230,17 @@ def main(argv: list[str]) -> int:
     --from-notes, digests the notes already on disk instead, without a bake-off winner. With
     --maps, digests each sample's map.json already on disk instead, into
     tests/phase3-digests.json by default. With --sections, digests each sample's sections.jsonl
-    and index.jsonl already on disk instead, into tests/phase1-digests.json by default."""
+    and index.jsonl already on disk instead, into tests/phase1-digests.json by default. With
+    --dossiers, digests each sample's dossier.md already on disk instead, into
+    tests/phase4-digests.json by default."""
     args = parse_args(argv)
     runs_root = Path(args.runs_root)
+
+    if args.dossiers:
+        digests_path = (
+            Path(args.digests) if args.digests else default_digests_path(dossiers=True)
+        )
+        return pin_dossiers(runs_root, args.samples, digests_path)
 
     if args.sections:
         digests_path = (
