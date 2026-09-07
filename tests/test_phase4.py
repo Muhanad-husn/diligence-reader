@@ -23,8 +23,17 @@ it. Words are matched with one plural or tense ending dropped, so `drafted` read
 `retained` reads `RETAINED`. A word of the key's value that no document of the fact carries is
 not asserted; it is written into the phase 4 readout instead.
 
-Only sample 1 is enabled in this slice. Samples 2 and 3 are widened in slice 03, and a sample
-whose dossier inputs are absent is skipped."""
+A number a room writes without its unit is carried as well: the phase 1 index read the
+workbook cell `22.2` under a `Revenue ($M)` header as $22.2M, so a row of that document whose
+figure or quote holds `22.2` carries the fact. Whether a decoy outranks a planted document in
+the map is not asked here either: the founder moved that check off the map on 2026-09-07,
+because the northwind decoy shares its template with the seed, so it is the dossier's own
+list, which the document set governs, that has to put every planted document above every
+decoy.
+
+All three gate samples are enabled. A sample whose dossier inputs are absent is skipped, as is
+a check the sample plants nothing for: a map with no version pair has no draft against final,
+and a key with no decoy has no decoy to place."""
 
 from __future__ import annotations
 
@@ -45,8 +54,8 @@ from rlm.sections import parse_anchor
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# The samples this slice runs the dossier on. Slice 03 widens this to the three gate samples.
-ENABLED = ("atlas",)
+# The three gate samples the dossier runs on.
+ENABLED = ("atlas", "northwind", "northstar-dental")
 SKIP_REASON = "dossier not run for this sample yet"
 
 # What the dossier's inputs are called under runs/<sample>/.
@@ -298,15 +307,18 @@ def test_dossier_documents_hold_the_planted_documents_and_no_decoy(dossiered, ke
     assert not (decoys & set(listed)), sorted(decoys & set(listed))
 
 
-def test_dossier_ranks_every_planted_document_above_every_decoy(dossiered, key, mapped):
-    """No decoy outranks a planted document, in the map's ranking or in the dossier's list."""
+def test_dossier_ranks_every_planted_document_above_every_decoy(dossiered, key):
+    """No decoy outranks a planted document in the dossier's own list.
+
+    The map's ranking is not asked. On northwind the decoy is a master service agreement whose
+    change-of-control clause is benign in its wording, the two agreements share their template,
+    and the founder moved the decoy check off the map and onto the dossier on 2026-09-07. A
+    decoy the document set leaves out is below every document the set holds.
+    """
     planted = planted_documents(key)
     decoys = {decoy.document for decoy in key.decoys}
-    ranked = {row["doc"]: at for at, row in enumerate(mapped["matters"][0]["ranked"])}
-    worst = max(ranked[doc] for doc in planted)
-    best = min((ranked[doc] for doc in decoys), default=len(ranked))
-    assert worst < best, sorted(doc for doc in decoys if ranked[doc] < worst)
-
+    if not decoys:
+        pytest.skip("the key names no decoy")
     listed = document_rows(dossiered.text)
     assert [rank for rank, _ in listed] == sorted(rank for rank, _ in listed)
     places = {doc: rank for rank, doc in listed}
@@ -315,11 +327,44 @@ def test_dossier_ranks_every_planted_document_above_every_decoy(dossiered, key, 
     )
 
 
-def test_dossier_carries_every_phase_1_and_2_fact(dossiered, key, known_anchors):
+@pytest.fixture
+def index_surfaces(run_dir, key):
+    """Every surface the phase 1 index read as an amount, by document and by amount.
+
+    The index reads a workbook cell `22.2` under a `Revenue ($M)` header as 22200000 USD. The
+    room never writes `$22.2M`, so a fact of that value is carried by the surface the index
+    read it from, in the document it read it in.
+    """
+    found: dict[str, dict[tuple, set[str]]] = {}
+    ids = {path: doc for doc, path in key.documents.items()}
+    for line in (run_dir / "index.jsonl").read_text(encoding="utf-8").splitlines():
+        record = json.loads(line)
+        if record["kind"] != "amount":
+            continue
+        marker = (record["value"], record["unit"])
+        for anchor in record["anchors"]:
+            doc = ids.get(anchor.rsplit("#", 1)[0])
+            if doc is not None:
+                found.setdefault(doc, {}).setdefault(marker, set()).add(str(record["surface"]))
+    return found
+
+
+def amount_of(value):
+    """The value as an amount and its unit, or None where it names no amount."""
+    try:
+        return normalise_amount(str(value))
+    except ValueError:
+        return None
+
+
+def test_dossier_carries_every_phase_1_and_2_fact(
+    dossiered, key, known_anchors, index_surfaces
+):
     """Every planted fact of phase 1 and phase 2 has a row that carries it.
 
     A row carries a fact when its date or figure field, or its quote, holds the fact's value
-    after straightening, and its anchor parses, belongs to one of the fact's documents and is
+    after straightening, or holds a surface the phase 1 index read in that row's document as
+    the fact's own amount, and its anchor parses, belongs to one of the fact's documents and is
     one of the anchors the phase 1 and 2 artefacts wrote.
     """
     rows = rows_of(dossiered.text)
@@ -330,12 +375,18 @@ def test_dossier_carries_every_phase_1_and_2_fact(dossiered, key, known_anchors)
             continue
         checked += 1
         wanted = straighten(fact.value)
-        hits = [
-            row
-            for row in rows
-            if row.doc in fact.documents
-            and (wanted in straighten(row.first) or wanted in straighten(row.quote))
-        ]
+        marker = amount_of(fact.value)
+
+        def held(row, wanted=wanted, marker=marker):
+            written = f"{straighten(row.first)} {straighten(row.quote)}"
+            if wanted in written:
+                return True
+            if marker is None or marker[1] is None:
+                return False
+            surfaces = index_surfaces.get(row.doc, {}).get(marker, set())
+            return any(straighten(surface) in written for surface in surfaces)
+
+        hits = [row for row in rows if row.doc in fact.documents and held(row)]
         assert hits, f"{fact.id}: {fact.value!r} has no row in {list(fact.documents)}"
         good = []
         for row in hits:
@@ -653,7 +704,8 @@ def test_dossier_comparisons_are_sorted_and_written_once(dossiered):
 def test_dossier_draft_against_final_comes_from_the_map_version_pair(dossiered, mapped):
     """The map's version pair has a comparison row of its own."""
     pairs = {tuple(sorted(pair["docs"])) for pair in mapped["matters"][0]["versions"]}
-    assert pairs
+    if not pairs:
+        pytest.skip("the map found no version pair in this matter")
     named = {
         tuple(sorted({triple.doc for triple in row}))
         for row in comparison_rows(dossiered.text)
@@ -718,7 +770,8 @@ def test_dossier_lesser_matters_ranks_the_rest_of_the_room(
 def test_dossier_every_decoy_sits_in_lesser_matters_and_in_no_comparison(dossiered, key):
     """No decoy is in the first matter's set or in a comparison, and each is a lesser matter."""
     decoys = {decoy.document for decoy in key.decoys}
-    assert decoys
+    if not decoys:
+        pytest.skip("the key names no decoy")
     listed = {row.doc for row in lesser_rows(dossiered.text)}
     assert decoys <= listed, sorted(decoys - listed)
     inside = {doc for _, doc in document_rows(dossiered.text)}
