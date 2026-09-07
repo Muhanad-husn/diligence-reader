@@ -62,8 +62,10 @@ PHASE = 5
 # The bake-off of 2026-09-06 chose this model, and the whole dossier fits its context.
 DEFAULT_MODEL = "z-ai/glm-5.3-flash"
 
-# The report is a few thousand words; this cap is what the phase pays for.
-MAX_OUTPUT_TOKENS = 8000
+# The report is a few thousand words; this cap is what the phase pays for. It was 8000 until
+# 2026-09-07, when the digest grew to give every document of the matter a timeline row and
+# the reply needed room to quote them.
+MAX_OUTPUT_TOKENS = 12000
 
 # What an empty field is written as, in the dossier and in the schedule.
 EMPTY_FIELD = "-"
@@ -113,11 +115,13 @@ TERM_FIGURE_ROWS = 20
 
 # The most rows a digest carries. Every row has to be quoted once in a report of at most
 # MAX_OUTPUT_TOKENS tokens, and a comparison row costs three sentences rather than one, so the
-# ceiling is what the reply can hold, not what the dossier can offer. A digest of 145 rows ran
-# the reply out of room inside the fourth section on 2026-09-07, 118 finished with a hundred
-# tokens to spare, and 110 leaves about a tenth of the cap while losing no fact the larger
-# digests carried.
-DIGEST_ROWS = 110
+# ceiling is what the reply can hold, not what the dossier can offer. At a cap of 8000 tokens a
+# digest of 145 rows ran the reply out of room inside the fourth section on 2026-09-07 and 110
+# fitted. At 110 the timeline had 20 rows over 64 documents and the writer never saw the
+# insurance conditions or the regulator inquiries, so the rubric stopped at 81 with a spread
+# of 1. The cap went to 12000 and the digest to 150 so that every document of the matter has a
+# timeline row.
+DIGEST_ROWS = 150
 
 # The most comparison rows a digest carries. Each of them costs three sentences of the reply,
 # one for the contradiction and one for each half quoted whole, and the halves are the longest
@@ -161,6 +165,11 @@ COUNT_UNITS = ("m", "months", "day", "days")
 _MONEY = re.compile(r"[$£€]\s?\d")
 _PERCENT = re.compile(r"\d\s?%")
 _DEFINED_TERM = re.compile(r"\b[A-Z][A-Z0-9_-]{2,}\b")
+# A document id written inside a row is a pointer to another document, not a term the row
+# defines, so it does not count as a turning mark.
+_CROSS_REFERENCE = re.compile(r"\b[A-Z]{2,3}-\d{2,4}\b")
+# A period in digits, a deadline or a term of a contract or a policy.
+_PERIOD = re.compile(r"\b\d+[- ]?(?:day|days|month|months|year|years)\b", re.IGNORECASE)
 _COUNT_WITH_UNIT = re.compile(
     r"\d[\d,.]*\s?-?\s?(?:" + "|".join(COUNT_UNITS) + r")\b", re.IGNORECASE
 )
@@ -258,15 +267,17 @@ def quotable_first(rows: list[str]) -> list[str]:
 def turning_signals(row: str) -> int:
     """How many marks of a turning point one row carries.
 
-    A money figure counts one, a percentage counts one, each distinct term written in capitals
-    counts one, and each status word the row holds counts one. A row that carries several of
+    A money figure counts one, a percentage counts one, a period in digits counts one, each
+    distinct term written in capitals counts one unless it is another document's id, and each
+    status word the row holds counts one. A row that carries several of
     them is where the room decided something, blocked something or qualified something, and a
     row that carries none is background.
     """
     quote = row_quote(row)
-    found = len(set(_DEFINED_TERM.findall(quote)))
+    found = len(set(_DEFINED_TERM.findall(quote)) - set(_CROSS_REFERENCE.findall(quote)))
     found += 1 if _MONEY.search(quote) else 0
     found += 1 if _PERCENT.search(quote) else 0
+    found += 1 if _PERIOD.search(quote) else 0
     lowered = quote.lower()
     return found + sum(1 for word in STATUS_WORDS if word in lowered)
 
@@ -410,8 +421,12 @@ def digest_sections(dossier: str) -> dict[str, list[str]]:
     models = sections.get("Models blind to it", [])
     comparisons = quotable_first(sections.get("Comparisons", []))[:COMPARISON_ROWS]
     room = max(0, DIGEST_ROWS - len(names) - len(lesser) - len(models) - len(comparisons))
+    # Every document of the matter gets a timeline row before any document takes a second,
+    # so the timeline is at least as long as the matter is wide, within the room there is.
     timeline = timeline_rows(
-        sections.get("Timeline", []), weight, min(TIMELINE_ROWS, room * 2 // 3)
+        sections.get("Timeline", []),
+        weight,
+        min(room, max(len(weight), min(TIMELINE_ROWS, room * 2 // 3))),
     )
     figure_room = max(0, room - len(timeline))
     money_cap = min(MONEY_FIGURE_ROWS, figure_room)
@@ -590,8 +605,8 @@ Do not deliberate before you answer. Do not plan, do not take notes and do not s
 are about to do. Read the digest once and write the report as you read it. The first
 characters of your reply are `## Executive summary`.
 
-You have 8000 tokens for the whole reply and anything you think is spent out of them. Write
-about seventy sentences, short ones.
+You have 12000 tokens for the whole reply and anything you think is spent out of them. Write
+about a hundred sentences, short ones.
 
 THE DIGEST
 
@@ -708,7 +723,7 @@ from its row or left out. Keep the same five headings in the same order, one sho
 per line as before, every sentence ending in its citation copied character for character off
 its row, every quotation the room's own words, and every certainty word the room's own. A
 number, a date or a certainty word that its row does not carry goes out of the sentence. You
-have 8000 tokens for the whole reply, so do not deliberate and do not lengthen anything."""
+have 12000 tokens for the whole reply, so do not deliberate and do not lengthen anything."""
 
 
 def failure_items(failures: list[dict]) -> str:

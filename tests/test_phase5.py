@@ -652,7 +652,7 @@ def test_write_default_model_is_glm_flash(fake_sample):
     assert writer.DEFAULT_MODEL == MODEL
     body = json.loads(transport.requests[0].content)
     assert body["model"] == MODEL
-    assert body["max_tokens"] == writer.MAX_OUTPUT_TOKENS == 8000
+    assert body["max_tokens"] == writer.MAX_OUTPUT_TOKENS == 12000
     written = (run_dir / "report.md").read_text(encoding="utf-8")
     assert written.startswith("## Executive summary")
     assert f"## {writer.EVIDENCE_HEADING}" in written
