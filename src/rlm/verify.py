@@ -5,7 +5,11 @@ built by code out of the dossier and is not read here.
 
 check_citations asks that every citation parses with rlm.sections.parse_anchor, that the
 anchor's path is a document of index.jsonl, that the anchor is one a record of sections.jsonl
-carries, and that the DR id is the id map.json gives that path. A workbook row is one section
+carries, and that the DR id is the id map.json gives that path. A citation written in the
+short form, `[<anchor>]`, is read by rlm.write.citations as the document in front of the
+anchor's first # and that anchor, so a room whose document field is its own path is named by
+the anchor alone and an anchor beginning with no document of the index fails here exactly as
+an unknown anchor does. A workbook row is one section
 anchored at its leftmost cell and the room's own rows cite the cell that holds the words, so
 every cell of a record answers with that record. The DR id to path mapping comes from
 map.json's documents list, because the dossier's Documents section carries titles and not
@@ -56,6 +60,7 @@ from rlm.notes import straighten
 from rlm.sections import parse_anchor
 from rlm.write import (
     CALCULATION,
+    CITATION_TEXT,
     EVIDENCE_HEADING,
     _CITATION,
     body_lines,
@@ -104,8 +109,9 @@ _DIGIT_RUN = re.compile(r"\d+")
 # end of a sentence and is not part of the number.
 _WHOLE_NUMBER = re.compile(r"\d+(?:\.\d+)*")
 
-# The citation group at the end of a sentence or a line, with the full stop after it.
-_TRAILING = re.compile(r"((?:\s*\[[^\[\]|]+\|[^\[\]|]+\])+)\s*[.!?\"']*\s*$")
+# The citation group at the end of a sentence or a line, with the full stop after it. A
+# citation of the group is written in either of the two forms rlm.write reads.
+_TRAILING = re.compile(r"((?:\s*" + CITATION_TEXT + r")+)\s*[.!?\"']*\s*$")
 
 
 # ---------------------------------------------------------------- reading the room off disk
