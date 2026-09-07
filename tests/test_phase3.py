@@ -315,7 +315,8 @@ def test_map_every_cluster_document_is_reached_from_the_seed(mapped, key):
     cluster documents it came from and the values it came by, and following `from` back from
     any document reaches the seed. A `shared` or `reach` link is a non-date edge of the map
     between the document and one of its `from` documents carrying that value, and a `reach`
-    takes two different documents and two different values; a `consequence` is a row of the
+    takes two different documents and two different values, or one document and one money
+    figure, which names a matter on its own; a `consequence` is a row of the
     matter's consequences, a `version` a document of one of its version pairs; the seed's own
     via is the seed kind with nothing behind it.
     """
@@ -354,7 +355,13 @@ def test_map_every_cluster_document_is_reached_from_the_seed(mapped, key):
                     value,
                 )
         if via["kind"] == "reach":
-            assert len(via["from"]) >= 2 and len(set(via["values"])) >= 2, doc
+            witnessed = len(via["from"]) >= 2 and len(set(via["values"])) >= 2
+            money = (
+                len(via["from"]) == 1
+                and len(via["values"]) == 1
+                and via["values"][0].startswith("$")
+            )
+            assert witnessed or money, doc
         if via["kind"] == "consequence":
             assert doc in consequences, doc
         if via["kind"] == "version":

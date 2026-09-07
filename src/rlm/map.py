@@ -24,7 +24,9 @@ it is the draft or the final of a pair the set already touches. It joins as `con
 the matter broke a series it holds, or where it is a model written after the matter that still
 carries a figure the broken series left behind. It joins as `reach` where two different
 documents of the set each share a rare value with it and those are two different values, a
-value being rare when at most a quarter of the room carries it. It joins as `compare` where a
+value being rare when at most a quarter of the room carries it, or where one rare value it
+shares with one document of the set is an exact money figure, which names a matter as well as
+a code does. It joins as `compare` where a
 set document's note names it at a place that asks, in the room's own words, for the two to be
 read against each other. It joins as `covenant` where one of its flags is quoted with a
 termination word and writes the same run of words as a flag of the seed.
@@ -707,11 +709,17 @@ def reach_links(
     inside: set[str],
     order: list[str],
 ) -> dict[str, dict]:
-    """Every document two documents of the set reach by two different rare values.
+    """Every document the set reaches by rare values, from two places or from one money figure.
 
     A rare value is one at most REACH_SHARE of the room carries. One rare value in common with
     one document of the set is a coincidence of vocabulary; the same document named twice over,
     from two places, by two different values, is the matter.
+
+    A money figure is the exception, because an exact figure only a few documents carry names a
+    matter as well as a code does: one such figure shared with one document of the set reaches
+    the document on its own. The row then carries that one document and that one figure, the
+    heaviest of them where the document has several, and the earliest by value and by id where
+    two weigh the same.
     """
     breadth = REACH_SHARE * len(order)
     found: dict[str, dict] = {}
@@ -719,13 +727,21 @@ def reach_links(
         if doc in inside:
             continue
         holders: dict[str, set[str]] = {}
+        money: tuple[float, str, str] | None = None
         for other in sorted(inside):
-            for value, (_, carriers) in shared.get((doc, other), {}).items():
-                if carriers <= breadth:
-                    holders.setdefault(value, set()).add(other)
+            for value, (weight, carriers) in shared.get((doc, other), {}).items():
+                if carriers > breadth:
+                    continue
+                holders.setdefault(value, set()).add(other)
+                if value.startswith("$"):
+                    mark = (-weight, value, other)
+                    if money is None or mark < money:
+                        money = mark
         heads = {other for held in holders.values() for other in held}
         if len(holders) >= 2 and len(heads) >= 2:
             found[doc] = {"from": sorted(heads), "kind": "reach", "values": sorted(holders)}
+        elif money is not None:
+            found[doc] = {"from": [money[2]], "kind": "reach", "values": [money[1]]}
     return found
 
 
