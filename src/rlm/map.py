@@ -26,10 +26,10 @@ carries a figure the broken series left behind. It joins as `reach` where two di
 documents of the set each share a rare value with it and those are two different values, a
 value being rare when at most a quarter of the room carries it, or where one rare value it
 shares with one document of the set is an exact money figure, which names a matter as well as
-a code does. It joins as `compare` where a
-set document's note names it at a place that asks, in the room's own words, for the two to be
-read against each other. It joins as `covenant` where one of its flags is quoted with a
-termination word and writes the same run of words as a flag of the seed.
+a code does. It joins as `compare` where a set document's note names it at a place that asks,
+in the room's own words, for the two to be read against each other. It joins as `covenant`
+where one of its flags is quoted with a termination word and writes the same run of words as
+a flag of the seed.
 
 Every document is also scored by what it shares with the seed, plus one round of that score
 spread along the edges, each neighbour's contribution divided by its own total weight so that
