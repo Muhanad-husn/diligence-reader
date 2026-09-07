@@ -19,7 +19,8 @@ and never a name, a comparison, a lesser matter or a model.
 
 The functions sentences, is_cited and citations here are how a sentence and its citation are
 read, and rlm.verify and the phase 5 tests import them so that all three read them the same
-way. The report is then verified by rlm.verify against sections.jsonl, index.jsonl and the
+way. A citation is read in two forms, `[<doc> | <anchor>]` and `[<anchor>]`, the second being
+the first where the anchor begins with the document. The report is then verified by rlm.verify against sections.jsonl, index.jsonl and the
 dossier, and where the first reply fails the failures go back to the model once, as a list, in
 a second call carrying the first reply. The last reply is kept verbatim in report-raw.txt and
 the first in report-raw-1.txt when there were two, the whole report in report.md and the
@@ -91,7 +92,21 @@ HEADINGS = (
 RECOMMENDATION = "Recommendation:"
 CALCULATION = "Calculation:"
 
-_CITATION = re.compile(r"\[\s*([^\[\]|]+?)\s*\|\s*([^\[\]|]+?)\s*\]")
+# What stands in one field of a citation, and what an anchor looks like. An anchor carries
+# the # that divides its document path from the place inside that document.
+_FIELD = r"[^\[\]|]+?"
+_ANCHOR = r"[^\[\]|]*?#[^\[\]|]*?"
+
+# A citation in either of its two forms. The long form writes the document and the anchor with
+# a pipe between them. The short form writes the anchor alone, and its document is the path in
+# front of the anchor's first #, which is the same row wherever the room's document field is
+# that path. An anchor beginning with no document of the index then fails the verifier's
+# citation check as any unknown anchor does. A bracket carrying no # is no citation at all.
+_CITATION = re.compile(rf"\[\s*({_FIELD})\s*\|\s*({_FIELD})\s*\]|\[\s*({_ANCHOR})\s*\]")
+
+# The same two forms with no capturing group, for a pattern reading a run of citations.
+CITATION_TEXT = rf"\[\s*(?:{_FIELD}\s*\|\s*{_FIELD}|{_ANCHOR})\s*\]"
+
 _LIST_MARKER = re.compile(r"^(?:[-*+]\s+|\d+[.)]\s+)")
 
 # The marks that open and close a quotation, straight and curly.
@@ -696,6 +711,9 @@ the address of a file. Put the citation at the end of the sentence, never in the
 full stop: no trailing clause, no aside, no comparison of your own. If you want to say what a
 quotation means, say it before the quotation.
 
+Every figure in a sentence is cited on the row it was copied from, and a sentence carrying
+figures from two rows cites both rows. A figure a row does not carry goes out of the sentence.
+
 Two lines carry no citation, and only two: the line beginning `Recommendation:` and the line
 beginning `Calculation:`. No summary sentence and no judgement of your own is exempt. If you
 cannot cite a sentence, do not write it.
@@ -915,9 +933,21 @@ def is_cited(sentence: str) -> bool:
     return bool(match) and _CITATION.match(trimmed, trimmed.rfind("[")) is not None
 
 
+def citation_pair(match: re.Match) -> tuple[str, str]:
+    """The document and the anchor of one citation, whichever form it was written in.
+
+    The long form gives both halves. The short form gives the anchor, and its document is the
+    path in front of the anchor's first #.
+    """
+    if match.group(3) is None:
+        return match.group(1), match.group(2)
+    anchor = match.group(3)
+    return anchor.partition("#")[0], anchor
+
+
 def citations(report: str) -> list[tuple[str, str]]:
     """Every citation of the report, as document and anchor pairs, in file order."""
-    return [(match.group(1), match.group(2)) for match in _CITATION.finditer(report)]
+    return [citation_pair(match) for match in _CITATION.finditer(report)]
 
 
 def summary_line(summary: dict) -> str:

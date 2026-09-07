@@ -172,18 +172,34 @@ def verified(report, run_dir):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def row_documents(line: str) -> set[str]:
+    """The documents one dossier row names, whatever the room calls a document.
+
+    Sample 1 writes a `DR-###` id in the document field and samples 2 and 3 write the file
+    path, so the ids are read where a row has them and the writer's own field readers answer
+    where it has none: the first field of each triple of a comparison row, the second field of
+    a four field row.
+    """
+    ids = set(re.findall(r"DR-\d+", line))
+    if ids:
+        return ids
+    if " || " in line:
+        return {doc for doc in writer.comparison_documents(line) if doc}
+    return {writer.row_document(line)} - {""}
+
+
 def dossier_pairs(dossier: str) -> set[tuple[str, str]]:
     """Every document and anchor the dossier writes on one row, as a set of pairs.
 
-    A row is a list line under a heading. The documents of a row are its `DR-###` ids and the
-    anchors are the fields that carry a `#`, so a comparison row of several triples gives up
-    every pair it writes.
+    A row is a list line under a heading. The documents of a row are what row_documents reads
+    off it and the anchors are the fields that carry a `#`, so a comparison row of several
+    triples gives up every pair it writes.
     """
     found: set[tuple[str, str]] = set()
     for line in dossier.splitlines():
         if not line.startswith("- "):
             continue
-        docs = set(re.findall(r"DR-\d+", line))
+        docs = row_documents(line)
         if not docs:
             continue
         anchors = set()
