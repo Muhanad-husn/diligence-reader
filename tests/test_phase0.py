@@ -127,7 +127,7 @@ def test_grade_seconds_positive_with_no_rubric(tmp_path, monkeypatch):
 
     monkeypatch.setattr("rlm.grade.time.monotonic", fake_monotonic)
 
-    result = grade(sample_dir, report_path, run_dir, "perfect")
+    result = grade(sample_dir, report_path, run_dir, "grade-perfect.json")
 
     assert result["seconds"] > 0
     written = json.loads((run_dir / "grade-perfect.json").read_text(encoding="utf-8"))
@@ -148,7 +148,7 @@ def test_grade(name, key, sample, sample_dir, reports_dir, run_dir):
     ledger = ROOT / "LEDGER.md"
     before = ledger.read_bytes()
 
-    result = grade(sample_dir, reports_dir / REPORTS[name], run_dir, name)
+    result = grade(sample_dir, reports_dir / REPORTS[name], run_dir, f"grade-{name}.json")
 
     assert ledger.read_bytes() == before, "the grader must not write LEDGER.md"
 
