@@ -9,13 +9,21 @@ places, one per format:
 
 - `#p2l14`   page 2, line 14 of a PDF, both 1-based
 - `#p2t1r3`  page 2, table 1, row 3 of a PDF, all 1-based
-- `#l14`     line 14 of plain text, markdown or one mail body, 1-based
-- `#m3l14`   message 3 of an mbox, line 14 of its body, both 1-based
+- `#l14`     line 14 of plain text, markdown or one mail message, 1-based
+- `#m3l14`   message 3 of an mbox, line 14 of that message, both 1-based
 - `#Sheet1!A14`  row 14 of sheet Sheet1 of a workbook, at the row's leftmost non-empty column
 - `#r14`     row 14 of a CSV file, 1-based
 
 A cell reference is the workbook's own reference for a workbook cell, `r<row>c<col>` for a CSV
 cell and `t<table>r<row>c<col>` for a PDF table cell, all 1-based.
+
+A mail message numbers its body first and its header lines after it. Lines 1 to B are the B
+lines of the message's body, in the body's own order, and lines B + 1 onward are its header
+lines in file order. Header and body lines therefore never take the same number, both shapes
+stay exactly what `parse_anchor` already reads, and a body anchor written before header lines
+were sectioned still names the same block. The alternative, numbering a message from its first
+header line down, would have moved every body anchor of every mail document and with them the
+anchors of the phase 2 notes already bought for those documents.
 """
 
 from __future__ import annotations

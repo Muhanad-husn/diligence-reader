@@ -38,6 +38,9 @@ ATLAS_EXTENSIONS = {".pdf": 61, ".xlsx": 29, ".csv": 7, ".txt": 1, ".eml": 1, ".
 # The count of phase 1 facts each sample's key carries.
 PHASE_1_FACTS = {"atlas": 29, "northwind": 7, "northstar-dental": 8}
 
+# The two mail formats. Sample 1 carries one document of each; samples 2 and 3 carry none.
+MAIL_SUFFIXES = (".eml", ".mbox")
+
 _WHITESPACE = re.compile(r"\s+")
 _BLANK_LINE = re.compile(r"\n\s*\n")
 
@@ -45,6 +48,57 @@ _BLANK_LINE = re.compile(r"\n\s*\n")
 def flatten(text):
     """Collapses runs of whitespace to one space and strips the ends."""
     return _WHITESPACE.sub(" ", text).strip()
+
+
+def mail_messages(path: Path):
+    """Reads a mail file and returns, per message, its header lines and its body's line count.
+
+    This is the independent side of the header test: it opens the file with the standard
+    library rather than asking ingest what it wrote.
+    """
+    if path.suffix.lower() == ".eml":
+        messages = [email.message_from_bytes(path.read_bytes(), policy=email.policy.default)]
+    else:
+        box = mailbox.mbox(
+            str(path),
+            factory=lambda handle: email.message_from_binary_file(handle, policy=email.policy.default),
+        )
+        messages = list(box)
+        box.close()
+    read = []
+    for message in messages:
+        body = message.get_body(preferencelist=("plain",))
+        text = body.get_content() if body is not None else ""
+        headers = [f"{name}: {value}" for name, value in message.items()]
+        read.append((headers, len(text.split("\n"))))
+    return read
+
+
+def mail_header_anchors(doc: str, messages):
+    """The anchor each header line of a mail document belongs at, and the text it should carry.
+
+    A message's header lines are numbered after its own body, so a message whose body runs to
+    line B carries its first header line at line B + 1. That leaves every body anchor the
+    number it had before headers were sectioned at all.
+    """
+    wanted = {}
+    for number, (headers, body_lines) in enumerate(messages, start=1):
+        for position, header in enumerate(headers, start=1):
+            line = body_lines + position
+            place = f"m{number}l{line}" if doc.lower().endswith(".mbox") else f"l{line}"
+            wanted[f"{doc}#{place}"] = header
+    return wanted
+
+
+def mail_documents(records):
+    """The documents of a run that are eml or mbox files, sorted."""
+    return sorted({record["doc"] for record in records if Path(record["doc"]).suffix.lower() in MAIL_SUFFIXES})
+
+
+def message_of(anchor: str) -> int:
+    """The message an anchor of a mail document belongs to, 1 for an eml."""
+    parsed = parse_anchor(anchor)
+    return 1 if parsed.kind == "line" else parsed.message
 
 
 @dataclass(frozen=True)
@@ -189,6 +243,69 @@ def test_sections_anchors_resolve_in_their_files(ingested, sample_dir):
         anchor = parse_anchor(record["anchor"])
         assert anchor.doc == record["doc"]
         assert resolver.resolves(anchor), record["anchor"]
+
+
+def test_sections_carry_every_mail_header_line(ingested, sample_dir):
+    """Every header line of every eml and mbox message is one section, placed before its body.
+
+    The anchors of a mail document are unique, they parse, they belong to the document, and the
+    header lines of a message all sit at lower ordinals than that message's body blocks.
+    """
+    by_doc: dict[str, list[dict]] = {}
+    for record in ingested.records:
+        by_doc.setdefault(record["doc"], []).append(record)
+    docs = mail_documents(ingested.records)
+    if not docs:
+        pytest.skip("this sample carries no mail document")
+    for doc in docs:
+        records = by_doc[doc]
+        anchors = [record["anchor"] for record in records]
+        assert len(set(anchors)) == len(anchors), doc
+
+        messages = mail_messages(sample_dir / doc)
+        wanted = mail_header_anchors(doc, messages)
+        assert wanted, doc
+        written = {record["anchor"]: record for record in records}
+        for anchor, header in sorted(wanted.items()):
+            assert anchor in written, anchor
+            record = written[anchor]
+            assert record["text"] == header, anchor
+            assert record["kind"] == "text", anchor
+            assert parse_anchor(anchor).doc == doc, anchor
+
+        for number, (headers, _) in enumerate(messages, start=1):
+            mine = [record for record in records if message_of(record["anchor"]) == number]
+            header_ordinals = [
+                record["ordinal"] for record in mine if record["anchor"] in wanted
+            ]
+            body_ordinals = [
+                record["ordinal"] for record in mine if record["anchor"] not in wanted
+            ]
+            assert len(header_ordinals) == len(headers), (doc, number)
+            assert body_ordinals, (doc, number)
+            assert max(header_ordinals) < min(body_ordinals), (doc, number)
+
+
+def test_index_reads_the_date_header_of_every_mail_message(indexed, ingested, sample_dir):
+    """The day a message's Date header names is an index date at that header's own anchor."""
+    docs = mail_documents(ingested.records)
+    if not docs:
+        pytest.skip("this sample carries no mail document")
+    checked = 0
+    for doc in docs:
+        for anchor, header in sorted(mail_header_anchors(doc, mail_messages(sample_dir / doc)).items()):
+            if not header.startswith("Date:"):
+                continue
+            day = normalise_date(header)
+            assert any(
+                record["kind"] == "date"
+                and record["value"] == day
+                and doc in record["docs"]
+                and anchor in record["anchors"]
+                for record in indexed
+            ), anchor
+            checked += 1
+    assert checked
 
 
 def test_sections_carry_every_quote_and_identifier_fact(ingested, key):
@@ -718,29 +835,23 @@ class Resolver:
         return self._rows[doc]
 
     def _text_lines(self, doc: str) -> int:
+        """The lines a document addresses: its body's lines, and for a mail its headers after."""
         if doc not in self._lines:
             path = self.path(doc)
             if path.suffix == ".eml":
-                message = email.message_from_bytes(path.read_bytes(), policy=email.policy.default)
-                body = message.get_body(preferencelist=("plain",))
-                text = body.get_content() if body is not None else ""
+                (headers, body_lines), = mail_messages(path)
+                self._lines[doc] = body_lines + len(headers)
             else:
-                text = path.read_text(encoding="utf-8")
-            self._lines[doc] = len(text.split("\n"))
+                self._lines[doc] = len(path.read_text(encoding="utf-8").split("\n"))
         return self._lines[doc]
 
     def _mbox_lines(self, doc: str) -> list[int]:
+        """Per message of an mbox, its body's lines with its header lines counted after them."""
         if doc not in self._messages:
-            box = mailbox.mbox(
-                str(self.path(doc)),
-                factory=lambda handle: email.message_from_binary_file(handle, policy=email.policy.default),
-            )
-            counts = []
-            for message in box:
-                body = message.get_body(preferencelist=("plain",))
-                counts.append(len((body.get_content() if body is not None else "").split("\n")))
-            box.close()
-            self._messages[doc] = counts
+            self._messages[doc] = [
+                body_lines + len(headers)
+                for headers, body_lines in mail_messages(self.path(doc))
+            ]
         return self._messages[doc]
 
 
