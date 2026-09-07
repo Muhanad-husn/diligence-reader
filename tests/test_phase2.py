@@ -158,16 +158,16 @@ def test_gateway_estimate_tokens_is_characters_over_four_rounded_up():
 
 
 def test_gateway_price_table_is_plan_section_5():
-    """Per million tokens, prompt then completion, as PLAN.md section 5 reads on 2026-09-06."""
+    """Per million tokens, prompt then completion, as PLAN.md section 5 reads on 2026-09-07."""
     assert PRICES == {
         "openai/gpt-5.6-luna": (0.200, 1.200),
-        "deepseek/deepseek-v4-flash-0731": (0.050, 0.100),
-        "deepseek/deepseek-v4-pro": (0.657, 1.314),
+        "deepseek/deepseek-v4-flash-0731": (0.140, 0.280),
+        "deepseek/deepseek-v4-pro": (0.955260, 1.910520),
         "z-ai/glm-5.3": (1.400, 4.400),
         "z-ai/glm-5.3-flash": (0.075, 0.250),
     }
-    assert price(MODEL, 1_000_000, 1_000_000) == pytest.approx(0.150)
-    assert price(MODEL, 90_000, 60_000) == pytest.approx(0.0045 + 0.006)
+    assert price(MODEL, 1_000_000, 1_000_000) == pytest.approx(0.420)
+    assert price(MODEL, 90_000, 60_000) == pytest.approx(0.0126 + 0.0168)
     assert price("z-ai/glm-5.3", 0, 0) == 0.0
     with pytest.raises(KeyError):
         price("google/gemini", 1, 1)
@@ -179,13 +179,20 @@ def test_gateway_past_prices_keep_the_older_tables():
     assert PAST_PRICES == (
         {
             "openai/gpt-5.6-luna": (0.200, 1.200),
+            "deepseek/deepseek-v4-flash-0731": (0.050, 0.100),
+            "deepseek/deepseek-v4-pro": (0.657, 1.314),
+            "z-ai/glm-5.3": (1.400, 4.400),
+            "z-ai/glm-5.3-flash": (0.075, 0.250),
+        },
+        {
+            "openai/gpt-5.6-luna": (0.200, 1.200),
             "deepseek/deepseek-v4-flash-0731": (0.065, 0.180),
             "deepseek/deepseek-v4-pro": (0.870, 1.740),
             "z-ai/glm-5.3": (1.400, 4.400),
             "z-ai/glm-5.3-flash": (0.075, 0.250),
         },
     )
-    assert known_prices(MODEL) == [(0.050, 0.100), (0.065, 0.180)]
+    assert known_prices(MODEL) == [(0.140, 0.280), (0.050, 0.100), (0.065, 0.180)]
     assert known_prices("z-ai/glm-5.3") == [(1.400, 4.400)]
     assert known_prices("openai/gpt-5.6-luna") == [(0.200, 1.200)]
     with pytest.raises(KeyError):
@@ -343,7 +350,7 @@ def test_gateway_batch_refuses_past_the_phase_cap_before_any_request(tmp_path):
     ledger = Ledger(path)
     transport = FakeTransport([reply("{}")])
     gateway = Gateway(api_key="k", transport=transport)
-    # $7.90 spent in phase 2; 4m tokens in at $0.050/m is $0.20 more, past the $8 cap.
+    # $7.90 spent in phase 2; 4m tokens in at $0.140/m is $0.56 more, past the $8 cap.
     assert ledger.spent(PHASE) + price(MODEL, 4_000_000, 0) > PHASE_CAP
 
     with pytest.raises(CapExceeded):
@@ -2183,7 +2190,9 @@ def test_bakeoff_slug_and_the_tiers_run_in_price_order():
     assert bakeoff.slug(DS_PRO) == "deepseek-v4-pro"
     assert bakeoff.slug(GLM) == "glm-5.3"
 
-    assert bakeoff.TIERS["flash"] == (DS_FLASH, GLM_FLASH, LUNA)
+    # The order inside a tier is the price of one pass, so it moved when DeepSeek V4 Flash
+    # went from 0.050 to 0.140 in on 2026-09-07.
+    assert bakeoff.TIERS["flash"] == (GLM_FLASH, DS_FLASH, LUNA)
     assert bakeoff.TIERS["pro"] == (DS_PRO, GLM)
     assert set(bakeoff.TIERS["flash"]) | set(bakeoff.TIERS["pro"]) == set(PRICES)
     for tier in bakeoff.TIERS.values():
