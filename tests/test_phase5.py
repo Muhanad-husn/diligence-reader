@@ -26,10 +26,24 @@ A full stop inside a quotation ends nothing: the report quotes dossier rows whol
 often carries a full stop of its own, which is the room's punctuation and not the writer's,
 so the split skips any position inside a pair of quotation marks.
 
+The verifier reads the written report back against the room. verify.json holds one round per
+model call the writer made, each round the failures of four checks: every citation parses,
+names a document of index.jsonl and an anchor of sections.jsonl, and carries the DR id
+map.json gives that path; every number of a cited sentence is in one of its cited sections,
+and a Calculation line's operands are in the cited sentences of its own section; no cited
+sentence's certainty word sits above the highest rung of its cited sections; and the first
+finding cites a document of the dossier's first matter while no finding citing only lesser
+matters comes before one that cites the set. These tests read verify.json off disk, recompute
+it from the files on disk, and read the key's decoys to check that none of them is cited above
+the first finding of the matter. The unit tests run each check on small in-memory inputs.
+
 The rest of the tests run on a fake transport and need no key and no network: the default
 model, a model outside the price table, the json flag of the gateway, the refusal when the
-dossier is absent, and what build_messages puts in each message. One static test reads
-src/rlm/write.py and asserts that no line of it reads the key.
+dossier, sections.jsonl or index.jsonl is absent, what build_messages puts in each message,
+and the second call the writer makes when round one fails, which carries the first reply and
+the failure list. One static test reads src/rlm/write.py and asserts that no line of it reads
+the key, and another reads src/rlm/verify.py and asserts that it reads no key and makes no
+call.
 
 Only sample 1 is enabled here. Samples 2 and 3 are the fifth slice of the phase. A sample
 whose report.md is absent is skipped."""
@@ -45,12 +59,14 @@ from pathlib import Path
 import httpx
 import pytest
 
+from rlm import verify as verifier
 from rlm import write as writer
 from rlm.carry import days_of, numbers_of, stem, words_of
 from rlm.gateway import PRICES, Gateway, Ledger, price
 from rlm.grade import CONNECTIVES, measure_recall, side_carried
 from rlm.key import load_key
 from rlm.notes import straighten
+from rlm.sections import parse_anchor
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -120,6 +136,29 @@ def report(sample, run_dir):
 @pytest.fixture
 def key(sample_dir):
     return load_key(sample_dir)
+
+
+@pytest.fixture
+def room(report, run_dir):
+    """The sections, the index records and the DR id to path mapping of one run."""
+    sections_path = run_dir / "sections.jsonl"
+    index_path = run_dir / "index.jsonl"
+    if not sections_path.exists() or not index_path.exists():
+        pytest.skip(SKIP_REASON)
+    return (
+        verifier.read_jsonl(sections_path),
+        verifier.read_jsonl(index_path),
+        verifier.read_mapping(run_dir / "map.json"),
+    )
+
+
+@pytest.fixture
+def verified(report, run_dir):
+    """The verify.json the writer left, skipped when the report predates the verifier."""
+    path = run_dir / "verify.json"
+    if not path.exists():
+        pytest.skip("verify.json not written for this sample yet")
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def dossier_pairs(dossier: str) -> set[tuple[str, str]]:
@@ -196,6 +235,74 @@ def test_ledger_holds_a_phase_5_row_for_the_sample(report, sample):
     rows = Ledger(ROOT / "LEDGER.md").rows()
     phase_5 = [row for row in rows if row["phase"] == "5" and row["sample"] == sample]
     assert phase_5, f"no phase 5 ledger row for {sample}"
+
+
+# ---------------------------------------------------------------- the verifier on the artefact
+
+
+def test_verify_json_holds_one_round_per_call_and_passes(verified):
+    """One round per model call, each a list of failures, and the last round is empty."""
+    rounds = verified["rounds"]
+    assert 1 <= len(rounds) <= 2
+    for failures in rounds:
+        assert isinstance(failures, list)
+        for failure in failures:
+            assert set(failure) >= {"check", "line", "reason"}
+            assert failure["check"] in verifier.CHECKS
+    assert verified["passes"] is True, f"last round: {rounds[-1][:5]}"
+    assert not rounds[-1]
+
+
+def test_verify_recomputed_from_the_files_on_disk_agrees(report, room, verified):
+    """Running the verifier again on report.md, sections.jsonl and index.jsonl says the same."""
+    sections, index, mapping = room
+    result = verifier.verify(report.text, sections, index, report.dossier, mapping)
+    assert result["passes"] is True, "failures: " + " || ".join(
+        verifier.failure_line(failure) for failure in result["failures"][:10]
+    )
+    assert result["passes"] == verified["passes"]
+
+
+def test_every_citation_of_the_report_resolves_to_a_section_and_a_document(report, room):
+    """Every citation of all six sections parses, names an index document and a section."""
+    sections, index, _ = room
+    texts = verifier.section_index(sections)
+    documents = verifier.index_documents(index)
+    unknown = []
+    for doc, anchor in writer.citations(report.text):
+        parsed = parse_anchor(anchor)
+        if anchor not in texts or parsed.doc not in documents:
+            unknown.append(f"[{doc} | {anchor}]")
+    assert not unknown, "citations that do not resolve: " + " || ".join(unknown[:10])
+
+
+def test_a_second_round_kept_the_first_reply(report, verified):
+    """Where the writer called twice, both raw replies are on disk and they differ."""
+    if len(verified["rounds"]) < 2:
+        pytest.skip("one round, so there is only one reply")
+    run_dir = report.path.parent
+    first = run_dir / "report-raw-1.txt"
+    last = run_dir / "report-raw.txt"
+    assert first.exists() and last.exists()
+    assert first.read_text(encoding="utf-8") != last.read_text(encoding="utf-8")
+
+
+def test_no_decoy_is_cited_above_the_first_finding_of_the_matter(report, key):
+    """A decoy ranked over the matter is the failure the room was built to catch."""
+    matter = set()
+    for fact in key.facts:
+        if fact.id == "matter-documents":
+            matter.update(fact.documents)
+    assert matter, "the key names no matter-documents fact"
+    decoys = {decoy.document for decoy in key.decoys}
+    findings = verifier.findings(report.text)
+    assert findings, "the report ranks no findings"
+    above = []
+    for line, cited in findings:
+        if cited & matter:
+            break
+        above.extend(f"{doc}: {line[:80]}" for doc in sorted(cited & decoys))
+    assert not above, "decoys ranked above the matter: " + " || ".join(above[:5])
 
 
 # ---------------------------------------------------------------- the digest
@@ -340,35 +447,86 @@ The draft says one thing [DR-001 | a/b.pdf#p1l1].
 
 ## The most material issue quantified
 
-Calculation: 240 + 465 / 2 = 400, range 375 to 525.
-The exposure is a range [DR-001 | a/b.pdf#p1l1].
+The exposure is a range of $240m to $465m [DR-001 | a/b.pdf#p1l1].
+Calculation: ($240m + $465m) / 2 = $352.5m, rounded to $400m, range $240m to $465m.
+Recommendation: reprice by $400m.
 
 ## Lesser issues
 
-The tax memo is smaller [DR-001 | a/b.pdf#p1l1].
+The tax memo is smaller [DR-002 | c/d.pdf#p2l1].
 
 ## Open items
 
 The final report is outstanding [DR-001 | a/b.pdf#p1l1].
 """
 
+# The same report with one number the room never wrote, which is one numbers failure.
+FAKE_REPORT_WITH_A_BAD_NUMBER = FAKE_REPORT.replace(
+    "The exposure is a range of $240m to $465m",
+    "The exposure is a range of $240m to $999m",
+)
+
+# The two sections of the fake room, holding the words and the numbers the fake report cites.
+FAKE_SECTIONS = [
+    {
+        "anchor": "a/b.pdf#p1l1",
+        "doc": "a/b.pdf",
+        "kind": "line",
+        "cells": [],
+        "text": "The room contradicts itself: the exposure runs $240m to $465m.",
+    },
+    {
+        "anchor": "c/d.pdf#p2l1",
+        "doc": "c/d.pdf",
+        "kind": "line",
+        "cells": [],
+        "text": "The tax memo is smaller than the rest.",
+    },
+]
+
+FAKE_INDEX = [
+    {"docs": ["a/b.pdf"], "surface": "240", "kind": "amount"},
+    {"docs": ["c/d.pdf"], "surface": "12", "kind": "amount"},
+]
+
+FAKE_MAP = {
+    "documents": [
+        {"doc": "DR-001", "path": "a/b.pdf"},
+        {"doc": "DR-002", "path": "c/d.pdf"},
+    ]
+}
+
+FAKE_DOSSIER = (
+    "# Dossier: atlas\n\n## Matter 1\n\n### Documents\n\n"
+    "- 1. DR-001 | A draft memo | 03_Commercial | 2025-10-18\n\n"
+    "### Timeline\n\n"
+    "- 2025-10-18 | DR-001 | a quote | a/b.pdf#p1l1\n\n"
+    "### Names\n\n- AURORA | DR-001 | a name | a/b.pdf#p1l2\n\n"
+    "### Comparisons\n\n"
+    "- DR-001 | one half | a/b.pdf#p1l3 || DR-002 | the other half | c/d.pdf#p2l1\n\n"
+    "### Lesser matters\n\n- 1 | DR-002 | a smaller thing | c/d.pdf#p2l1\n"
+)
+
+
+def write_jsonl(path: Path, records: list[dict]) -> None:
+    """Writes one JSON object per line, as the room's artefacts are written."""
+    path.write_text(
+        "".join(json.dumps(record, sort_keys=True) + "\n" for record in records), encoding="utf-8"
+    )
+
 
 @pytest.fixture
 def fake_sample(tmp_path):
-    """A sample directory with a brief, a run directory with a dossier, and an empty ledger."""
+    """A sample directory with a brief, a run directory with the room, and an empty ledger."""
     sample_dir = tmp_path / "atlas"
     run_dir = tmp_path / "run"
     sample_dir.mkdir()
     run_dir.mkdir()
     (sample_dir / "brief.md").write_text("# Brief\n\nFind the matter.\n", encoding="utf-8")
-    (run_dir / "dossier.md").write_text(
-        "# Dossier: atlas\n\n## Matter 1\n\n### Timeline\n\n"
-        "- 2025-10-18 | DR-001 | a quote | a/b.pdf#p1l1\n\n"
-        "### Names\n\n- AURORA | DR-001 | a name | a/b.pdf#p1l2\n\n"
-        "### Comparisons\n\n"
-        "- DR-001 | one half | a/b.pdf#p1l3 || DR-002 | the other half | c/d.pdf#p2l1\n",
-        encoding="utf-8",
-    )
+    (run_dir / "dossier.md").write_text(FAKE_DOSSIER, encoding="utf-8")
+    write_jsonl(run_dir / "sections.jsonl", FAKE_SECTIONS)
+    write_jsonl(run_dir / "index.jsonl", FAKE_INDEX)
+    (run_dir / "map.json").write_text(json.dumps(FAKE_MAP, indent=1) + "\n", encoding="utf-8")
     ledger_path = tmp_path / "LEDGER.md"
     ledger_path.write_text(LEDGER_HEADER, encoding="utf-8")
     return sample_dir, run_dir, Ledger(ledger_path)
@@ -481,6 +639,131 @@ def test_write_prints_one_readout_line(fake_sample, capsys):
     assert len(lines) == 1
     assert "sentences" in lines[0] and "citations" in lines[0]
     assert "tokens_in 1234" in lines[0] and "tokens_out 56" in lines[0]
+
+
+# ---------------------------------------------------------------- the verifier inside the writer
+
+
+def test_write_writes_verify_json_with_one_round_when_the_report_verifies(fake_sample, capsys):
+    """A report that verifies costs one call, and verify.json holds that one round."""
+    sample_dir, run_dir, ledger = fake_sample
+    transport = FakeTransport([reply(FAKE_REPORT)])
+    gateway = Gateway(api_key="test-key", transport=transport)
+
+    assert writer.main([str(sample_dir), str(run_dir)], gateway=gateway, ledger=ledger) == 0
+
+    assert len(transport.requests) == 1
+    record = json.loads((run_dir / "verify.json").read_text(encoding="utf-8"))
+    assert record["sample"] == "atlas"
+    assert record["calls"] == 1
+    assert record["rounds"] == [[]]
+    assert record["passes"] is True
+    assert not (run_dir / "report-raw-1.txt").exists()
+    assert "verify atlas round 1: citations 0, numbers 0, certainty 0, order 0" in capsys.readouterr().out
+
+
+def test_write_sends_the_failures_back_once_and_keeps_both_replies(fake_sample):
+    """Round one's failures go back with the first reply, and report.md is the second reply."""
+    sample_dir, run_dir, ledger = fake_sample
+    transport = FakeTransport(
+        [reply(FAKE_REPORT_WITH_A_BAD_NUMBER), reply(FAKE_REPORT, tokens_in=10, tokens_out=20)]
+    )
+    gateway = Gateway(api_key="test-key", transport=transport)
+
+    assert writer.main([str(sample_dir), str(run_dir)], gateway=gateway, ledger=ledger) == 0
+
+    assert len(transport.requests) == 2
+    first = json.loads(transport.requests[0].content)["messages"]
+    second = json.loads(transport.requests[1].content)["messages"]
+    assert second[:2] == first
+    assert second[2] == {"role": "assistant", "content": FAKE_REPORT_WITH_A_BAD_NUMBER}
+    assert second[3]["role"] == "user"
+    assert "numbers:" in second[3]["content"]
+    assert "999" in second[3]["content"]
+
+    record = json.loads((run_dir / "verify.json").read_text(encoding="utf-8"))
+    assert len(record["rounds"]) == 2
+    assert record["calls"] == 2
+    assert [failure["check"] for failure in record["rounds"][0]] == ["numbers"]
+    assert record["rounds"][1] == []
+    assert record["passes"] is True
+
+    assert (run_dir / "report-raw-1.txt").read_text(encoding="utf-8") == FAKE_REPORT_WITH_A_BAD_NUMBER
+    assert (run_dir / "report-raw.txt").read_text(encoding="utf-8") == FAKE_REPORT
+    written = (run_dir / "report.md").read_text(encoding="utf-8")
+    assert "$999m" not in written and "$240m to $465m" in written
+
+
+def test_write_sums_both_calls_into_one_ledger_row(fake_sample):
+    """Two calls inside one batch write one phase 5 row carrying the tokens of both."""
+    sample_dir, run_dir, ledger = fake_sample
+    transport = FakeTransport(
+        [
+            reply(FAKE_REPORT_WITH_A_BAD_NUMBER, tokens_in=1000, tokens_out=100),
+            reply(FAKE_REPORT, tokens_in=200, tokens_out=30),
+        ]
+    )
+    gateway = Gateway(api_key="test-key", transport=transport)
+
+    writer.main([str(sample_dir), str(run_dir)], gateway=gateway, ledger=ledger)
+
+    rows = ledger.rows()
+    assert len(rows) == 1
+    assert rows[0]["tokens_in"] == 1200
+    assert rows[0]["tokens_out"] == 130
+    summary = json.loads((run_dir / "write-summary.json").read_text(encoding="utf-8"))
+    assert summary["calls"] == 2
+    assert summary["verify_failures"] == 0
+    assert summary["tokens_in"] == 1200 and summary["tokens_out"] == 130
+
+
+def test_write_refuses_when_the_sections_are_absent(fake_sample, capsys):
+    """Without sections.jsonl there is nothing to verify against, so nothing is sent."""
+    sample_dir, run_dir, ledger = fake_sample
+    (run_dir / "sections.jsonl").unlink()
+    transport = FakeTransport([reply(FAKE_REPORT)])
+    gateway = Gateway(api_key="test-key", transport=transport)
+
+    code = writer.main([str(sample_dir), str(run_dir)], gateway=gateway, ledger=ledger)
+
+    assert code == 2
+    assert "no sections.jsonl at" in capsys.readouterr().out
+    assert not transport.requests
+    assert not (run_dir / "report.md").exists()
+    assert ledger.rows() == []
+
+
+def test_write_refuses_when_the_index_is_absent(fake_sample, capsys):
+    sample_dir, run_dir, ledger = fake_sample
+    (run_dir / "index.jsonl").unlink()
+    transport = FakeTransport([reply(FAKE_REPORT)])
+    gateway = Gateway(api_key="test-key", transport=transport)
+
+    code = writer.main([str(sample_dir), str(run_dir)], gateway=gateway, ledger=ledger)
+
+    assert code == 2
+    assert "no index.jsonl at" in capsys.readouterr().out
+    assert not transport.requests
+
+
+def test_write_from_a_saved_reply_verifies_once_and_makes_no_call(fake_sample):
+    """--from-reply rebuilds the report, verifies it once and sends nothing."""
+    sample_dir, run_dir, ledger = fake_sample
+    saved = run_dir / "saved-reply.txt"
+    saved.write_text(FAKE_REPORT_WITH_A_BAD_NUMBER, encoding="utf-8")
+    transport = FakeTransport([])
+    gateway = Gateway(api_key="test-key", transport=transport)
+
+    code = writer.main(
+        [str(sample_dir), str(run_dir), "--from-reply", str(saved)], gateway=gateway, ledger=ledger
+    )
+
+    assert code == 0
+    assert not transport.requests
+    record = json.loads((run_dir / "verify.json").read_text(encoding="utf-8"))
+    assert len(record["rounds"]) == 1
+    assert record["passes"] is False
+    assert record["calls"] == 0
 
 
 # ---------------------------------------------------------------- the gateway json flag
@@ -604,6 +887,232 @@ def test_the_writer_never_reads_the_key():
     assert "rlm.key" not in source
 
 
+# ---------------------------------------------------------------- the four checks
+
+
+def section_record(anchor: str, text: str, cells: list[dict] | None = None) -> dict:
+    """One record of sections.jsonl, as the room writes it."""
+    record = {"anchor": anchor, "doc": anchor.rpartition("#")[0], "kind": "line", "text": text}
+    if cells is not None:
+        record["cells"] = cells
+    return record
+
+
+def one_finding(sentence: str) -> str:
+    """A report of one section holding one sentence, which is what a check reads."""
+    return f"## Findings ranked by materiality\n\n{sentence}\n"
+
+
+ROOM_SECTIONS = [
+    section_record("a/b.pdf#p1l1", "The exposure runs $240m to $465m and a bulk export is probable."),
+    section_record(
+        "c/d.xlsx#Inventory!A5",
+        "912,800,000 records retained on 18 October 2025.",
+        cells=[{"ref": "A5", "value": "912,800,000"}, {"ref": "D5", "value": "retained"}],
+    ),
+]
+ROOM_INDEX = [{"docs": ["a/b.pdf"]}, {"docs": ["c/d.xlsx"]}]
+ROOM_MAP = {"DR-001": "a/b.pdf", "DR-002": "c/d.xlsx"}
+
+
+def citation_failures(sentence: str) -> list[dict]:
+    """The citation failures of one sentence read against the fake room."""
+    return verifier.check_citations(one_finding(sentence), ROOM_SECTIONS, ROOM_INDEX, ROOM_MAP)
+
+
+def test_check_citations_takes_a_citation_that_resolves():
+    assert citation_failures("A thing [DR-001 | a/b.pdf#p1l1].") == []
+
+
+def test_check_citations_refuses_an_anchor_that_does_not_parse():
+    failures = citation_failures("A thing [DR-001 | a/b.pdf].")
+    assert [failure["check"] for failure in failures] == ["citations"]
+    assert "not an anchor" in failures[0]["reason"]
+
+
+def test_check_citations_refuses_an_anchor_no_section_carries():
+    failures = citation_failures("A thing [DR-001 | a/b.pdf#p9l9].")
+    assert failures and "no section" in failures[0]["reason"]
+
+
+def test_check_citations_refuses_a_document_id_that_maps_to_another_path():
+    failures = citation_failures("A thing [DR-002 | a/b.pdf#p1l1].")
+    assert failures
+    assert "DR-002" in failures[0]["reason"] and "c/d.xlsx" in failures[0]["reason"]
+
+
+def test_check_citations_resolves_a_cell_of_a_workbook_row():
+    """A row is one section anchored at its first cell, so any cell of it resolves to that row."""
+    assert citation_failures("A thing [DR-002 | c/d.xlsx#Inventory!D5].") == []
+
+
+def number_failures(sentence: str) -> list[dict]:
+    """The number failures of one sentence read against the fake room."""
+    return verifier.check_numbers(one_finding(sentence), ROOM_SECTIONS)
+
+
+def test_check_numbers_takes_a_number_the_cited_section_carries():
+    assert number_failures("The range is $240m to $465m [DR-001 | a/b.pdf#p1l1].") == []
+
+
+def test_check_numbers_refuses_a_number_the_cited_section_never_wrote():
+    failures = number_failures("The reserve is $12m [DR-001 | a/b.pdf#p1l1].")
+    assert [failure["check"] for failure in failures] == ["numbers"]
+    assert "12" in failures[0]["reason"]
+
+
+def test_check_numbers_folds_a_million_written_out_into_the_same_number():
+    """$240m and 240 million are one number once normalise has folded both."""
+    sections = [section_record("a/b.pdf#p1l1", "The room estimates 240 million of exposure.")]
+    report = one_finding("The exposure is $240m [DR-001 | a/b.pdf#p1l1].")
+    assert verifier.check_numbers(report, sections) == []
+
+
+def test_check_numbers_does_not_fold_a_count_of_records_into_a_million():
+    """912,800,000 is not 912.8m: the digits differ and the check says so."""
+    failures = number_failures("The object holds 912.8m records [DR-002 | c/d.xlsx#Inventory!A5].")
+    assert failures and any("912" in failure["reason"] for failure in failures)
+
+
+def test_check_numbers_reads_a_day_in_any_format_the_room_wrote_it_in():
+    """2025-10-18 against a section saying 18 October 2025 is the same day."""
+    report = one_finding("The reads began 2025-10-18 [DR-002 | c/d.xlsx#Inventory!A5].")
+    assert verifier.check_numbers(report, ROOM_SECTIONS) == []
+
+
+def test_check_numbers_refuses_a_day_the_cited_section_never_names():
+    report = one_finding("The reads began 2025-10-19 [DR-002 | c/d.xlsx#Inventory!A5].")
+    failures = verifier.check_numbers(report, ROOM_SECTIONS)
+    assert failures and "2025-10-19" in failures[0]["reason"]
+
+
+def test_check_numbers_takes_a_calculation_whose_operands_are_in_the_section():
+    report = (
+        "## The most material issue quantified\n\n"
+        "The range is $240m to $465m [DR-001 | a/b.pdf#p1l1].\n"
+        "Calculation: ($240m + $465m) / 2 = $352.5m, rounded to $400m, range $240m to $465m.\n"
+    )
+    assert verifier.check_numbers(report, ROOM_SECTIONS) == []
+
+
+def test_check_numbers_refuses_a_calculation_whose_operand_is_nowhere():
+    report = (
+        "## The most material issue quantified\n\n"
+        "The range is $240m to $465m [DR-001 | a/b.pdf#p1l1].\n"
+        "Calculation: ($240m + $999m) / 2 = $619.5m, rounded to $600m, range $240m to $999m.\n"
+    )
+    failures = verifier.check_numbers(report, ROOM_SECTIONS)
+    assert failures and all("999" in failure["reason"] for failure in failures)
+
+
+def certainty_failures(sentence: str, source: str) -> list[dict]:
+    """The certainty failures of one sentence over one section's words."""
+    return verifier.check_certainty(one_finding(sentence), [section_record("a/b.pdf#p1l1", source)])
+
+
+def test_check_certainty_refuses_a_word_above_its_source():
+    failures = certainty_failures(
+        "The export is confirmed [DR-001 | a/b.pdf#p1l1].", "A bulk export is probable."
+    )
+    assert [failure["check"] for failure in failures] == ["certainty"]
+    assert "confirmed" in failures[0]["reason"]
+
+
+def test_check_certainty_takes_a_word_at_the_rung_of_its_source():
+    assert certainty_failures(
+        "The export is probable [DR-001 | a/b.pdf#p1l1].", "A bulk export is probable."
+    ) == []
+
+
+def test_check_certainty_refuses_a_hedge_over_a_source_that_hedges_nothing():
+    """A source with no certainty word sits at rung 0, and may sits above it."""
+    failures = certainty_failures(
+        "The export may have happened [DR-001 | a/b.pdf#p1l1].", "The object was retained."
+    )
+    assert failures and "may" in failures[0]["reason"]
+
+
+def test_check_certainty_takes_a_sentence_that_hedges_nothing():
+    assert certainty_failures(
+        "The object was retained [DR-001 | a/b.pdf#p1l1].", "The object was retained."
+    ) == []
+
+
+ORDER_DOSSIER = (
+    "# Dossier: atlas\n\n## Matter 1\n\n### Documents\n\n"
+    "- 1. DR-069 | The forensic draft | 05_Security | 2025-12-01\n"
+    "- 2. DR-073 | The backup inventory | 05_Security | 2025-11-01\n\n"
+    "### Lesser matters\n\n"
+    "- 1 | DR-031 | the tax memo | e/f.pdf#p1l1\n"
+    "- 2 | DR-034 | the search partner | g/h.pdf#p1l1\n"
+)
+
+MATTER_FINDING = "The forensic draft is the matter [DR-069 | a/b.pdf#p1l1]."
+LESSER_FINDING = "The tax memo is smaller [DR-031 | e/f.pdf#p1l1]."
+
+
+def order_failures(*findings: str) -> list[dict]:
+    """The order failures of a Findings section holding these lines in this order."""
+    report = "## Findings ranked by materiality\n\n" + "\n\n".join(findings) + "\n"
+    return verifier.check_order(report, ORDER_DOSSIER)
+
+
+def test_check_order_takes_the_matter_ranked_first():
+    assert order_failures(MATTER_FINDING, LESSER_FINDING) == []
+
+
+def test_check_order_refuses_a_first_finding_on_a_lesser_document():
+    failures = order_failures(LESSER_FINDING, MATTER_FINDING)
+    assert len(failures) == 1 and failures[0]["check"] == "order"
+    assert "first finding" in failures[0]["reason"]
+
+
+def test_check_order_refuses_a_lesser_finding_ranked_above_the_matter():
+    """A lesser matter may follow the set, but nothing lesser only comes before it."""
+    assert order_failures(MATTER_FINDING, LESSER_FINDING, MATTER_FINDING) == []
+    failures = order_failures(
+        "An unranked document says something [DR-999 | i/j.pdf#p1l1].",
+        LESSER_FINDING,
+        MATTER_FINDING,
+    )
+    reasons = [failure["reason"] for failure in failures]
+    assert len(failures) == 2
+    assert any("first finding" in reason for reason in reasons)
+    assert any("lesser" in reason for reason in reasons)
+
+
+def test_verify_returns_the_four_counts_and_the_failures():
+    report = (
+        "## Findings ranked by materiality\n\n"
+        "The forensic draft is the matter [DR-069 | a/b.pdf#p1l1].\n"
+    )
+    sections = [section_record("a/b.pdf#p1l1", "The forensic draft is the matter.")]
+    index = [{"docs": ["a/b.pdf"]}]
+
+    result = verifier.verify(report, sections, index, ORDER_DOSSIER, {"DR-069": "a/b.pdf"})
+
+    assert result["passes"] is True
+    assert result["failures"] == []
+    assert set(result["counts"]) == set(verifier.CHECKS)
+    assert sum(result["counts"].values()) == 0
+
+
+def test_the_certainty_ladder_rises_from_possible_to_certain():
+    assert [rung for rung, _ in verifier.CERTAINTY] == ["possible", "probable", "certain"]
+    assert verifier.rung("nothing is said here") == 0
+    assert verifier.rung("it could be so") == 1
+    assert verifier.rung("it is likely") == 2
+    assert verifier.rung("it is CONFIRMED") == 3
+    assert verifier.rung("**probable**") == 2
+
+
+def test_the_verifier_never_reads_the_key_and_never_calls_a_model():
+    """The verifier reads the artefacts and nothing else: no key, no gateway, no socket."""
+    source = (ROOT / "src" / "rlm" / "verify.py").read_text(encoding="utf-8")
+    for forbidden in ("load_key", "key.json", "rlm.key", "Gateway", "httpx"):
+        assert forbidden not in source, forbidden
+
+
 
 
 # ---------------------------------------------------------------- the grader's carry rule
@@ -679,3 +1188,15 @@ def readout(terminalreporter):
         )
         for fact in missed:
             terminalreporter.write_line(f"phase 5 {sample}: missed {fact}")
+        verify_path = written.path.parent / "verify.json"
+        if not verify_path.exists():
+            continue
+        record = json.loads(verify_path.read_text(encoding="utf-8"))
+        for number, failures in enumerate(record.get("rounds", []), start=1):
+            counts = {
+                name: sum(1 for failure in failures if failure["check"] == name)
+                for name in verifier.CHECKS
+            }
+            terminalreporter.write_line(verifier.counts_line(sample, counts, number))
+            for failure in failures:
+                terminalreporter.write_line(verifier.failure_line(failure))
