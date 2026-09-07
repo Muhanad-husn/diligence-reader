@@ -4,8 +4,9 @@ message of one model call, and report.md comes back with an executive summary, t
 ranked by materiality, the most material issue quantified, the lesser issues and the open
 items. These tests read the digest and the report off disk and check that the digest is
 deterministic and holds every comparison row and every lesser matter the dossier kept, that
-every digest row is quoted whole in the report with its citation, that the report carries the
-five second level headings in the brief's order with one trailing newline, that every sentence
+the schedule of evidence the code writes under the sixth heading is the same bytes twice and
+every line of it ends in a citation on a dossier row, that the report carries the brief's five
+headings in its order and then Evidence, with one trailing newline, that every sentence
 outside the recommendation line and the Calculation lines ends in one or more citations, that
 every citation names a document and an anchor that appear together on one row of the dossier,
 that recall over the key's facts reads 100, and that LEDGER.md gained a phase 5 row for the
@@ -57,13 +58,15 @@ ROOT = Path(__file__).resolve().parents[1]
 ENABLED = ("atlas",)
 SKIP_REASON = "report not written for this sample yet"
 
-# The five second level headings, in the order the brief asks for its deliverables.
+# The six second level headings: the brief's five deliverables in its order, and then the
+# schedule of the room's own words, which code writes after the model has answered.
 HEADINGS = (
     "Executive summary",
     "Findings ranked by materiality",
     "The most material issue quantified",
     "Lesser issues",
     "Open items",
+    "Evidence",
 )
 
 # The model the writer calls when the command line names none.
@@ -158,8 +161,8 @@ def test_report_is_markdown_with_one_trailing_newline(report):
     assert report.text.endswith("\n") and not report.text.endswith("\n\n")
 
 
-def test_report_carries_the_five_headings_in_order(report):
-    """The report answers the brief's five deliverables under five headings, in that order."""
+def test_report_carries_the_six_headings_in_order(report):
+    """The brief's five deliverables in its order, then the schedule of evidence."""
     assert headings_of(report.text) == list(HEADINGS)
 
 
@@ -250,26 +253,49 @@ def test_digest_rows_come_only_from_the_dossier(report):
         assert row in dossier_rows, row[:120]
 
 
-def test_report_quotes_every_digest_row_whole_with_its_citation(report):
-    """The one rule of the prompt: every row of the digest is quoted once, whole, and cited."""
-    straightened = straighten(report.text)
-    missing = []
-    for row in writer.build_digest(report.dossier):
-        if row.count(" || "):
-            halves = [part.split(" | ") for part in row[2:].split(" || ")]
-            quotes = [(part[0], " | ".join(part[1:-1]), part[-1]) for part in halves]
-        else:
-            fields = writer.row_fields(row)
-            quotes = [(fields[1], writer.row_quote(row), fields[-1])]
-        for doc, quote, anchor in quotes:
-            if straighten(quote) not in straightened:
-                missing.append(f"{doc} {quote[:60]}")
-                continue
-            if f"[{doc} | {anchor}]" not in report.text:
-                missing.append(f"{doc} uncited {quote[:40]}")
-    assert not missing, f"{len(missing)} digest rows not quoted whole and cited: " + " || ".join(
-        missing[:8]
+def test_evidence_section_is_the_same_twice_from_the_same_dossier(report):
+    """The schedule is code and nothing else, so two builds of it are the same bytes."""
+    first, cut = writer.evidence_within_reach(report.dossier)
+    second, again = writer.evidence_within_reach(report.dossier)
+    assert first.encode("utf-8") == second.encode("utf-8")
+    assert cut == again
+    assert first in report.text
+
+
+def test_evidence_section_carries_every_comparison_and_lesser_matter(report):
+    """Nothing drops a comparison or a lesser matter, whatever the schedule had to give up."""
+    evidence, _ = writer.evidence_within_reach(report.dossier)
+    sections = writer.dossier_sections(report.dossier)
+    for row in sections.get("Comparisons", []):
+        assert writer.comparison_line(row) in evidence, row[:100]
+    for row in sections.get("Lesser matters", []):
+        assert writer.evidence_line(row) in evidence, row[:100]
+    for row in sections.get("Names", []):
+        assert writer.evidence_line(row) in evidence, row[:100]
+
+
+def test_every_evidence_line_ends_in_a_citation_on_a_dossier_row(report):
+    """A schedule line is a dossier row written out, so its citation is that row's own."""
+    evidence, _ = writer.evidence_within_reach(report.dossier)
+    lines = [line for line in evidence.splitlines() if line.startswith("- ")]
+    assert lines
+    uncited = [line for line in lines if not writer.is_cited(line[2:])]
+    assert not uncited, "uncited evidence lines: " + " || ".join(line[:80] for line in uncited[:5])
+    pairs = dossier_pairs(report.dossier)
+    unknown = [pair for pair in writer.citations(evidence) if pair not in pairs]
+    assert not unknown, "evidence citations on no dossier row: " + " || ".join(
+        f"[{doc} | {anchor}]" for doc, anchor in unknown[:5]
     )
+
+
+def test_evidence_section_gives_each_document_its_own_heading(report):
+    """Every document of the matter that has rows is a heading of the schedule, in rank order."""
+    evidence, _ = writer.evidence_within_reach(report.dossier)
+    headings = [line[4:].split(" | ")[0] for line in evidence.splitlines() if line.startswith("### ")]
+    listed = [doc for doc, _, _ in writer.document_rows(report.dossier)]
+    documents = [name for name in headings if name in listed]
+    assert documents == [doc for doc in listed if doc in set(documents)]
+    assert "Comparisons" in headings and "Lesser matters" in headings
 
 
 # ---------------------------------------------------------------- the fake transport
@@ -359,8 +385,10 @@ def test_write_default_model_is_glm_flash(fake_sample):
     assert writer.DEFAULT_MODEL == MODEL
     body = json.loads(transport.requests[0].content)
     assert body["model"] == MODEL
-    assert body["max_tokens"] == writer.MAX_OUTPUT_TOKENS == 16000
-    assert (run_dir / "report.md").read_text(encoding="utf-8").startswith("## Executive summary")
+    assert body["max_tokens"] == writer.MAX_OUTPUT_TOKENS == 8000
+    written = (run_dir / "report.md").read_text(encoding="utf-8")
+    assert written.startswith("## Executive summary")
+    assert f"## {writer.EVIDENCE_HEADING}" in written
     assert (run_dir / "report-raw.txt").read_text(encoding="utf-8") == FAKE_REPORT
 
 

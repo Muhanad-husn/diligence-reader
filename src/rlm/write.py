@@ -1,22 +1,24 @@
 """Writes one sample's findings report from its brief and its dossier, in one gateway call.
 
-Code chooses the evidence and the model writes it up. build_digest reads the dossier's first
-matter and keeps about a hundred and fifty rows of it: every comparison, one row for each name,
-the models blind to the matter, the largest lesser matters, and the dated turning points and
-figures of the documents the matter is actually made of. That digest is written to digest.md
-and is the user message; the dossier itself is never sent. The instructions and the brief are
-the system message. The model sees no answer key: nothing here reads one.
+The report has two halves and only the first is written by a model. build_digest reads the
+dossier's first matter and keeps about a hundred rows of it: every comparison, one row for each
+name, the models blind to the matter, the largest lesser matters, and the dated turning points
+and largest figures of the documents the matter is made of. That digest goes to digest.md and
+is the user message; the dossier itself is never sent, and the model sees no answer key,
+because nothing here reads one. The reply is the five sections the brief asks for, every
+sentence of them ending in a citation `[<doc> | <anchor>]` copied off a digest row.
 
-The one rule the instructions give is that every row of the digest is quoted once, whole, with
-its own citation, and that nothing outside the digest is asserted as fact. So the report's
-evidence is chosen by code, and what the model adds is the ordering, the arithmetic and the
-recommendation. The reply is written verbatim to report-raw.txt and the parsed markdown to
-report.md.
+build_evidence then writes the sixth section, `## Evidence`, out of the dossier in code and
+with no model in it: every document of the matter with its own timeline, names, figures and
+blind models, then every comparison, then the lesser matters, one line each ending in that
+row's own citation. That schedule is what the reader checks the five sections against, and it
+is why recall is a property of the artefact rather than of a draw. A schedule too long to read
+gives up its figures that are not money and then its shortest timeline lines, in that order,
+and never a name, a comparison, a lesser matter or a model.
 
-The report has five second level headings in the brief's order, and every sentence outside the
-recommendation line and the Calculation line ends in one or more citations `[<doc> | <anchor>]`
-copied off a digest row. The functions sentences, is_cited and citations here are that reading,
-and the phase 5 tests use them so that the writer and the tests split a sentence the same way.
+The functions sentences, is_cited and citations here are how a sentence and its citation are
+read, and the phase 5 tests import them so that the writer and the tests read them the same
+way. The reply is kept verbatim in report-raw.txt and the whole report in report.md.
 
 The call runs inside one ledger batch, which prints the estimated tokens and the price before
 anything is sent and writes one phase 5 row of LEDGER.md when the call returns.
@@ -41,15 +43,20 @@ PHASE = 5
 DEFAULT_MODEL = "z-ai/glm-5.3-flash"
 
 # The report is a few thousand words; this cap is what the phase pays for.
-MAX_OUTPUT_TOKENS = 16000
+MAX_OUTPUT_TOKENS = 8000
 
-# The five deliverables of the brief, as the second level headings the report carries.
+# What an empty field is written as, in the dossier and in the schedule.
+EMPTY_FIELD = "-"
+
+# The five deliverables of the brief, as the second level headings the report carries. The
+# schedule of evidence follows them under a sixth heading, written by code.
 HEADINGS = (
     "Executive summary",
     "Findings ranked by materiality",
     "The most material issue quantified",
     "Lesser issues",
     "Open items",
+    "Evidence",
 )
 
 # The two lines that carry no citation: the recommendation and the arithmetic.
@@ -427,105 +434,228 @@ def digest_markdown(dossier: str) -> str:
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
+# The heading the code written schedule of the room's own words sits under.
+EVIDENCE_HEADING = "Evidence"
+
+# The sections of a document's own evidence, in the order the schedule writes them.
+EVIDENCE_SECTIONS = ("Timeline", "Names", "Figures", "Models blind to it")
+
+# How long the schedule may run before it is cut. A hundred and twenty thousand characters is
+# about thirty pages, which is a schedule a reader can hold; past that it stops being a
+# schedule and becomes the dossier again.
+EVIDENCE_MAX_CHARS = 120_000
+
+# The shortest a timeline quote may be and still say something, once the schedule has to cut.
+EVIDENCE_MIN_QUOTE = 25
+
+
+def document_rows(dossier: str) -> list[tuple[str, str, str]]:
+    """The Documents list of the first matter, as document, title and date, in rank order."""
+    found = []
+    for row in dossier_sections(dossier).get("Documents", []):
+        _, _, rest = row[2:].partition(". ")
+        fields = rest.split(" | ")
+        if not fields[0]:
+            continue
+        title = fields[1] if len(fields) > 1 else ""
+        date = fields[3] if len(fields) > 3 else EMPTY_FIELD
+        found.append((fields[0], title, date))
+    return found
+
+
+def evidence_line(row: str) -> str:
+    """One row of the dossier written as a line of the schedule, ending in its citation.
+
+    The words go inside quotation marks. They are a quotation, and a quotation is also where a
+    full stop of the room's own stops being read as the end of a sentence of ours.
+    """
+    fields = row_fields(row)
+    return f'- {fields[0]} | "{row_quote(row)}" | [{fields[1]} | {fields[-1]}]'
+
+
+def comparison_line(row: str) -> str:
+    """One comparison row written as one line, its halves chained by the word against."""
+    halves = []
+    for part in row[2:].split(" || "):
+        fields = part.split(" | ")
+        doc, quote, anchor = fields[0], " | ".join(fields[1:-1]), fields[-1]
+        halves.append(f'{doc} says "{quote}" [{doc} | {anchor}]')
+    return "- " + " against ".join(halves)
+
+
+def is_money_figure(row: str) -> bool:
+    """Says whether a figures row's own figure field is a money amount."""
+    return money_of(row_fields(row)[0]) is not None
+
+
+def build_evidence(dossier: str, cut: int = 0) -> str:
+    """The schedule of what the room says, written from the dossier by code and by nothing else.
+
+    Every document of the matter takes a heading and, under it, its timeline, the names read
+    out of it, its figures and any model blind to the matter built on it, one line each ending
+    in that row's own citation. The comparisons and the lesser matters follow, whole. Two rows
+    of one document that say the same thing in the same place are written once.
+
+    cut says how much of it has been given up to keep the schedule readable: one drops the
+    figures that are not money, two drops the timeline lines too short to say anything. Nothing
+    drops a name, a comparison, a lesser matter or a model, because those are the matter.
+    """
+    sections = dossier_sections(dossier)
+    by_document: dict[str, dict[str, list[str]]] = {}
+    for name in EVIDENCE_SECTIONS:
+        for row in sections.get(name, []):
+            if name == "Figures" and cut >= 1 and not is_money_figure(row):
+                continue
+            if name == "Timeline" and cut >= 2 and len(row_quote(row)) < EVIDENCE_MIN_QUOTE:
+                continue
+            by_document.setdefault(row_document(row), {}).setdefault(name, []).append(row)
+
+    lines: list[str] = []
+    for doc, title, date in document_rows(dossier):
+        kept = by_document.get(doc)
+        if not kept:
+            continue
+        block: list[str] = []
+        seen: set[str] = set()
+        for name in EVIDENCE_SECTIONS:
+            for row in kept.get(name, []):
+                line = evidence_line(row)
+                if line in seen:
+                    continue
+                seen.add(line)
+                block.append(line)
+        if not block:
+            continue
+        lines.append(f"### {doc} | {title} | {date}")
+        lines.append("")
+        lines.extend(block)
+        lines.append("")
+
+    comparisons = sections.get("Comparisons", [])
+    if comparisons:
+        lines.append("### Comparisons")
+        lines.append("")
+        lines.extend(comparison_line(row) for row in comparisons)
+        lines.append("")
+
+    lesser = sections.get("Lesser matters", [])
+    if lesser:
+        lines.append("### Lesser matters")
+        lines.append("")
+        lines.extend(evidence_line(row) for row in lesser)
+        lines.append("")
+
+    return "\n".join(lines).rstrip("\n") + "\n"
+
+
+def evidence_within_reach(dossier: str) -> tuple[str, int]:
+    """The schedule and the cut it took to get it under EVIDENCE_MAX_CHARS.
+
+    The cuts are tried in order and the first one that fits wins. The last cut is returned
+    whether or not it fits, because a schedule that is still long is better than none.
+    """
+    for cut in (0, 1, 2):
+        evidence = build_evidence(dossier, cut)
+        if len(evidence) <= EVIDENCE_MAX_CHARS:
+            return evidence, cut
+    return evidence, 2
+
+
 PROMPT = """You are the buy-side diligence lead. You write the findings report of one matter from two
 things and nothing else: the brief below, and the digest in the next message.
 
 ANSWER WITH THE REPORT AND NOTHING ELSE
 
-Do not deliberate before you answer. Do not plan, do not take notes, do not list the rows to
-yourself and do not say what you are about to do. Read the digest once and write the report as
-you read it. The first characters of your reply are `## Executive summary` and the last
-section you write is `## Open items`.
+Do not deliberate before you answer. Do not plan, do not take notes and do not say what you
+are about to do. Read the digest once and write the report as you read it. The first
+characters of your reply are `## Executive summary`.
+
+You have 8000 tokens for the whole reply and anything you think is spent out of them. Write
+about seventy sentences, short ones.
 
 THE DIGEST
 
-The digest is the matter, chosen by code out of a much larger dossier. It has six parts.
-
-Timeline, Names, Figures and Models blind to it hold rows of four fields:
+The digest is the matter, chosen by code out of a larger dossier. Timeline, Names, Figures and
+Models blind to it hold rows of four fields:
 
   - <date or figure or name> | <doc> | <words> | <anchor>
 
-Comparisons holds the room contradicting itself. A comparison row is two or more
-`<doc> | <words> | <anchor>` triples joined by ` || `, and each triple is one half of what the
-room said twice. Lesser matters holds what the room carries outside this matter, ranked by its
-largest money figure.
+Comparisons holds the room contradicting itself: a row is two or more
+`<doc> | <words> | <anchor>` triples joined by ` || `, each triple one half of what the room
+said twice. Lesser matters holds what the room carries outside this matter.
 
-THE ONE RULE
+CITATIONS
 
-Every row of the digest is quoted once in your report, and nothing outside the digest is
-asserted as fact. There is no other source. A row is quoted like this:
+Every sentence ends with its citation and then the full stop:
 
-  The exception log says "Rotation blocked by legacy session compatibility" [DR-000 |
+  The exception log records "Rotation blocked by legacy session compatibility" [DR-000 |
   folder/File_Name.xlsx#Sheet!A12].
 
-The quotation is the row's words field, copied from its first character to its last, and
-nothing of it left out. Never write three dots inside a quotation and never quote half a
-clause. The citation is `[<doc> | <anchor>]`, both halves copied character for character from
-that same row, the whole anchor with its path and its # and everything after it. Put the
-citation at the end of the sentence, then the full stop. One row, one sentence, one citation:
-never two rows in one sentence and never one row in two.
+A citation is `[<doc> | <anchor>]`, both halves copied character for character from the row
+the sentence came from: the whole anchor, its path and its # and everything after it. Copy the
+anchor exactly, spelling and all, and where one looks misspelled copy the misspelling: it is
+the address of a file. Put the citation at the end of the sentence, never in the middle. Nothing follows it but the
+full stop: no trailing clause, no aside, no comparison of your own. If you want to say what a
+quotation means, say it before the quotation.
 
-Copy the anchor character for character, spelling and all. Where an anchor looks misspelled,
-copy the misspelling: it is the address of a file and a corrected address points nowhere.
+Two lines carry no citation, and only two: the line beginning `Recommendation:` and the line
+beginning `Calculation:`. No summary sentence and no judgement of your own is exempt. If you
+cannot cite a sentence, do not write it.
 
-A row's words field may hold a full stop of its own. Keep it and everything after it: that
-full stop is the room's and it does not end your sentence.
+WORDS
 
-Every identifier, code name, key name, file name, ticket, firm and object name a row writes
-appears in your own prose as the row writes it, character for character, ampersands and
-underscores and equals signs included. Write every date the way the digest writes it, four
-digits, a hyphen, two digits, a hyphen, two digits, and never as a month in words. Write every
-figure with the unit its row gives it. Certainty words are the room's: where a row writes
-"probable", write "probable"; where it writes "not yet determinable", write "not yet
-determinable".
+Quote the decisive clause of a row, in double quotation marks, copied character for character:
+the clause carrying the finding, the number, the date or the hedge, whole from its first word
+to its last. Not the whole row and not half a clause. Never write three dots inside a
+quotation. Where the clause holds a full stop of its own, keep it and everything after it
+inside the quotation marks.
+
+Every identifier, code name, key name, file name, ticket, firm and object name you write
+appears as its row writes it, character for character. Every figure carries the unit its row
+gives it. Every date is written the way the rows write it, four digits, a hyphen, two digits, a
+hyphen, two digits, and never as a month in words. Certainty words are the room's: where a row
+writes "probable", write "probable"; where it writes "not yet determinable", write "not yet
+determinable". Do not write "e.g.", "i.e." or "approx." inside a sentence, and write no em
+dash of your own.
 
 COMPARISONS
 
-Each comparison row gives three sentences. First the contradiction in one line, in this form,
-with no quotation marks and no more than eight words a side:
+Each comparison row gives one sentence, in this form:
 
-  <side A> against <side B> [<doc> | <anchor>] [<doc> | <anchor>].
+  <side A> against <side B>, "<quote A>" and "<quote B>" [<doc A> | <anchor A>] [<doc B> |
+  <anchor B>].
 
-Each side is built from its own triple's words: keep the number, the date, the identifier and
-the two or three words that name them, drop every article and every hedge, write a spelled out
-number as its digits, and keep a negative negative. A side that was said on a day ends with
-that day. A side that is a measurement is the number and its unit followed straight by the
-week or day it was measured in. A side that is a limit is written as a limit. A side that is a
-period ends with the period in digits. A side that is a right in a contract is the right and
-its trigger.
-
-Then quote both halves of that row whole, one sentence each, each with its own citation, by
-the rule above.
+Each side is a plain statement of at most eight words built from its own triple: the number,
+the date, the identifier and the two or three words that name them, no articles and no hedges,
+a spelled out number in digits, a negative kept negative. A side said on a day ends with that
+day. A side that is a measurement is the number and its unit followed straight by the week or
+day it was measured in. A side that is a limit is written as a limit. A side that is a period
+ends with the period in digits. A side that is a right in a contract is the right and its
+trigger. The quotes are the two halves' own words.
 
 THE SHAPE
 
-## Executive summary
-  A first line beginning `Recommendation:`, then four sentences, each of them quoting a row
-  of the digest and ending in its citation like every other sentence of the report.
-## Findings ranked by materiality
-  ### Chronology
-    Every Timeline row, in date order, one sentence each, the date first. All of them, not a
-    summary of them.
-  ### The room against itself
-    The Comparisons rows, three sentences each as set out above.
-  ### The names and the figures
-    The Names rows and the Figures rows, one sentence each.
-  ### The models blind to it
-    The Models blind to it rows, one sentence each, saying what each model assumed.
-## The most material issue quantified
-  Three sentences on the largest exposure the figures carry, each quoting a row and ending in
-  its citation, then the `Calculation:` line, then one `Recommendation:` line.
-## Lesser issues
-  The Lesser matters rows, one sentence each, and why each is smaller than the matter.
-## Open items
-  Three sentences on what you would still need, each ending in a citation like any other.
+Five second level headings, in this order, and nothing after the fifth:
 
-A line carries no citation only when it begins `Recommendation:` or `Calculation:`. No summary
-sentence and no judgement of your own is exempt: if you cannot cite it, do not write it. Any
-line that states what you recommend begins `Recommendation:` and stands alone. Every other sentence
-of the report ends in a citation. Write no table, no block quote and no bold label on a line
-of its own. Write no em dash of your own. Do not write "e.g.", "i.e." or "approx." inside a
-sentence.
+## Executive summary
+  A first line beginning `Recommendation:`, then four sentences, each cited.
+## Findings ranked by materiality
+  The matter in order of what it costs: the chronology of the dates that moved it, the
+  comparisons one sentence each, the names and the figures that bear on it, and what the
+  models blind to it assumed. One sentence a row, each cited.
+## The most material issue quantified
+  Three cited sentences on the largest exposure, then the `Calculation:` line, then one
+  `Recommendation:` line.
+## Lesser issues
+  The lesser matters, one cited sentence each. Say why it is smaller first and quote it last,
+  so that the citation is still the last thing in the sentence before the full stop.
+## Open items
+  Three cited sentences on what you would still need.
+
+Write no sixth heading. A schedule of the room's own words is added under `## Evidence` after
+your reply by the code that calls you; do not write it and do not refer to it.
+
+Write no table, no block quote and no bold label on a line of its own.
 
 THE NUMBER
 
@@ -616,6 +746,11 @@ def split_sentences(line: str) -> list[str]:
         if quoted or character not in _SENTENCE_PUNCTUATION:
             continue
         if index + 1 < len(line) and line[index + 1].isspace():
+            rest = line[index + 1 :].lstrip()
+            if rest.startswith("|"):
+                # A pipe is the edge of a field, not the start of a sentence: a schedule line
+                # reading `- VistaPort Media Inc. | "..." | [DR-000 | ...]` is one sentence.
+                continue
             part = line[start : index + 1].strip()
             if part:
                 found.append(part)
@@ -656,8 +791,9 @@ def summary_line(summary: dict) -> str:
     """The one line a write run prints when it ends."""
     return (
         f"write {summary['sample']}: sentences {summary['sentences']}, "
-        f"citations {summary['citations']}, tokens_in {summary['tokens_in']}, "
-        f"tokens_out {summary['tokens_out']}, seconds {summary['seconds']:.1f}"
+        f"citations {summary['citations']}, evidence {summary['evidence_lines']} lines, "
+        f"tokens_in {summary['tokens_in']}, tokens_out {summary['tokens_out']}, "
+        f"seconds {summary['seconds']:.1f}"
     )
 
 
@@ -718,8 +854,11 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
     seconds = time.monotonic() - started
 
     (run_dir / "report-raw.txt").write_text(completion.text, encoding="utf-8")
-    report = parse_reply(completion.text)
+    narrative = parse_reply(completion.text)
+    evidence, cut = evidence_within_reach(dossier)
+    report = f"{narrative}\n## {EVIDENCE_HEADING}\n\n{evidence}"
     write_report(run_dir, report)
+    evidence_lines = [line for line in evidence.splitlines() if line.startswith("- ")]
     if args.out:
         (run_dir / args.out).write_text(report, encoding="utf-8")
 
@@ -727,6 +866,9 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
         "sample": sample_dir.name,
         "model": args.model,
         "digest_rows": len(rows),
+        "evidence_lines": len(evidence_lines),
+        "evidence_chars": len(evidence),
+        "evidence_cut": cut,
         "sentences": len(sentences(report)),
         "citations": len(citations(report)),
         "tokens_in": completion.tokens_in,
