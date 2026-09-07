@@ -1,23 +1,31 @@
-"""Pins a sample's notes and writes the sha256 of every pinned file into
-tests/phase2-digests.json. Two modes.
+"""Pins a sample's notes or map and writes the sha256 of every pinned file into a digests file.
+Three modes.
 
 The default mode reads runs/<sample>/bakeoff.json's winner and copies that winner's pass a byte
 for byte from runs/<sample>/bakeoff/<slug>/a/ into runs/<sample>/: notes/ replaces the sample's
 notes/ (removed first when present), notes-verify.jsonl and notes-summary.json replace the
 sample's copies, and notes-raw/ is copied the same way when the winning pass wrote one. A sample
 with no winner is a refusal: the message names the sample and the run stops before anything is
-copied or written, on any sample.
+copied or written, on any sample. The digests go to tests/phase2-digests.json by default.
 
 The --from-notes mode does not read a bake-off winner and copies nothing. It requires
 runs/<sample>/notes to be a directory and runs/<sample>/notes-verify.jsonl to exist; a sample
 missing either is a refusal, printed with the sample name, and the run stops with exit 1 before
 a digest is written for any sample. It only reads the notes already on disk and digests them.
+The digests also go to tests/phase2-digests.json by default.
 
-Nothing here calls a model or writes LEDGER.md; in both modes the run is bytes on disk, never a
+The --maps mode does not read a bake-off winner and copies nothing. It requires
+runs/<sample>/map.json to exist for every requested sample; a sample missing it is a refusal,
+printed with the sample name, and the run stops with exit 1 before a digest is written for any
+sample. It only reads each sample's map.json as it sits on disk and digests it. The digests go
+to tests/phase3-digests.json by default.
+
+Nothing here calls a model or writes LEDGER.md; in every mode the run is bytes on disk, never a
 rerun.
 
-The digest file holds, per sample, the sha256 of every pinned note file (keyed "notes/<name>")
-and of notes-verify.jsonl, sorted keys, matching how tests/phase1-digests.json is written.
+The digest file holds, per sample, the sha256 of every pinned file, sorted keys, matching how
+tests/phase1-digests.json is written. For notes that is every note file (keyed "notes/<name>")
+and notes-verify.jsonl; for maps that is map.json alone (keyed "map.json").
 """
 
 from __future__ import annotations
@@ -35,9 +43,11 @@ from rlm import bakeoff
 SAMPLES = ("atlas", "northwind", "northstar-dental")
 
 
-def default_digests_path() -> Path:
-    """tests/phase2-digests.json at the repo root, the parent of the rlm package's src."""
-    return Path(__file__).resolve().parents[2] / "tests" / "phase2-digests.json"
+def default_digests_path(maps: bool = False) -> Path:
+    """tests/phase2-digests.json at the repo root, or tests/phase3-digests.json when maps is
+    true. Both sit in the same tests/ directory, the parent of the rlm package's src."""
+    name = "phase3-digests.json" if maps else "phase2-digests.json"
+    return Path(__file__).resolve().parents[2] / "tests" / name
 
 
 def winner_of(sample_dir: Path) -> str | None:
@@ -116,6 +126,26 @@ def pin_from_notes(runs_root: Path, samples: list[str], digests_path: Path) -> i
     return 0
 
 
+def pin_maps(runs_root: Path, samples: list[str], digests_path: Path) -> int:
+    """Digests each sample's map.json as it already sits on disk. Nothing is copied or removed
+    and no bake-off winner is read. A sample missing runs/<sample>/map.json is a refusal,
+    printed with the sample name, before a digest is written for any sample."""
+    for sample in samples:
+        if not (runs_root / sample / "map.json").exists():
+            print(f"{sample}: runs/{sample}/map.json missing, nothing digested")
+            return 1
+
+    all_digests: dict[str, dict[str, str]] = {}
+    for sample in samples:
+        map_path = runs_root / sample / "map.json"
+        digest = hashlib.sha256(map_path.read_bytes()).hexdigest()
+        all_digests[sample] = {"map.json": digest}
+        print(f"{sample}: map.json digested")
+
+    write_digests(digests_path, all_digests)
+    return 0
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     """Reads the command line of one pin run."""
     parser = argparse.ArgumentParser(prog="python -m rlm.pin")
@@ -123,14 +153,22 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--samples", nargs="+", default=list(SAMPLES))
     parser.add_argument("--digests", default=None)
     parser.add_argument("--from-notes", action="store_true")
+    parser.add_argument("--maps", action="store_true")
     return parser.parse_args(argv)
 
 
 def main(argv: list[str]) -> int:
     """Pins each sample's bake-off winner and writes tests/phase2-digests.json. With
-    --from-notes, digests the notes already on disk instead, without a bake-off winner."""
+    --from-notes, digests the notes already on disk instead, without a bake-off winner. With
+    --maps, digests each sample's map.json already on disk instead, into
+    tests/phase3-digests.json by default."""
     args = parse_args(argv)
     runs_root = Path(args.runs_root)
+
+    if args.maps:
+        digests_path = Path(args.digests) if args.digests else default_digests_path(maps=True)
+        return pin_maps(runs_root, args.samples, digests_path)
+
     digests_path = Path(args.digests) if args.digests else default_digests_path()
 
     if args.from_notes:
