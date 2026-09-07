@@ -601,9 +601,11 @@ def deadline_rows(
     A window is a figure counted in days quoted beside `within`. Where one document states the
     window and its note names no day at all, and another repeats the same window and its note
     does name a day, the second is the document that acted. The row carries the window's quote,
-    the earliest place in the set where a ticket is opened on a day, which is what the window
-    counts from, and the first thing the acting document says that shares a word with the
-    window.
+    the earliest place in the set where a ticket is opened on a day, and the acting document's
+    own part: the first thing it says that shares a word with the window, and, where the
+    document has a section that names a day and it is not that same place, the earliest such
+    section as well, which is how a mail header's own date reaches the row even where the words
+    it shares with the window sit somewhere else in the document.
     """
     windows: dict[str, list[tuple[str, str, str, bool]]] = {}
     for doc in sorted(set(cluster)):
@@ -658,7 +660,19 @@ def deadline_rows(
                         break
                 if first is None:
                     continue
+                dated = None
+                for section in sections:
+                    if document_of(section["anchor"], ids_by_path) != other:
+                        continue
+                    if section["anchor"] == first[2]:
+                        continue
+                    text = one_line(section["text"])
+                    if days_named(text):
+                        dated = part(other, text, section["anchor"])
+                        break
                 found = [part(doc, quote, anchor), first]
+                if dated is not None:
+                    found.append(dated)
                 if opened is not None and opened[1][0] not in (doc, other):
                     found.append(opened[1])
                 rows.append(found)
