@@ -59,7 +59,7 @@ the gap is fixed in its own phase and every later phase reruns.
 | 0 Fixtures | `samples/*/key.json` in one shape for all three samples; a brief per sample; a hand-written perfect report and a wrong one per sample | Grader gives the perfect report 100 and the wrong one under 40 on all three samples. Calibrated before anything else is graded | subagent | $0 |
 | 1 Ingest | `runs/<sample>/sections.jsonl`, `index.jsonl` | Every planted fact's anchor exists. Every planted number, date and identifier is in the index. Two runs byte-identical | none | $0 |
 | 2 Notes | `runs/<sample>/notes/<doc>.json`, `notes-verify.jsonl` | Every planted fact appears in the note of its own document, with a verified quote. Two passes: agreement on planted facts printed. Bake-off over the five models, cheapest that passes wins | bake-off | $8 |
-| 3 Map | `runs/<sample>/map.json` | Every key document of the planted matter in its cluster. Deterministic over pinned notes. The decoy count in the cluster is printed, not gated: moved to phase 4 on 2026-09-07, see the phase 4 row | none | $0 |
+| 3 Map | `runs/<sample>/map.json` | Every key document of the planted matter in its cluster. Deterministic over pinned notes. The decoy count in the cluster is printed, not gated: moved to phase 4 on 2026-09-07, see the phase 4 row. Rescored under phase 5 on 2026-09-07 (slice 04, PR #88): a named-link set replaces the score cut, sample 1's set fell from 68 documents to 44, rubric 89 and 87, spread 2 | none | $0 |
 | 4 Dossier | `runs/<sample>/dossier.md` | Every planted fact present with the right anchor and number. No decoy in the matter's document set, and every planted document ranked above every decoy. Read by the founder once as a reader. Byte-identical | none | $0 |
 | 5 Report | `runs/<sample>/report.md`, `verify.json`, `grade.json` | Verifier passes. Score at or above the bar. Two writes, spread printed. Bake-off over the five models | bake-off | $8 |
 | 6 Widen | same artefacts under `runs/<sample>-<knob>/` | Phases 1 to 5 hold when a knob is turned on the fixture: names spelled inconsistently, the matter named nowhere and linked only by dates and numbers, a second matter, twice the documents. Each knob is one generated variant of sample 1 with its own key. A failure names the phase that dropped the fact | as chosen in 2 and 5 | $15 |
@@ -87,7 +87,7 @@ on the three gate samples and, from phase 5, the rubric score on sample 1.
 | 2 Notes | Phase 2 | done | 100 / 100 / 100 | 1.51 | 0 / 20 / 0 | 2026-09-06 |
 | 3 Map | Phase 3 | done | 100 / 100 / 100 | 0 | 0 / 0 / 0 | 2026-09-07 |
 | 4 Dossier | Phase 4 | done | 100 / 100 / 100 | 0 | 0 / 0 / 0 | 2026-09-07 |
-| 5 Report | Phase 5 | not started | | | | |
+| 5 Report | Phase 5 | done | 100 / 100 / 100, rubric 90 | 1.78 | 4 / 0 / 0 | 2026-09-08 |
 | 6 Widen | Phase 6 | not started | | | | |
 | 7 Compare | Phase 7 | not started | | | | |
 
@@ -101,20 +101,21 @@ issue of the next phase exists before the gate issue closes.
 ## 5. Models
 
 Five candidates, chosen per task by the bake-off tables in phases 2 and 5, never by preference.
-Prices read from the gateway on 2026-09-06, per million tokens, prompt then completion.
+Prices reread from the gateway on 2026-09-08, the day of the phase 5 bake-off, per million tokens,
+prompt then completion.
 
 | Model | Id | In | Out |
 |---|---|---|---|
 | Luna | `openai/gpt-5.6-luna` | 0.200 | 1.200 |
-| DeepSeek V4 Flash | `deepseek/deepseek-v4-flash-0731` | 0.050 | 0.100 |
-| DeepSeek V4 Pro | `deepseek/deepseek-v4-pro` | 0.657 | 1.314 |
+| DeepSeek V4 Flash | `deepseek/deepseek-v4-flash-0731` | 0.140 | 0.280 |
+| DeepSeek V4 Pro | `deepseek/deepseek-v4-pro` | 0.955 | 1.911 |
 | GLM 5.3 | `z-ai/glm-5.3` | 1.400 | 4.400 |
 | GLM 5.3 Flash | `z-ai/glm-5.3-flash` | 0.075 | 0.250 |
 
 No Gemini. No model from outside this table without the founder's word. Prices are reread and
 rewritten here the day a bake-off runs.
 
-What one full note pass on sample 1 costs at these prices (about 90k tokens in, about 60k out
+What one full note pass on sample 1 cost at the prices of 2026-09-06 (about 90k tokens in, about 60k out
 with a tight schema): DeepSeek Flash $0.01, GLM Flash $0.02, Luna $0.09, DeepSeek Pro $0.14,
 GLM 5.3 $0.39. A five-model bake-off on sample 1 is under $1. Samples 2 and 3 are under a cent
 each on any model.
@@ -148,6 +149,28 @@ it. DeepSeek Pro's probe miss is a reply of `{}` and then one that is not JSON o
 GLM 5.3 was not run: its probe in the first run of the day lost two of seven documents to the
 6000 output token cap with reasoning on, and its two passes would cost about $3 to fail the same
 way. The rerun cost $0.98; phase 2 has spent $1.51 of its $8.
+
+**Phase 5 bake-off, run 2026-09-07 and 2026-09-08** (`runs/<sample>/write-bakeoff.json`,
+issues #83, #90 and #92). Every model wrote each sample twice from the pinned dossier; the
+verifier read each report and returned its failures to the writer once. A row passes when its
+pass a reads planted-fact recall 100 with a passing verifier on all three samples and a rubric
+at or above 85 on sample 1. Recall and the verifier read pass a then pass b; the rubric is
+sample 1 only, pass a, pass b, spread. Dollars are the six passes at the prices above.
+
+| Model | Passes | Dollars | Seconds | Recall atlas | Recall northwind | Recall northstar-dental | Verifier atlas | Verifier northwind | Verifier northstar-dental | Rubric atlas |
+|---|---|---|---|---|---|---|---|---|---|---|
+| GLM 5.3 Flash | no | 0.0255 | 466 | 98.11 / 100 | 100 / 100 | 100 / 100 | no / no | yes / no | no / no | 92 / 89 / 3 |
+| DeepSeek V4 Flash | no | 0.0527 | 2113 | 98.11 / 98.11 | 100 / 100 | 100 / 100 | no / yes | no / no | no / no | 73 / 51 / 22 |
+| Luna | no | 0.0860 | 247 | 100 / 100 | 100 / 100 | 100 / 100 | no / no | no / no | no / no | 86 / 76 / 10 |
+| DeepSeek V4 Pro | no | 0.3365 | 673 | 98.11 / 98.11 | 100 / 100 | 100 / 100 | no / no | no / no | no / no | 85 / 92 / 7 |
+| GLM 5.3 | yes | 0.4538 | 365 | 100 / 100 | 100 / 100 | 100 / 100 | yes / yes | yes / yes | yes / yes | 90 / 94 / 4 |
+
+**Winner: GLM 5.3**, the only passing row, and the default `--model` of `python -m rlm.write`.
+Both Flash rows were tried first and both fail the verifier on sample 1 and sample 3; the Pro
+tier ran because every Flash failed, as section 5 asks. The pinned reports are the winner's
+pass a under `runs/<sample>/` and pass b under `runs/<sample>/b/`, digests in
+`tests/phase5-digests.json`. Phase 5 spent $1.78 of its $8: $0.95 on the five-model bake-off, $0.31 on the two northwind
+reruns of 2026-09-08, $0.52 on slices 01 to 04. The repository has spent $3.50 of the $50.
 
 ## 6. Money
 
