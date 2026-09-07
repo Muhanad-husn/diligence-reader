@@ -322,8 +322,9 @@ def test_dossier_ranks_every_planted_document_above_every_decoy(dossiered, key):
     listed = document_rows(dossiered.text)
     assert [rank for rank, _ in listed] == sorted(rank for rank, _ in listed)
     places = {doc: rank for rank, doc in listed}
+    below = max(places.values()) + 1
     assert max(places[doc] for doc in planted) < min(
-        (places[doc] for doc in decoys if doc in places), default=len(listed) + 1
+        (places[doc] for doc in decoys if doc in places), default=below
     )
 
 
