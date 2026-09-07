@@ -76,6 +76,11 @@ class Key:
     bar: Bar
 
 
+def has_key(sample_dir: Path) -> bool:
+    """Says whether this sample carries an answer key, without reading a word of it."""
+    return (sample_dir / "key.json").exists()
+
+
 def load_key(sample_dir: Path) -> Key:
     """Reads sample_dir / "key.json" and builds the sample's Key."""
     data = json.loads((sample_dir / "key.json").read_text(encoding="utf-8"))

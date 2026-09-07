@@ -420,6 +420,100 @@ def test_evidence_section_gives_each_document_its_own_heading(report):
     assert "Comparisons" in headings and "Lesser matters" in headings
 
 
+# ---------------------------------------------------------------- the grade on the artefact
+
+# The bar for the rubric score on sample 1, PLAN.md section 10, set by the founder for this
+# slice. Samples 2 and 3 have no rubric and are slice 05.
+RUBRIC_BAR = 85
+
+# The keys every grade.json holds, as rlm.grade.grade writes them.
+GRADE_KEYS = {"sample", "report", "recall", "recalled", "missed", "rubric", "score", "model", "seconds"}
+
+
+@pytest.fixture
+def graded(report, run_dir):
+    """Pass a's grade.json, skipped when the report has not been graded yet."""
+    path = run_dir / "grade.json"
+    if not path.exists():
+        pytest.skip("grade.json not written for this sample yet")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@pytest.fixture
+def pass_b(report, run_dir):
+    """Pass b's directory, skipped when the writer ran once."""
+    directory = run_dir / "b"
+    if not (directory / "grade.json").exists():
+        pytest.skip("pass b not written for this sample yet")
+    return directory
+
+
+def test_grade_json_holds_recall_the_rubric_the_score_the_model_and_the_seconds(graded, key):
+    """The grader wrote every field, one rubric row per key row with points and a reason."""
+    assert GRADE_KEYS <= set(graded)
+    assert graded["sample"] == key.sample
+    assert graded["report"] == "report.md"
+    assert graded["recall"] == 100.0, f"missed {graded['missed']}"
+    assert graded["missed"] == []
+    assert len(graded["rubric"]) == len(key.rubric) == 9
+    for row, expected in zip(graded["rubric"], key.rubric):
+        assert row["id"] == expected.id
+        assert 0 <= row["points"] <= expected.points
+        assert row["reason"].strip()
+    assert graded["score"] == sum(row["points"] for row in graded["rubric"])
+    assert graded["model"] and graded["model"] != "none"
+    assert graded["seconds"] > 0
+
+
+def test_pass_a_rubric_score_is_at_or_above_the_bar(graded):
+    """The rubric score of pass a meets the phase 5 bar on sample 1."""
+    reasons = " || ".join(
+        f"{row['id']}: {row['points']} ({row['reason']})" for row in graded["rubric"]
+    )
+    assert graded["score"] >= RUBRIC_BAR, f"score {graded['score']}: {reasons}"
+
+
+def test_pass_a_verifier_passes(graded, verified):
+    """The report the grade was read off is the one the verifier passed."""
+    assert verified["passes"] is True
+
+
+def test_pass_b_holds_a_report_a_verify_json_and_a_grade_json(pass_b, key):
+    """Pass b wrote the same three files under b/, and its grade has the same shape as pass a's."""
+    for name in ("report.md", "verify.json", "grade.json"):
+        assert (pass_b / name).exists(), f"pass b has no {name}"
+    grade_b = json.loads((pass_b / "grade.json").read_text(encoding="utf-8"))
+    assert GRADE_KEYS <= set(grade_b)
+    assert grade_b["sample"] == key.sample
+    assert len(grade_b["rubric"]) == len(key.rubric)
+    assert grade_b["score"] == sum(row["points"] for row in grade_b["rubric"])
+    assert "spread" not in grade_b and "score_b" not in grade_b
+
+
+def test_pass_a_grade_holds_the_spread_and_score_b(graded, pass_b):
+    """The spread is the absolute difference of the two rubric scores, written into pass a."""
+    grade_b = json.loads((pass_b / "grade.json").read_text(encoding="utf-8"))
+    assert graded["score_b"] == grade_b["score"]
+    assert graded["spread"] == abs(graded["score"] - grade_b["score"])
+
+
+def test_pass_b_report_is_a_second_draw_of_the_same_request(pass_b, report):
+    """Pass b's report carries the six headings and the same evidence schedule as pass a's."""
+    text = (pass_b / "report.md").read_text(encoding="utf-8")
+    assert headings_of(text) == list(HEADINGS)
+    evidence_a = report.text.split(f"## {HEADINGS[-1]}", 1)[1]
+    evidence_b = text.split(f"## {HEADINGS[-1]}", 1)[1]
+    assert evidence_a == evidence_b
+
+
+def test_ledger_holds_no_row_for_the_grader(report, sample):
+    """Every phase 5 row names a gateway model; the grader runs on the subscription."""
+    rows = Ledger(ROOT / "LEDGER.md").rows()
+    phase_5 = [row for row in rows if row["phase"] == "5" and row["sample"] == sample]
+    assert phase_5
+    assert all(row["model"] in PRICES for row in phase_5), [row["model"] for row in phase_5]
+
+
 # ---------------------------------------------------------------- the fake transport
 
 
@@ -558,7 +652,7 @@ def test_write_default_model_is_glm_flash(fake_sample):
     assert writer.DEFAULT_MODEL == MODEL
     body = json.loads(transport.requests[0].content)
     assert body["model"] == MODEL
-    assert body["max_tokens"] == writer.MAX_OUTPUT_TOKENS == 8000
+    assert body["max_tokens"] == writer.MAX_OUTPUT_TOKENS == 12000
     written = (run_dir / "report.md").read_text(encoding="utf-8")
     assert written.startswith("## Executive summary")
     assert f"## {writer.EVIDENCE_HEADING}" in written
@@ -1259,3 +1353,180 @@ def readout(terminalreporter):
             terminalreporter.write_line(verifier.counts_line(sample, counts, number))
             for failure in failures:
                 terminalreporter.write_line(verifier.failure_line(failure))
+
+
+# ---------------------------------------------------------------- two passes and the grader
+
+
+FAKE_KEY = {
+    "sample": "atlas",
+    "brief": "brief.md",
+    "documents": {"DR-001": "a/b.pdf", "DR-002": "c/d.pdf"},
+    "required_documents": ["DR-001"],
+    "decoys": [{"document": "DR-002", "why": "smaller"}],
+    "facts": [
+        {"id": "F1", "kind": "number", "value": "$240m", "documents": ["DR-001"], "phase": 5}
+    ],
+    "answer": {"action": "reprice", "number": 400, "low": 240, "high": 465, "unit": "m"},
+    "rubric": [
+        {"id": 1, "criterion": "names the matter", "points": 60, "earns": "the matter is named"},
+        {"id": 2, "criterion": "quantifies it", "points": 40, "earns": "a range is given"},
+    ],
+    "bar": {"perfect": 100, "wrong_under": 40},
+}
+
+
+class FakeGrader:
+    """A grader that writes a grade file like rlm.grade.grade and never calls claude."""
+
+    def __init__(self, scores: list[float]):
+        self.scores = list(scores)
+        self.calls: list[tuple[Path, Path, Path, str]] = []
+
+    def __call__(self, sample_dir: Path, report_path: Path, run_dir: Path, name: str) -> dict:
+        self.calls.append((sample_dir, report_path, run_dir, name))
+        score = self.scores.pop(0)
+        result = {
+            "sample": "atlas",
+            "report": report_path.name,
+            "recall": 100.0,
+            "recalled": ["F1"],
+            "missed": [],
+            "rubric": [
+                {"id": 1, "points": 60, "reason": "named"},
+                {"id": 2, "points": int(score) - 60, "reason": "quantified"},
+            ],
+            "score": score,
+            "model": "fake-grader",
+            "seconds": 0.5,
+        }
+        run_dir.mkdir(parents=True, exist_ok=True)
+        (run_dir / name).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        return result
+
+
+@pytest.fixture
+def keyed_sample(fake_sample):
+    """The fake sample with a key, so that the writer grades what it wrote."""
+    sample_dir, run_dir, ledger = fake_sample
+    (sample_dir / "key.json").write_text(json.dumps(FAKE_KEY), encoding="utf-8")
+    (sample_dir / "a").mkdir()
+    (sample_dir / "c").mkdir()
+    (sample_dir / "a" / "b.pdf").write_text("", encoding="utf-8")
+    (sample_dir / "c" / "d.pdf").write_text("", encoding="utf-8")
+    return sample_dir, run_dir, ledger
+
+
+def test_write_without_a_key_grades_nothing(fake_sample):
+    """A sample with no key.json is written and verified and no grade.json appears."""
+    sample_dir, run_dir, ledger = fake_sample
+    transport = FakeTransport([reply(FAKE_REPORT)])
+    gateway = Gateway(api_key="test-key", transport=transport)
+    grader = FakeGrader([90])
+
+    assert writer.main([str(sample_dir), str(run_dir)], gateway=gateway, ledger=ledger, grader=grader) == 0
+
+    assert grader.calls == []
+    assert not (run_dir / "grade.json").exists()
+
+
+def test_write_grades_one_pass_into_grade_json(keyed_sample):
+    """One pass, one grade file named grade.json, with no spread and no score_b."""
+    sample_dir, run_dir, ledger = keyed_sample
+    transport = FakeTransport([reply(FAKE_REPORT)])
+    gateway = Gateway(api_key="test-key", transport=transport)
+    grader = FakeGrader([90])
+
+    assert writer.main([str(sample_dir), str(run_dir)], gateway=gateway, ledger=ledger, grader=grader) == 0
+
+    assert len(grader.calls) == 1
+    assert grader.calls[0] == (sample_dir, run_dir / "report.md", run_dir, "grade.json")
+    written = json.loads((run_dir / "grade.json").read_text(encoding="utf-8"))
+    assert written["score"] == 90
+    assert "spread" not in written and "score_b" not in written
+
+
+def test_write_two_passes_writes_pass_b_under_b_and_the_spread_into_pass_a(keyed_sample):
+    """--passes 2 calls the gateway twice, grades twice, and pass a's grade holds the spread."""
+    sample_dir, run_dir, ledger = keyed_sample
+    second = FAKE_REPORT.replace("The room contradicts itself", "The room disagrees with itself")
+    transport = FakeTransport([reply(FAKE_REPORT, 1000, 200), reply(second, 1100, 210)])
+    gateway = Gateway(api_key="test-key", transport=transport)
+    grader = FakeGrader([92, 87])
+
+    assert (
+        writer.main(
+            [str(sample_dir), str(run_dir), "--passes", "2"],
+            gateway=gateway,
+            ledger=ledger,
+            grader=grader,
+        )
+        == 0
+    )
+
+    assert len(transport.requests) == 2
+    pass_b = run_dir / "b"
+    for name in ("report.md", "verify.json", "grade.json", "write-summary.json"):
+        assert (pass_b / name).exists(), f"pass b has no {name}"
+    assert (pass_b / "report.md").read_text(encoding="utf-8") != (run_dir / "report.md").read_text(encoding="utf-8")
+    assert grader.calls == [
+        (sample_dir, run_dir / "report.md", run_dir, "grade.json"),
+        (sample_dir, pass_b / "report.md", pass_b, "grade.json"),
+    ]
+
+    grade_a = json.loads((run_dir / "grade.json").read_text(encoding="utf-8"))
+    grade_b = json.loads((pass_b / "grade.json").read_text(encoding="utf-8"))
+    assert grade_a["score"] == 92
+    assert grade_b["score"] == 87
+    assert grade_a["score_b"] == 87
+    assert grade_a["spread"] == 5
+    assert "spread" not in grade_b
+
+    record_b = json.loads((pass_b / "verify.json").read_text(encoding="utf-8"))
+    assert record_b["passes"] is True
+    assert record_b["calls"] == 1
+
+
+def test_write_two_passes_pays_two_ledger_rows_and_none_for_the_grader(keyed_sample):
+    """Each pass is one ledger batch; the grader adds no row."""
+    sample_dir, run_dir, ledger = keyed_sample
+    transport = FakeTransport([reply(FAKE_REPORT, 1000, 200), reply(FAKE_REPORT, 1100, 210)])
+    gateway = Gateway(api_key="test-key", transport=transport)
+    grader = FakeGrader([92, 87])
+
+    writer.main(
+        [str(sample_dir), str(run_dir), "--passes", "2"], gateway=gateway, ledger=ledger, grader=grader
+    )
+
+    rows = ledger.rows()
+    assert len(rows) == 2
+    assert [row["tokens_in"] for row in rows] == [1000, 1100]
+    assert all(row["phase"] == "5" and row["sample"] == "atlas" for row in rows)
+    assert all(row["model"] == MODEL for row in rows)
+
+
+def test_write_two_passes_prints_both_scores_the_spread_the_dollars_and_the_seconds(keyed_sample, capsys):
+    """The readout ends in one grade line carrying score a, score b, spread, dollars and seconds."""
+    sample_dir, run_dir, ledger = keyed_sample
+    transport = FakeTransport([reply(FAKE_REPORT, 1000, 200), reply(FAKE_REPORT, 1100, 210)])
+    gateway = Gateway(api_key="test-key", transport=transport)
+    grader = FakeGrader([92, 87])
+
+    writer.main(
+        [str(sample_dir), str(run_dir), "--passes", "2"], gateway=gateway, ledger=ledger, grader=grader
+    )
+
+    lines = [line for line in capsys.readouterr().out.splitlines() if line.startswith("grade atlas:")]
+    assert len(lines) == 1, lines
+    line = lines[0]
+    assert "score_a 92" in line and "score_b 87" in line and "spread 5" in line
+    assert "dollars" in line and "seconds" in line
+    expected = price(MODEL, 1000, 200) + price(MODEL, 1100, 210)
+    assert f"dollars {expected:.4f}" in line
+
+
+def test_write_refuses_passes_outside_one_or_two(keyed_sample):
+    """--passes takes 1 or 2 and nothing else."""
+    sample_dir, run_dir, ledger = keyed_sample
+    with pytest.raises(SystemExit):
+        writer.main([str(sample_dir), str(run_dir), "--passes", "3"], gateway=Gateway(api_key="k"), ledger=ledger)
