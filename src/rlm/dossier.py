@@ -1,8 +1,13 @@
 """Writes runs/<sample>/dossier.md from the map, the index, the sections and the notes.
 
 The dossier is the matter read out as rows a person can check. It opens with the matter's
-document set, the cluster the map built, one line per document with its rank, its title, its
-folder, its first date and the status words the index read off it. Then the matter's timeline,
+document set, the cluster the map built less the documents that argue against the matter, one
+line per document with its rank, its title, its folder, its first date and the status words the
+index read off it. A cluster document is out of the set when one of its flag quotes carries the
+matter's subject and negates the seed's operative verb, and no other document of the cluster
+worries about it by name: a master service agreement whose change-of-control clause says a
+change of control gives no party a right to terminate is the opposite of the matter the seed
+found, however much of its template it shares with the seed. Then the matter's timeline,
 the names the notes gave it, its figures with their sources, and the models that were written
 after it and still carry its old numbers. Then the comparisons the room's own words make, and
 the lesser matters the room holds outside the set.
@@ -30,13 +35,15 @@ A comparison is written differently, because it has two sides and each side has 
 back to the document that says it. A comparison row is two or more `<doc> | <quote> | <anchor>`
 parts joined by ` || `. A side of a comparison is one or more parts of one document, so a
 document may say its half of a comparison in as many places as it takes, and a comparison whose
-window, its start and its action sit in three documents has three sides in one row. Seven rules
+window, its start and its action sit in three documents has three sides in one row. Eight rules
 write the rows: a draft against its final, a booked reserve against a range of what it could
 cost, a deadline against the action taken after it, a model against the series it still
 assumes, a termination right against what the seed document found, a limit against the holding
-that exceeds it, and a warranty that nothing material happened against a committee that has not
-decided whether it did. Each rule reads flags, figures and cross references from the notes and
-version pairs and consequences from the map. Every pair a rule finds is written, and where two
+that exceeds it, a warranty that nothing material happened against a committee that has not
+decided whether it did, and a document that asks to be read against another against what that
+one says back. Each rule reads flags, figures and cross references from the notes, version
+pairs and consequences from the map, and the sections where the room asks for the comparison in
+its own words. Every pair a rule finds is written, and where two
 rules reach the same documents they write one row between them. The rows are sorted by the
 documents they name.
 
@@ -98,6 +105,20 @@ COMMON_WORDS = frozenset(
 _WHITESPACE = re.compile(r"\s+")
 _DAY = re.compile(r"\b([0-9]{1,2} [A-Z][a-z]+ [0-9]{4}|[0-9]{4}-[0-9]{2}-[0-9]{2})\b")
 
+# What a clause says where it takes a right away.
+NEGATION_WORDS = frozenset({"no", "not", "neither", "nor", "without"})
+
+# What stands in front of a word that is being used as a verb.
+VERB_MARKERS = frozenset(
+    {"to", "may", "shall", "can", "could", "will", "would", "must", "might"}
+)
+
+# How many words a negation may sit in front of the verb it takes away.
+CLAUSE_SPAN = 10
+
+# How many words that say something a shared run has to hold to be a subject.
+SUBJECT_WORDS = 2
+
 # A money figure's quote says the figure is a reserve and not an estimate.
 RESERVE_WORDS = re.compile(
     r"\b(reserve|reserves|provision|provisions|accrual|accruals|booked)\b", re.IGNORECASE
@@ -124,6 +145,13 @@ TICKET_WORD = re.compile(r"\bticket\b", re.IGNORECASE)
 # What ends an agreement.
 TERMINATION_WORDS = re.compile(r"\b(terminate|terminates|termination)\b", re.IGNORECASE)
 
+# What a document writes where it asks to be read against another document.
+COMPARE_WORDS = re.compile(
+    r"\b(compare|compared|compares|comparison|reconcile|reconciled|reconciles|"
+    r"reconciliation|versus)\b",
+    re.IGNORECASE,
+)
+
 # A warranty carries a negation beside a materiality word. A reservation carries the
 # materiality itself and says it is not settled yet.
 NEGATIONS = re.compile(r"\b(no|not|never|nor)\b", re.IGNORECASE)
@@ -143,6 +171,16 @@ def one_line(text) -> str:
     return _WHITESPACE.sub(" ", str(text)).strip()
 
 
+def quoted(text) -> str:
+    """A quote as a row writes it: one line, without the pipe a table row closes with.
+
+    The quote is the one field of a row allowed to hold a pipe, so the row's own last pipe has
+    to be the one before the anchor. A markdown table row closes with a pipe that separates
+    nothing from nothing, and dropping it is what lets the row be read back.
+    """
+    return one_line(text).rstrip("| ")
+
+
 def title_of(path: str) -> str:
     """The document's title: its file name up to the first dot, with underscores as spaces."""
     return Path(path).name.split(".", 1)[0].replace("_", " ")
@@ -156,7 +194,7 @@ def row(first, doc: str, quote, anchor: str) -> str:
     slash, so that a reader and a parser both find the document in the second field.
     """
     head = one_line(first).replace("|", "/") or EMPTY
-    return f"- {head} | {doc} | {one_line(quote) or EMPTY} | {anchor}"
+    return f"- {head} | {doc} | {quoted(quote) or EMPTY} | {anchor}"
 
 
 def day_in(text) -> str | None:
@@ -193,9 +231,135 @@ def statements(note: dict) -> list[tuple[str, str, str]]:
     return found
 
 
-def documents_rows(matter: dict, nodes: dict[str, dict]) -> list[str]:
+def folded_words(text) -> list[str]:
+    """The words of a text, folded, in the order it wrote them."""
+    return fold(one_line(text)).split()
+
+
+def verbs_in(words: list[str]) -> set[str]:
+    """The words a text uses as verbs: the ones it writes straight after `to` or a modal."""
+    return {words[at] for at in range(1, len(words)) if words[at - 1] in VERB_MARKERS}
+
+
+def negated_before(words: list[str], verb: str) -> bool:
+    """Whether a negation word sits within CLAUSE_SPAN words in front of the verb."""
+    for at, word in enumerate(words):
+        if word != verb:
+            continue
+        if NEGATION_WORDS & set(words[max(0, at - CLAUSE_SPAN) : at]):
+            return True
+    return False
+
+
+def shared_run(first: list[str], second: list[str]) -> tuple[str, ...] | None:
+    """The longest run of words the two texts both write, holding SUBJECT_WORDS that say
+    something, or None where they share no such run.
+
+    A run of common English is not a subject: `in the event of a` is how every clause opens, and
+    `of this agreement` says only that both are agreements.
+    """
+    lengths = [0] * (len(second) + 1)
+    best: tuple[str, ...] | None = None
+    for a in range(len(first)):
+        carried = [0] * (len(second) + 1)
+        for b in range(len(second)):
+            if first[a] == second[b]:
+                carried[b + 1] = lengths[b] + 1
+                run = tuple(first[a + 1 - carried[b + 1] : a + 1])
+                if len(content_words(" ".join(run))) >= SUBJECT_WORDS and (
+                    best is None or len(run) > len(best)
+                ):
+                    best = run
+        lengths = carried
+    return best
+
+
+def unique_title_words(nodes: dict[str, dict]) -> dict[str, set[str]]:
+    """The words of each document's title that no other document of the room has in its title.
+
+    `msa` and `agreement` name no one document; `harbor` and `granite` each name one.
+    """
+    counted: dict[str, int] = {}
+    held = {doc: content_words(title_of(node["path"])) for doc, node in nodes.items()}
+    for words in held.values():
+        for word in words:
+            counted[word] = counted.get(word, 0) + 1
+    return {doc: {word for word in words if counted[word] == 1} for doc, words in held.items()}
+
+
+def worried_about(cluster: list[str], nodes: dict[str, dict], notes: dict[str, dict]) -> set[str]:
+    """The documents another document of the cluster worries about by name.
+
+    A flag that writes `Harbor Foods refund liability ... is unreserved` names the Harbor MSA,
+    and that is the room saying the document belongs to what it is worried about.
+    """
+    titled = unique_title_words(nodes)
+    found = set()
+    for doc in cluster:
+        note = notes.get(doc)
+        if not note:
+            continue
+        written = content_words(
+            " ".join(f"{flag['flag']} {flag['quote']}" for flag in note["flags"])
+        )
+        for other in cluster:
+            if other != doc and titled.get(other, set()) & written:
+                found.add(other)
+    return found
+
+
+def matter_set(matter: dict, nodes: dict[str, dict], notes: dict[str, dict]) -> list[str]:
+    """The matter's document set: the map's cluster, less the documents that deny the matter.
+
+    A cluster document is out when one of its flag quotes carries the matter's subject and
+    negates the seed's operative verb, and no other document of the cluster worries about it by
+    name. The subject is the longest run of words that flag and a seed flag both write, holding
+    two words that say something; the operative verb is a word both of them use as a verb, right
+    after `to` or a modal; the negation is a negation word within ten words in front of that verb
+    in the cluster document's flag and in front of nothing in the seed's. A master service
+    agreement whose change-of-control clause says a change of control shall not give either party
+    any right to terminate is arguing the opposite of the matter, and the map, which links
+    documents by the values they share, cannot tell it from the agreement that does terminate:
+    the two share their template. A document the room's own worries name by title stays, however
+    its own clause reads, because something else put it in the matter.
+    """
+    cluster = sorted(set(matter["cluster"]))
+    seeds = [doc for doc in matter["seed"] if doc in notes]
+    if not seeds:
+        return cluster
+    seed_flags = [
+        folded_words(flag["quote"]) for seed in seeds for flag in notes[seed]["flags"]
+    ]
+    named = worried_about(cluster, nodes, notes)
+    held = []
+    for doc in cluster:
+        note = notes.get(doc)
+        if doc in seeds or not note or doc in named:
+            held.append(doc)
+            continue
+        denies = False
+        for flag in note["flags"]:
+            written = folded_words(flag["quote"])
+            spoken = verbs_in(written)
+            for said in seed_flags:
+                for verb in sorted(spoken & verbs_in(said)):
+                    if not negated_before(written, verb) or negated_before(said, verb):
+                        continue
+                    if shared_run(written, said) is not None:
+                        denies = True
+                        break
+                if denies:
+                    break
+            if denies:
+                break
+        if not denies:
+            held.append(doc)
+    return held
+
+
+def documents_rows(matter: dict, nodes: dict[str, dict], held: list[str]) -> list[str]:
     """One line per document of the matter's set, in the order the map ranked them."""
-    inside = set(matter["cluster"])
+    inside = set(held)
     lines = []
     for rank, ranked in enumerate(matter["ranked"], start=1):
         doc = ranked["doc"]
@@ -293,13 +457,16 @@ def figures_rows(cluster: list[str], notes: dict[str, dict]) -> list[str]:
     return lines
 
 
-def blind_rows(matter: dict, notes: dict[str, dict]) -> list[str]:
+def blind_rows(matter: dict, notes: dict[str, dict], held: list[str]) -> list[str]:
     """The map's consequences, one row each: the period or the date, the document, what kind of
     consequence it is with the series that turned or the figure that outlived the matter, and
     the anchor."""
+    inside = set(held)
     lines = []
     for found in matter["consequences"]:
         doc = found["doc"]
+        if doc not in inside:
+            continue
         if found["kind"] == "series-break":
             when = found["period"]
             what = f"series-break {found['series']}"
@@ -350,7 +517,7 @@ def money_value(surface) -> float | None:
 
 def part(doc: str, quote, anchor: str) -> tuple[str, str, str]:
     """One `<doc> | <quote> | <anchor>` part of a comparison row."""
-    return (doc, one_line(quote), anchor)
+    return (doc, quoted(quote), anchor)
 
 
 def version_pairs_rows(matter: dict, notes: dict[str, dict]) -> list[list[tuple[str, str, str]]]:
@@ -359,9 +526,12 @@ def version_pairs_rows(matter: dict, notes: dict[str, dict]) -> list[list[tuple[
     The map paired the two documents; the row quotes the flag of each that shares the most
     words with a flag of the other, and where two pairs share as many, the earlier anchors win.
     """
+    inside = set(matter["cluster"])
     rows = []
     for pair in matter["versions"]:
         first, second = pair["docs"][0], pair["docs"][1]
+        if not set(pair["docs"]) <= inside:
+            continue
         best = None
         for one in notes.get(first, {}).get("flags", []):
             for other in notes.get(second, {}).get("flags", []):
@@ -495,7 +665,9 @@ def deadline_rows(
     return rows
 
 
-def model_rows(matter: dict, notes: dict[str, dict]) -> list[list[tuple[str, str, str]]]:
+def model_rows(
+    matter: dict, notes: dict[str, dict], cluster: list[str]
+) -> list[list[tuple[str, str, str]]]:
     """Model against metrics: a figure a model still assumes against what the series did.
 
     Each model the map dated after the matter is written against every series that turned and
@@ -503,8 +675,10 @@ def model_rows(matter: dict, notes: dict[str, dict]) -> list[list[tuple[str, str
     same document that speaks of it. The series' side is the flag that names the period the
     series turned in and the lowest dated reading the document holds.
     """
-    breaks = [found for found in matter["consequences"] if found["kind"] == "series-break"]
-    models = [found for found in matter["consequences"] if found["kind"] == "model-after"]
+    inside = set(cluster)
+    consequences = [found for found in matter["consequences"] if found["doc"] in inside]
+    breaks = [found for found in consequences if found["kind"] == "series-break"]
+    models = [found for found in consequences if found["kind"] == "model-after"]
     rows = []
     for model in models:
         note = notes.get(model["doc"])
@@ -547,33 +721,39 @@ def model_rows(matter: dict, notes: dict[str, dict]) -> list[list[tuple[str, str
     return rows
 
 
-def covenant_rows(matter: dict, notes: dict[str, dict]) -> list[list[tuple[str, str, str]]]:
+def covenant_rows(
+    matter: dict, notes: dict[str, dict], cluster: list[str]
+) -> list[list[tuple[str, str, str]]]:
     """Covenant against incident: a termination right against what the seed document found.
 
     A covenant is a flag quoted with a termination word. It is written against the flag of the
-    matter's seed document whose words the covenant's document shares the most of.
+    matter's seed document that shares the most words with the covenant's own flag and with the
+    worries of the covenant's document, the two counts added. The flag's own words are what
+    reach a board deck that says no change-of-control item is flagged: the clause it has to
+    meet is the one that terminates on a change of control, not whichever sentence of the
+    agreement the deck as a whole sounds most like. The document's worries are what keep a
+    termination-on-incident clause against the finding that the incident happened.
     """
     seeds = [doc for doc in matter["seed"] if doc in notes]
     rows = []
-    for doc in sorted(set(matter["cluster"])):
+    for doc in sorted(set(cluster)):
         note = notes.get(doc)
         if not note:
             continue
-        held = worry_words(note)
+        worries = worry_words(note)
         for flag in note["flags"]:
             if not TERMINATION_WORDS.search(one_line(flag["quote"])):
                 continue
+            held = content_words(flag["quote"])
             for seed in seeds:
                 if seed == doc:
                     continue
                 best = None
                 for other in notes[seed]["flags"]:
-                    shared = len(
-                        held
-                        & content_words(
-                            f"{other['flag']} {other['quote']} {other['consequence']}"
-                        )
+                    written = content_words(
+                        f"{other['flag']} {other['quote']} {other['consequence']}"
                     )
+                    shared = len(held & content_words(other["quote"])) + len(worries & written)
                     mark = (-shared, other["anchor"])
                     if best is None or mark < best[0]:
                         best = (mark, other)
@@ -588,8 +768,106 @@ def covenant_rows(matter: dict, notes: dict[str, dict]) -> list[list[tuple[str, 
     return rows
 
 
+def sections_by_document(
+    sections: list[dict], ids_by_path: dict[str, str]
+) -> dict[str, list[tuple[str, str]]]:
+    """Every section of the run as (anchor, one line of text), by the document it sits in."""
+    found: dict[str, list[tuple[str, str]]] = {}
+    for section in sections:
+        doc = document_of(section["anchor"], ids_by_path)
+        if doc is not None:
+            found.setdefault(doc, []).append((section["anchor"], one_line(section["text"])))
+    return found
+
+
+def closest_section(
+    held: list[tuple[str, str]], text, without: set[str] = frozenset()
+) -> tuple[str, str] | None:
+    """The section of a document that shares the most words with a text, earliest anchor first.
+
+    The words in `without` are not counted. None where the document shares no other word with
+    the text at all.
+    """
+    wanted = content_words(text) - set(without)
+    best = None
+    for anchor, written in held:
+        shared = len(wanted & content_words(written))
+        if not shared:
+            continue
+        mark = (-shared, anchor)
+        if best is None or mark < best[0]:
+            best = (mark, (anchor, written))
+    return None if best is None else best[1]
+
+
+def named_by(nodes: dict[str, dict]) -> dict[str, str]:
+    """Every document by a name a cross reference can call it: its id and its file name.
+
+    A file name two documents of the room share names neither of them, because a reference to
+    it says nothing about which one is meant.
+    """
+    carriers: dict[str, set[str]] = {}
+    for doc, node in nodes.items():
+        for name in (doc, Path(node["path"]).name):
+            carriers.setdefault(name.upper(), set()).add(doc)
+    return {name: held.pop() for name, held in carriers.items() if len(held) == 1}
+
+
+def compare_rows(
+    matter: dict,
+    nodes: dict[str, dict],
+    notes: dict[str, dict],
+    sections: list[dict],
+    ids_by_path: dict[str, str],
+    cluster: list[str],
+) -> list[list[tuple[str, str, str]]]:
+    """Asked against answered: a document that says to read it against another, and both answers.
+
+    A note names another document of the set by its id or its file name, and the place where it
+    names it asks for the comparison in its own words. The row carries that place, the place in
+    the named document that shares the most words with it, and the place back in the naming
+    document that shares the most words with that one. The row quotes the sections and not the
+    note, because it is the room asking: what a workbook answers a memo with is a row of the
+    workbook, not a worry someone wrote about it.
+
+    The words of the two documents' own names are not counted on either side. A memo that says
+    to read it against `revenue_summary.xlsx` shares the word revenue with every row of that
+    workbook, and the row wanted is the one that shares what the memo is asking about.
+    """
+    inside = set(cluster)
+    held = sections_by_document(sections, ids_by_path)
+    named = named_by(nodes)
+    rows = []
+    for doc in sorted(inside):
+        note = notes.get(doc)
+        if not note:
+            continue
+        asked = set()
+        for reference in note["cross_references"]:
+            other = named.get(str(reference["value"]).strip().upper())
+            if other is None or other == doc or other not in inside:
+                continue
+            asked.add((reference["anchor"], other))
+        for anchor, other in sorted(asked):
+            text = dict(held.get(doc, [])).get(anchor)
+            if not text or not COMPARE_WORDS.search(text):
+                continue
+            without = content_words(
+                f"{doc} {nodes[doc]['path']} {other} {nodes[other]['path']}"
+            )
+            answer = closest_section(held.get(other, []), text, without)
+            if answer is None:
+                continue
+            back = closest_section(held.get(doc, []), answer[1], without)
+            found = [part(doc, text, anchor), part(other, answer[1], answer[0])]
+            if back is not None:
+                found.append(part(doc, back[1], back[0]))
+            rows.append(found)
+    return rows
+
+
 def policy_rows(
-    nodes: dict[str, dict], notes: dict[str, dict]
+    nodes: dict[str, dict], notes: dict[str, dict], cluster: list[str]
 ) -> list[list[tuple[str, str, str]]]:
     """Policy against practice: a limit a document sets against what another document holds.
 
@@ -599,7 +877,7 @@ def policy_rows(
     limit rather than the limit restated.
     """
     limits = []
-    for doc in sorted(nodes):
+    for doc in sorted(set(cluster)):
         note = notes.get(doc)
         if not note:
             continue
@@ -620,7 +898,7 @@ def policy_rows(
     rows = []
     for doc, number, unit, side in limits:
         same = re.compile(rf"\b{number}[\s-]?{unit}s?\b", re.IGNORECASE)
-        for other in sorted(nodes):
+        for other in sorted(set(cluster)):
             note = notes.get(other)
             if other == doc or not note:
                 continue
@@ -674,6 +952,7 @@ def comparison_lines(
     notes: dict[str, dict],
     sections: list[dict],
     ids_by_path: dict[str, str],
+    cluster: list[str],
 ) -> list[str]:
     """Every comparison the rules find, one row each, sorted by the documents they name.
 
@@ -682,15 +961,15 @@ def comparison_lines(
     comparison in as many places as it takes. Two rules that reach the same documents write one
     row between them.
     """
-    cluster = matter["cluster"]
     rows = (
         version_pairs_rows(matter, notes)
         + reserve_rows(cluster, notes)
         + deadline_rows(cluster, notes, sections, ids_by_path)
-        + model_rows(matter, notes)
-        + covenant_rows(matter, notes)
-        + policy_rows(nodes, notes)
+        + model_rows(matter, notes, cluster)
+        + covenant_rows(matter, notes, cluster)
+        + policy_rows(nodes, notes, cluster)
         + warranty_rows(cluster, notes)
+        + compare_rows(matter, nodes, notes, sections, ids_by_path, cluster)
     )
     merged: dict[tuple[str, ...], list[tuple[str, str, str]]] = {}
     for found in rows:
@@ -714,14 +993,16 @@ def comparison_lines(
     return [line for _, line in sorted(lines)]
 
 
-def lesser_lines(matter: dict, nodes: dict[str, dict], notes: dict[str, dict]) -> list[str]:
+def lesser_lines(
+    matter: dict, nodes: dict[str, dict], notes: dict[str, dict], held: list[str]
+) -> list[str]:
     """Every flagged document outside the matter's set, ranked by the money its note holds.
 
     The rank is the largest money figure of the note, largest first, and then the document id,
     so a document with a flag and no money figure follows the ones with money. The line carries
     that figure, the note's first flag and the place it was written.
     """
-    inside = set(matter["cluster"])
+    inside = set(held)
     found = []
     for doc in sorted(nodes):
         note = notes.get(doc)
@@ -751,15 +1032,17 @@ def build_dossier(sample_dir: Path, run_dir: Path) -> str:
 
     lines = [f"# Dossier: {document['sample']}", ""]
     for matter in document["matters"]:
-        cluster = matter["cluster"]
+        cluster = matter_set(matter, nodes, notes)
         written = {
-            "Documents": documents_rows(matter, nodes),
+            "Documents": documents_rows(matter, nodes, cluster),
             "Timeline": timeline_rows(cluster, notes, nodes, records, held, ids_by_path),
             "Names": names_rows(cluster, notes),
             "Figures": figures_rows(cluster, notes),
-            "Models blind to it": blind_rows(matter, notes),
-            "Comparisons": comparison_lines(matter, nodes, notes, sections, ids_by_path),
-            "Lesser matters": lesser_lines(matter, nodes, notes),
+            "Models blind to it": blind_rows(matter, notes, cluster),
+            "Comparisons": comparison_lines(
+                matter, nodes, notes, sections, ids_by_path, cluster
+            ),
+            "Lesser matters": lesser_lines(matter, nodes, notes, cluster),
         }
         lines.append(f"## Matter {matter['id']}")
         lines.append("")
