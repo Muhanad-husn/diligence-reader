@@ -1,9 +1,10 @@
 """Writes one sample's findings report from its brief and its dossier, in one gateway call.
 
 The report has two halves and only the first is written by a model. build_digest reads the
-dossier's first matter and keeps about a hundred rows of it: every comparison, one row for each
-name, the models blind to the matter, the largest lesser matters, and the dated turning points
-and largest figures of the documents the matter is made of. That digest goes to digest.md and
+dossier's first matter and keeps about a hundred and fifty rows of it: every comparison, one
+row for each name, the models blind to the matter, the largest lesser matters and every lesser
+matter naming a document the matter does not hold, and the dated turning points and largest
+figures of the documents the matter is made of. That digest goes to digest.md and
 is the user message; the dossier itself is never sent, and the model sees no answer key,
 because nothing here reads one. The reply is the five sections the brief asks for, every
 sentence of them ending in a citation `[<doc> | <anchor>]` copied off a digest row.
@@ -32,6 +33,11 @@ return.
 `--passes 2` runs the same request twice. Pass a writes into the run directory and pass b into
 `b/` under it, off the same dossier, sections, index and map, so the two differ only by the
 draw. Each pass is its own ledger batch and leaves its own phase 5 row.
+
+`--out-dir` moves both passes somewhere else. The room is still read from the run directory,
+so the dossier, the sections, the index and the map are the run's own; only what the passes
+write lands under the directory given. That is how rlm.writebakeoff runs one model into
+`runs/<sample>/write-bakeoff/<slug>/` without copying the room.
 
 Where the sample has an answer key, rlm.grade.grade reads the report each pass wrote and leaves
 grade.json beside it: the recall over the key's facts, the rubric rows with their points and
@@ -129,10 +135,11 @@ DIGEST_ROWS = 150
 # inside a sentence come first and the dossier's own order decides the rest.
 COMPARISON_ROWS = 30
 
-# The most lesser matters a digest carries. The dossier ranks that section by the largest money
-# figure of each document, so these are its largest and the rest are what a report would have
-# said least about. Every digest row costs a quoted sentence of a capped reply, so the least
-# material section is the one that gives room back.
+# The most lesser matters a digest carries out of the documents the matter already holds. The
+# dossier ranks that section by the largest money figure of each document, so these are its
+# largest. Every digest row costs a quoted sentence of a capped reply, so the least material
+# section is the one that gives room back, and this is the number the timeline and the figures
+# are sized against.
 LESSER_ROWS = 6
 
 # The most words a row's quote may run to before the digest passes it over. A dossier row can
@@ -404,23 +411,46 @@ def named_rows(rows: list[str]) -> list[str]:
     return sorted(found, key=lambda row: order[row])
 
 
+def lesser_rows(rows: list[str], held: set[str]) -> list[str]:
+    """The lesser matters the digest keeps: the largest by money, then every row naming a
+    document the matter does not hold.
+
+    The dossier ranks this section by the largest money figure of each document, so the first
+    LESSER_ROWS of it are the largest. A report that has to say what is smaller has to have
+    seen it, and a row whose document sits outside the matter is the only line the writer will
+    ever have on that document, so it is kept whatever its figure. On sample 1 the largest six
+    are the room's revenue and its audit opinions, and the licence clean-up, the search partner
+    and the mail gateway sit at ranks 45 and past it, which is why the rank alone did not reach
+    them.
+    """
+    ordered = quotable_first(rows)
+    kept = list(ordered[:LESSER_ROWS])
+    kept.extend(row for row in ordered[LESSER_ROWS:] if row_document(row) not in held)
+    return kept
+
+
 def digest_sections(dossier: str) -> dict[str, list[str]]:
     """The rows the digest keeps, by the dossier heading they came from.
 
-    Every comparison row, every lesser matter and every model blind to the matter goes in
-    whole, because those are the matter's contradictions, its rest and its blind spots and
-    there are few of them. The names give one row each. The timeline gives its dated turning
-    points and the figures give the largest money and the counts and defined terms, and those
-    two are what a total over DIGEST_ROWS is trimmed out of, the figures before the timeline,
-    because a date the report loses is a date the report cannot write.
+    Every comparison row and every model blind to the matter goes in whole, because those are
+    the matter's contradictions and its blind spots and there are few of them. The lesser
+    matters give their largest by money and every row naming a document the matter does not
+    hold. The names give one row each. The timeline gives its dated turning points and the
+    figures give the largest money and the counts and defined terms, and those two are what a
+    total over DIGEST_ROWS is trimmed out of, the figures before the timeline, because a date
+    the report loses is a date the report cannot write.
     """
     sections = dossier_sections(dossier)
     names = named_rows(sections.get("Names", []))
     weight = document_weight(sections)
-    lesser = quotable_first(sections.get("Lesser matters", []))[:LESSER_ROWS]
+    lesser = lesser_rows(sections.get("Lesser matters", []), set(weight))
     models = sections.get("Models blind to it", [])
     comparisons = quotable_first(sections.get("Comparisons", []))[:COMPARISON_ROWS]
-    room = max(0, DIGEST_ROWS - len(names) - len(lesser) - len(models) - len(comparisons))
+    # The lesser matters outside the matter are not charged against the timeline and the
+    # figures: a date the report loses is a date the report cannot write, and the rows that
+    # name what is smaller are one short line each.
+    charged = min(LESSER_ROWS, len(lesser))
+    room = max(0, DIGEST_ROWS - len(names) - charged - len(models) - len(comparisons))
     # Every document of the matter gets a timeline row before any document takes a second,
     # so the timeline is at least as long as the matter is wide, within the room there is.
     timeline = timeline_rows(
@@ -882,6 +912,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="a second file name under the run directory to keep this draw's report under",
     )
     parser.add_argument(
+        "--out-dir",
+        dest="out_dir",
+        default=None,
+        help="a directory to write the passes into, when it is not the run directory",
+    )
+    parser.add_argument(
         "--passes",
         type=int,
         choices=(1, 2),
@@ -1106,9 +1142,10 @@ def main(
     # Nothing is graded without an answer key, and the key is read by the grader alone.
     graded = has_key(sample_dir)
 
-    directories = [(run_dir, "a")]
+    out_root = Path(args.out_dir) if args.out_dir else run_dir
+    directories = [(out_root, "a")]
     if args.passes == 2:
-        directories.append((run_dir / "b", "b"))
+        directories.append((out_root / "b", "b"))
 
     summaries: list[dict] = []
     grades: list[dict] = []
@@ -1123,7 +1160,7 @@ def main(
     if len(grades) == 2:
         # The spread of the two draws lives with pass a's grade, which is the graded artefact
         # of the run; pass b's grade file holds its own score and nothing about pass a.
-        path = run_dir / "grade.json"
+        path = out_root / "grade.json"
         written = json.loads(path.read_text(encoding="utf-8"))
         written["score_b"] = grades[1]["score"]
         written["spread"] = abs(grades[0]["score"] - grades[1]["score"])

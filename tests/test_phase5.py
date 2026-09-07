@@ -45,11 +45,20 @@ the failure list. One static test reads src/rlm/write.py and asserts that no lin
 the key, and another reads src/rlm/verify.py and asserts that it reads no key and makes no
 call.
 
-Only sample 1 is enabled here. Samples 2 and 3 are the fifth slice of the phase. A sample
-whose report.md is absent is skipped."""
+All three gate samples are enabled. Samples 2 and 3 carry no rubric, so their grade file
+holds no rubric row and its score is the recall; every test that reads a rubric row reads the
+key's own rubric and asks for nine rows only where the key has nine. A sample whose report.md
+is absent is skipped.
+
+The bake-off over the five models is tested on a fake transport and a fake grader: the order
+inside a tier, the pro tier skipped when a flash model passes, the table written after each
+model, the winner the cheapest passing row, and --recount and --dry-run making no call. The
+pinning of the winner's two passes and the digest of the three pinned files are tested the
+same way."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import threading
@@ -59,8 +68,10 @@ from pathlib import Path
 import httpx
 import pytest
 
+from rlm import pin
 from rlm import verify as verifier
 from rlm import write as writer
+from rlm import writebakeoff
 from rlm.carry import days_of, numbers_of, stem, words_of
 from rlm.gateway import PRICES, Gateway, Ledger, price
 from rlm.grade import CONNECTIVES, measure_recall, side_carried
@@ -70,8 +81,8 @@ from rlm.sections import parse_anchor
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# The sample this slice writes a report for. Samples 2 and 3 are slice 05.
-ENABLED = ("atlas",)
+# The samples this phase writes a report for. Slice 05 added samples 2 and 3.
+ENABLED = ("atlas", "northwind", "northstar-dental")
 SKIP_REASON = "report not written for this sample yet"
 
 # The six second level headings: the brief's five deliverables in its order, and then the
@@ -423,7 +434,8 @@ def test_evidence_section_gives_each_document_its_own_heading(report):
 # ---------------------------------------------------------------- the grade on the artefact
 
 # The bar for the rubric score on sample 1, PLAN.md section 10, set by the founder for this
-# slice. Samples 2 and 3 have no rubric and are slice 05.
+# phase. Samples 2 and 3 have no rubric, so rlm.grade.grade writes their recall as the score
+# and the same bar reads as recall at or above 85.
 RUBRIC_BAR = 85
 
 # The keys every grade.json holds, as rlm.grade.grade writes them.
@@ -455,18 +467,26 @@ def test_grade_json_holds_recall_the_rubric_the_score_the_model_and_the_seconds(
     assert graded["report"] == "report.md"
     assert graded["recall"] == 100.0, f"missed {graded['missed']}"
     assert graded["missed"] == []
-    assert len(graded["rubric"]) == len(key.rubric) == 9
+    assert len(graded["rubric"]) == len(key.rubric)
     for row, expected in zip(graded["rubric"], key.rubric):
         assert row["id"] == expected.id
         assert 0 <= row["points"] <= expected.points
         assert row["reason"].strip()
-    assert graded["score"] == sum(row["points"] for row in graded["rubric"])
-    assert graded["model"] and graded["model"] != "none"
+    if key.rubric:
+        # Sample 1 is the sample with a rubric, and its rubric has nine rows.
+        assert len(key.rubric) == 9
+        assert graded["score"] == sum(row["points"] for row in graded["rubric"])
+        assert graded["model"] and graded["model"] != "none"
+    else:
+        # Samples 2 and 3 have no rubric, so the score is the recall and no grader ran.
+        assert graded["score"] == graded["recall"]
+        assert graded["model"] == "none"
     assert graded["seconds"] > 0
 
 
 def test_pass_a_rubric_score_is_at_or_above_the_bar(graded):
-    """The rubric score of pass a meets the phase 5 bar on sample 1."""
+    """Pass a's score meets the phase 5 bar: the rubric total on sample 1, the recall on the
+    two samples whose key carries no rubric."""
     reasons = " || ".join(
         f"{row['id']}: {row['points']} ({row['reason']})" for row in graded["rubric"]
     )
@@ -486,7 +506,10 @@ def test_pass_b_holds_a_report_a_verify_json_and_a_grade_json(pass_b, key):
     assert GRADE_KEYS <= set(grade_b)
     assert grade_b["sample"] == key.sample
     assert len(grade_b["rubric"]) == len(key.rubric)
-    assert grade_b["score"] == sum(row["points"] for row in grade_b["rubric"])
+    if key.rubric:
+        assert grade_b["score"] == sum(row["points"] for row in grade_b["rubric"])
+    else:
+        assert grade_b["score"] == grade_b["recall"]
     assert "spread" not in grade_b and "score_b" not in grade_b
 
 
@@ -504,6 +527,24 @@ def test_pass_b_report_is_a_second_draw_of_the_same_request(pass_b, report):
     evidence_a = report.text.split(f"## {HEADINGS[-1]}", 1)[1]
     evidence_b = text.split(f"## {HEADINGS[-1]}", 1)[1]
     assert evidence_a == evidence_b
+
+
+# The three files pin writes a digest of, per sample.
+PINNED_FILES = ("report.md", "verify.json", "grade.json")
+
+
+def test_report_digest_is_pinned(report, run_dir, sample):
+    """The sha256 of report.md, verify.json and grade.json are the ones
+    tests/phase5-digests.json holds."""
+    path = ROOT / "tests" / "phase5-digests.json"
+    if not path.exists():
+        pytest.skip("no report pinned yet")
+    digests = json.loads(path.read_text(encoding="utf-8"))
+    assert sample in digests, f"{sample} has no pinned report digest"
+    assert set(digests[sample]) == set(PINNED_FILES)
+    for name in PINNED_FILES:
+        got = hashlib.sha256((run_dir / name).read_bytes()).hexdigest()
+        assert got == digests[sample][name], name
 
 
 def test_ledger_holds_no_row_for_the_grader(report, sample):
@@ -1530,3 +1571,657 @@ def test_write_refuses_passes_outside_one_or_two(keyed_sample):
     sample_dir, run_dir, ledger = keyed_sample
     with pytest.raises(SystemExit):
         writer.main([str(sample_dir), str(run_dir), "--passes", "3"], gateway=Gateway(api_key="k"), ledger=ledger)
+
+
+# ---------------------------------------------------------------- the bake-off and the pin
+
+
+DS_FLASH = "deepseek/deepseek-v4-flash-0731"
+GLM_FLASH = "z-ai/glm-5.3-flash"
+LUNA = "openai/gpt-5.6-luna"
+DS_PRO = "deepseek/deepseek-v4-pro"
+GLM = "z-ai/glm-5.3"
+
+# The two samples a fake bake-off runs over, and the fields of a row that carry a measurement
+# or "not run".
+BAKEOFF_SAMPLES = ("atlas", "northwind")
+BAKEOFF_MEASURED = ("passes", "dollars", "seconds", "samples")
+
+
+class WriteTransport(httpx.MockTransport):
+    """Answers every write call with the same report and the tokens the model is given.
+
+    usage maps a model id to the tokens its replies report, so two models that write the same
+    report are still measured at different dollars.
+    """
+
+    def __init__(self, usage: dict[str, tuple[int, int]] | None = None):
+        self.requests: list[httpx.Request] = []
+        self._usage = usage or {}
+        self._lock = threading.Lock()
+        super().__init__(self._handle)
+
+    def models_asked(self) -> list[str]:
+        return [json.loads(request.content)["model"] for request in self.requests]
+
+    def _handle(self, request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        with self._lock:
+            self.requests.append(request)
+        tokens_in, tokens_out = self._usage.get(body["model"], (1000, 200))
+        return httpx.Response(200, json=reply(FAKE_REPORT, tokens_in, tokens_out))
+
+
+class BakeoffGrader:
+    """A grader that reads the model out of the pass it grades and scores it from a table.
+
+    scores maps a model id to the score of pass a and of pass b, and recalls maps a model id to
+    the recall of each pass; a model in neither table is graded a perfect pass. rubric says
+    whether the fake key has one, which is what tells a rubric sample from a recall sample.
+    Every call also keeps the bake-off table as it stood on disk at that moment, so a test
+    reads what had been written by the time a later model was measured. Nothing here calls
+    claude.
+    """
+
+    def __init__(
+        self,
+        runs_root: Path,
+        scores: dict[str, tuple[float, float]] | None = None,
+        recalls: dict[str, tuple[float, float]] | None = None,
+        rubric: bool = True,
+    ):
+        self.runs_root = Path(runs_root)
+        self.scores = scores or {}
+        self.recalls = recalls or {}
+        self.rubric = rubric
+        self.calls: list[tuple[str, str, str]] = []
+        self.tables: list[dict | None] = []
+
+    def __call__(self, sample_dir: Path, report_path: Path, run_dir: Path, name: str) -> dict:
+        summary = json.loads((run_dir / "write-summary.json").read_text(encoding="utf-8"))
+        model = summary["model"]
+        letter = "b" if run_dir.name == "b" else "a"
+        index = 0 if letter == "a" else 1
+        self.calls.append((model, sample_dir.name, letter))
+        table_path = self.runs_root / BAKEOFF_SAMPLES[0] / "write-bakeoff.json"
+        self.tables.append(
+            json.loads(table_path.read_text(encoding="utf-8")) if table_path.exists() else None
+        )
+        score = self.scores.get(model, (100.0, 100.0))[index]
+        recall = self.recalls.get(model, (100.0, 100.0))[index]
+        rows = [{"id": 1, "points": score, "reason": "graded"}] if self.rubric else []
+        result = {
+            "sample": sample_dir.name,
+            "report": report_path.name,
+            "recall": recall,
+            "recalled": ["F1"],
+            "missed": [],
+            "rubric": rows,
+            "score": score if self.rubric else recall,
+            "model": "fake-grader" if self.rubric else "none",
+            "seconds": 0.5,
+        }
+        run_dir.mkdir(parents=True, exist_ok=True)
+        (run_dir / name).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        return result
+
+
+@pytest.fixture
+def bakeoff_room(tmp_path):
+    """A samples root and a runs root holding two fake samples, and an empty ledger.
+
+    Each sample carries the brief, a key and the room the writer reads, so a bake-off runs both
+    passes on both samples against a fake transport and a fake grader.
+    """
+    samples_root = tmp_path / "samples"
+    runs_root = tmp_path / "runs"
+    for name in BAKEOFF_SAMPLES:
+        sample_dir = samples_root / name
+        sample_dir.mkdir(parents=True)
+        (sample_dir / "brief.md").write_text("# Brief\n\nFind the matter.\n", encoding="utf-8")
+        (sample_dir / "key.json").write_text(
+            json.dumps(dict(FAKE_KEY, sample=name)), encoding="utf-8"
+        )
+        for folder, leaf in (("a", "b.pdf"), ("c", "d.pdf")):
+            (sample_dir / folder).mkdir()
+            (sample_dir / folder / leaf).write_text("", encoding="utf-8")
+        run_dir = runs_root / name
+        run_dir.mkdir(parents=True)
+        (run_dir / "dossier.md").write_text(FAKE_DOSSIER, encoding="utf-8")
+        write_jsonl(run_dir / "sections.jsonl", FAKE_SECTIONS)
+        write_jsonl(run_dir / "index.jsonl", FAKE_INDEX)
+        (run_dir / "map.json").write_text(json.dumps(FAKE_MAP, indent=1) + "\n", encoding="utf-8")
+    ledger_path = tmp_path / "LEDGER.md"
+    ledger_path.write_text(LEDGER_HEADER, encoding="utf-8")
+    return samples_root, runs_root, Ledger(ledger_path)
+
+
+def bakeoff_row(table: dict, model: str) -> dict:
+    """The one row of the bake-off table for a model."""
+    found = [row for row in table["rows"] if row["model"] == model]
+    assert len(found) == 1, model
+    return found[0]
+
+
+def read_table(runs_root: Path, sample: str = BAKEOFF_SAMPLES[0]) -> dict:
+    """The bake-off table one sample's run directory holds."""
+    return json.loads((runs_root / sample / "write-bakeoff.json").read_text(encoding="utf-8"))
+
+
+def test_writebakeoff_tiers_run_cheapest_first_inside_a_tier():
+    """The five models of the price table sit in two tiers, each ordered by one write."""
+    assert writebakeoff.slug(GLM_FLASH) == "glm-5.3-flash"
+    assert writebakeoff.slug(DS_PRO) == "deepseek-v4-pro"
+    assert set(writebakeoff.TIERS) == {"flash", "pro"}
+    assert set(writebakeoff.TIERS["flash"]) == {DS_FLASH, GLM_FLASH, LUNA}
+    assert set(writebakeoff.TIERS["pro"]) == {DS_PRO, GLM}
+    assert set(writebakeoff.TIERS["flash"]) | set(writebakeoff.TIERS["pro"]) == set(PRICES)
+    assert writebakeoff.WRITE_TOKENS == (37_000, 8_000)
+    assert writebakeoff.RUBRIC_BAR == 85
+    for tier in writebakeoff.TIERS.values():
+        costs = [price(model, *writebakeoff.WRITE_TOKENS) for model in tier]
+        assert costs == sorted(costs), tier
+
+
+def test_writebakeoff_two_passes_on_two_samples_fill_one_row_and_name_the_winner(
+    bakeoff_room, capsys
+):
+    """One model writes pass a and pass b on every sample and its row carries both."""
+    samples_root, runs_root, ledger = bakeoff_room
+    transport = WriteTransport()
+    gateway = Gateway(api_key="k", transport=transport)
+    grader = BakeoffGrader(runs_root, scores={GLM_FLASH: (90.0, 86.0)})
+
+    code = writebakeoff.main(
+        [
+            str(samples_root),
+            str(runs_root),
+            "--samples",
+            *BAKEOFF_SAMPLES,
+            "--models",
+            GLM_FLASH,
+        ],
+        gateway=gateway,
+        ledger=ledger,
+        grader=grader,
+    )
+    printed = capsys.readouterr().out
+    assert code == 0
+
+    # Two samples, two passes each, one call per pass because the fake report verifies.
+    assert transport.models_asked() == [GLM_FLASH] * 4
+    rows = ledger.rows()
+    assert len(rows) == 4
+    assert all(row["phase"] == "5" and row["model"] == GLM_FLASH for row in rows)
+
+    name = writebakeoff.slug(GLM_FLASH)
+    for sample in BAKEOFF_SAMPLES:
+        base = runs_root / sample / "write-bakeoff" / name
+        for out_dir in (base, base / "b"):
+            for leaf in ("report.md", "verify.json", "grade.json", "write-summary.json"):
+                assert (out_dir / leaf).exists(), (sample, out_dir.name, leaf)
+
+    first = (runs_root / BAKEOFF_SAMPLES[0] / "write-bakeoff.json").read_bytes()
+    second = (runs_root / BAKEOFF_SAMPLES[1] / "write-bakeoff.json").read_bytes()
+    assert first == second
+    table = json.loads(first.decode("utf-8"))
+    assert table["samples"] == list(BAKEOFF_SAMPLES)
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", table["date"])
+    assert set(table["prices"]) == set(PRICES)
+
+    row = bakeoff_row(table, GLM_FLASH)
+    assert row["passes"] is True
+    assert row["tier"] == "flash"
+    assert row["dollars"] > 0
+    assert row["seconds"] >= 0
+    assert set(row["samples"]) == set(BAKEOFF_SAMPLES)
+    for sample in BAKEOFF_SAMPLES:
+        entry = row["samples"][sample]
+        assert entry["recall_a"] == 100.0 and entry["recall_b"] == 100.0
+        assert entry["verifier_a"] is True and entry["verifier_b"] is True
+        assert entry["rubric_a"] == 90.0 and entry["rubric_b"] == 86.0
+        assert entry["spread"] == 4.0
+    assert table["winner"] == GLM_FLASH
+    for model in (DS_FLASH, LUNA, DS_PRO, GLM):
+        blank = bakeoff_row(table, model)
+        assert all(blank[field] == "not run" for field in BAKEOFF_MEASURED), model
+    assert f"winner: {GLM_FLASH}" in printed
+
+
+def test_writebakeoff_a_sample_without_a_rubric_is_gated_on_recall_and_the_verifier(
+    bakeoff_room, capsys
+):
+    """A grade file with no rubric row carries no rubric field in the row and still gates."""
+    samples_root, runs_root, ledger = bakeoff_room
+    transport = WriteTransport()
+    gateway = Gateway(api_key="k", transport=transport)
+    grader = BakeoffGrader(runs_root, rubric=False)
+
+    code = writebakeoff.main(
+        [str(samples_root), str(runs_root), "--samples", *BAKEOFF_SAMPLES, "--models", GLM_FLASH],
+        gateway=gateway,
+        ledger=ledger,
+        grader=grader,
+    )
+    capsys.readouterr()
+    assert code == 0
+
+    row = bakeoff_row(read_table(runs_root), GLM_FLASH)
+    entry = row["samples"][BAKEOFF_SAMPLES[0]]
+    assert "rubric_a" not in entry and "spread" not in entry
+    assert entry["recall_a"] == 100.0 and entry["verifier_a"] is True
+    assert row["passes"] is True
+
+
+def test_writebakeoff_a_rubric_under_the_bar_fails_the_row(bakeoff_room, capsys):
+    """Pass a at a rubric score under 85 fails the row even where recall is 100."""
+    samples_root, runs_root, ledger = bakeoff_room
+    transport = WriteTransport()
+    gateway = Gateway(api_key="k", transport=transport)
+    grader = BakeoffGrader(runs_root, scores={GLM_FLASH: (84.0, 92.0)})
+
+    writebakeoff.main(
+        [str(samples_root), str(runs_root), "--samples", *BAKEOFF_SAMPLES, "--models", GLM_FLASH],
+        gateway=gateway,
+        ledger=ledger,
+        grader=grader,
+    )
+    capsys.readouterr()
+
+    table = read_table(runs_root)
+    assert bakeoff_row(table, GLM_FLASH)["passes"] is False
+    assert table["winner"] is None
+
+
+def test_writebakeoff_a_recall_under_a_hundred_fails_the_row(bakeoff_room, capsys):
+    """Pass a at a recall under 100 fails the row even where the rubric clears the bar."""
+    samples_root, runs_root, ledger = bakeoff_room
+    transport = WriteTransport()
+    gateway = Gateway(api_key="k", transport=transport)
+    grader = BakeoffGrader(
+        runs_root,
+        scores={GLM_FLASH: (95.0, 95.0)},
+        recalls={GLM_FLASH: (96.0, 100.0)},
+    )
+
+    writebakeoff.main(
+        [str(samples_root), str(runs_root), "--samples", *BAKEOFF_SAMPLES, "--models", GLM_FLASH],
+        gateway=gateway,
+        ledger=ledger,
+        grader=grader,
+    )
+    capsys.readouterr()
+
+    assert bakeoff_row(read_table(runs_root), GLM_FLASH)["passes"] is False
+
+
+def test_writebakeoff_a_passing_flash_model_stops_the_pro_tier(bakeoff_room, capsys):
+    """No pro model runs when a flash model passes on every sample."""
+    samples_root, runs_root, ledger = bakeoff_room
+    transport = WriteTransport()
+    gateway = Gateway(api_key="k", transport=transport)
+    grader = BakeoffGrader(
+        runs_root, scores={model: (60.0, 60.0) for model in (DS_FLASH, LUNA)}
+    )
+
+    code = writebakeoff.main(
+        [str(samples_root), str(runs_root), "--samples", *BAKEOFF_SAMPLES],
+        gateway=gateway,
+        ledger=ledger,
+        grader=grader,
+    )
+    capsys.readouterr()
+    assert code == 0
+
+    assert set(transport.models_asked()) == set(writebakeoff.TIERS["flash"])
+    for model in writebakeoff.TIERS["pro"]:
+        directory = runs_root / BAKEOFF_SAMPLES[0] / "write-bakeoff" / writebakeoff.slug(model)
+        assert not directory.exists()
+    table = read_table(runs_root)
+    assert table["winner"] == GLM_FLASH
+    for model in writebakeoff.TIERS["pro"]:
+        row = bakeoff_row(table, model)
+        assert all(row[field] == "not run" for field in BAKEOFF_MEASURED), model
+
+
+def test_writebakeoff_a_failing_flash_tier_escalates_and_stops_at_the_first_pro_model(
+    bakeoff_room, capsys
+):
+    """Every flash model failing runs the pro tier, which stops at its first passing model."""
+    samples_root, runs_root, ledger = bakeoff_room
+    transport = WriteTransport()
+    gateway = Gateway(api_key="k", transport=transport)
+    grader = BakeoffGrader(
+        runs_root, scores={model: (60.0, 60.0) for model in writebakeoff.TIERS["flash"]}
+    )
+
+    code = writebakeoff.main(
+        [str(samples_root), str(runs_root), "--samples", *BAKEOFF_SAMPLES],
+        gateway=gateway,
+        ledger=ledger,
+        grader=grader,
+    )
+    capsys.readouterr()
+    assert code == 0
+
+    first_pro = writebakeoff.TIERS["pro"][0]
+    assert set(transport.models_asked()) == set(writebakeoff.TIERS["flash"]) | {first_pro}
+    table = read_table(runs_root)
+    assert table["winner"] == first_pro
+    for model in writebakeoff.TIERS["flash"]:
+        assert bakeoff_row(table, model)["passes"] is False
+    row = bakeoff_row(table, writebakeoff.TIERS["pro"][1])
+    assert all(row[field] == "not run" for field in BAKEOFF_MEASURED)
+
+
+def test_writebakeoff_writes_the_table_after_each_model(bakeoff_room, capsys):
+    """The table on disk already carries the first model's row when the second one is graded."""
+    samples_root, runs_root, ledger = bakeoff_room
+    transport = WriteTransport()
+    gateway = Gateway(api_key="k", transport=transport)
+    grader = BakeoffGrader(
+        runs_root, scores={model: (60.0, 60.0) for model in writebakeoff.TIERS["flash"]}
+    )
+
+    writebakeoff.main(
+        [str(samples_root), str(runs_root), "--samples", *BAKEOFF_SAMPLES],
+        gateway=gateway,
+        ledger=ledger,
+        grader=grader,
+    )
+    capsys.readouterr()
+
+    first, second = writebakeoff.TIERS["flash"][0], writebakeoff.TIERS["flash"][1]
+    later = [number for number, call in enumerate(grader.calls) if call[0] == second]
+    assert later, "the second model was never graded"
+    table = grader.tables[later[0]]
+    assert table is not None, "no table was on disk when the second model was graded"
+    assert bakeoff_row(table, first)["passes"] is False
+    assert bakeoff_row(table, second)["passes"] == "not run"
+
+
+def test_writebakeoff_the_winner_is_the_cheapest_measured_row(bakeoff_room, capsys):
+    """Two models pass; the winner is the one whose measured dollars are lower."""
+    samples_root, runs_root, ledger = bakeoff_room
+    transport = WriteTransport(usage={DS_FLASH: (100, 100), GLM_FLASH: (100_000, 10_000)})
+    gateway = Gateway(api_key="k", transport=transport)
+    grader = BakeoffGrader(runs_root)
+
+    code = writebakeoff.main(
+        [
+            str(samples_root),
+            str(runs_root),
+            "--samples",
+            *BAKEOFF_SAMPLES,
+            "--models",
+            DS_FLASH,
+            GLM_FLASH,
+        ],
+        gateway=gateway,
+        ledger=ledger,
+        grader=grader,
+    )
+    capsys.readouterr()
+    assert code == 0
+
+    table = read_table(runs_root)
+    cheap = bakeoff_row(table, DS_FLASH)
+    dear = bakeoff_row(table, GLM_FLASH)
+    assert cheap["passes"] is True and dear["passes"] is True
+    assert cheap["dollars"] < dear["dollars"]
+    assert table["winner"] == DS_FLASH
+    # The winner is the row measured cheaper, not the one the price table calls cheaper.
+    assert price(DS_FLASH, *writebakeoff.WRITE_TOKENS) > price(
+        GLM_FLASH, *writebakeoff.WRITE_TOKENS
+    )
+
+
+def test_writebakeoff_recount_rebuilds_the_rows_from_disk_with_no_call(bakeoff_room, capsys):
+    """--recount reads the passes already on disk, makes no call and writes no ledger row."""
+    samples_root, runs_root, ledger = bakeoff_room
+    transport = WriteTransport()
+    gateway = Gateway(api_key="k", transport=transport)
+    grader = BakeoffGrader(runs_root, scores={GLM_FLASH: (90.0, 86.0)})
+
+    writebakeoff.main(
+        [str(samples_root), str(runs_root), "--samples", *BAKEOFF_SAMPLES, "--models", GLM_FLASH],
+        gateway=gateway,
+        ledger=ledger,
+        grader=grader,
+    )
+    capsys.readouterr()
+    before = read_table(runs_root)
+    calls = len(transport.requests)
+    rows = len(ledger.rows())
+
+    code = writebakeoff.main(
+        [str(samples_root), str(runs_root), "--samples", *BAKEOFF_SAMPLES, "--recount"],
+        gateway=gateway,
+        ledger=ledger,
+        grader=grader,
+    )
+    capsys.readouterr()
+    assert code == 0
+    assert len(transport.requests) == calls
+    assert len(ledger.rows()) == rows
+
+    after = read_table(runs_root)
+    assert bakeoff_row(after, GLM_FLASH)["samples"] == bakeoff_row(before, GLM_FLASH)["samples"]
+    assert bakeoff_row(after, GLM_FLASH)["passes"] is True
+    assert after["winner"] == GLM_FLASH
+    for model in (DS_FLASH, LUNA, DS_PRO, GLM):
+        row = bakeoff_row(after, model)
+        assert all(row[field] == "not run" for field in BAKEOFF_MEASURED), model
+
+
+def test_writebakeoff_dry_run_writes_a_blank_table_and_makes_no_request(bakeoff_room, capsys):
+    """--dry-run prints one estimate per model and leaves a table of not run rows."""
+    samples_root, runs_root, ledger = bakeoff_room
+    transport = WriteTransport()
+    gateway = Gateway(api_key="k", transport=transport)
+    before = len(ledger.rows())
+
+    code = writebakeoff.main(
+        [str(samples_root), str(runs_root), "--samples", *BAKEOFF_SAMPLES, "--dry-run"],
+        gateway=gateway,
+        ledger=ledger,
+    )
+    printed = capsys.readouterr().out
+    assert code == 0
+    assert transport.requests == []
+    assert len(ledger.rows()) == before
+
+    table = read_table(runs_root)
+    assert [row["model"] for row in table["rows"]] == list(writebakeoff.TIERS["flash"]) + list(
+        writebakeoff.TIERS["pro"]
+    )
+    for row in table["rows"]:
+        assert all(row[field] == "not run" for field in BAKEOFF_MEASURED), row["model"]
+    assert table["winner"] is None
+    for model in PRICES:
+        assert model in printed, model
+    assert "$" in printed
+
+
+def test_writebakeoff_refuses_a_model_outside_the_price_table(bakeoff_room, capsys):
+    """--models names a model of the price table and nothing else."""
+    samples_root, runs_root, ledger = bakeoff_room
+    code = writebakeoff.main(
+        [
+            str(samples_root),
+            str(runs_root),
+            "--samples",
+            *BAKEOFF_SAMPLES,
+            "--models",
+            "google/gemini",
+        ],
+        gateway=Gateway(api_key="k", transport=WriteTransport()),
+        ledger=ledger,
+    )
+    out = capsys.readouterr().out
+    assert code == 2
+    assert "google/gemini" in out
+
+
+def test_write_out_dir_puts_both_passes_under_it_and_reads_the_room_from_the_run_directory(
+    keyed_sample,
+):
+    """--out-dir writes pass a and pass b under it and leaves the run directory's room alone."""
+    sample_dir, run_dir, ledger = keyed_sample
+    transport = FakeTransport([reply(FAKE_REPORT, 1000, 200), reply(FAKE_REPORT, 1100, 210)])
+    gateway = Gateway(api_key="test-key", transport=transport)
+    grader = FakeGrader([92, 87])
+    out_dir = run_dir.parent / "elsewhere"
+
+    code = writer.main(
+        [str(sample_dir), str(run_dir), "--passes", "2", "--out-dir", str(out_dir)],
+        gateway=gateway,
+        ledger=ledger,
+        grader=grader,
+    )
+    assert code == 0
+
+    for name in ("report.md", "verify.json", "grade.json", "write-summary.json", "digest.md"):
+        assert (out_dir / name).exists(), name
+    assert (out_dir / "b" / "report.md").exists()
+    assert not (run_dir / "report.md").exists()
+    assert not (run_dir / "b").exists()
+    grade_a = json.loads((out_dir / "grade.json").read_text(encoding="utf-8"))
+    assert grade_a["score_b"] == 87 and grade_a["spread"] == 5
+
+
+# ---------------------------------------------------------------- the gate
+
+
+def fake_bakeoff_table(winner: str | None) -> dict:
+    """A bake-off table naming one winner, as pin reads it."""
+    return {
+        "date": "2026-09-07",
+        "samples": list(BAKEOFF_SAMPLES),
+        "prices": {model: list(PRICES[model]) for model in PRICES},
+        "rows": [],
+        "winner": winner,
+    }
+
+
+def lay_out_a_winner(runs_root: Path, sample: str, winner: str) -> dict[str, bytes]:
+    """Writes one sample's winning bake-off pass a and pass b under runs_root and returns the
+    bytes of the three files pin digests."""
+    sample_dir = runs_root / sample
+    pass_a = sample_dir / "write-bakeoff" / writebakeoff.slug(winner)
+    pass_b = pass_a / "b"
+    pass_b.mkdir(parents=True)
+    (sample_dir / "write-bakeoff.json").write_text(
+        json.dumps(fake_bakeoff_table(winner)), encoding="utf-8"
+    )
+    wanted: dict[str, bytes] = {}
+    for name in PINNED_FILES:
+        body = f"{sample} a {name}\n".encode()
+        (pass_a / name).write_bytes(body)
+        (pass_b / name).write_bytes(f"{sample} b {name}\n".encode())
+        wanted[name] = body
+    (pass_a / "digest.md").write_bytes(f"{sample} digest\n".encode())
+    (pass_a / "write-summary.json").write_bytes(b"{}\n")
+    (pass_a / "report-raw.txt").write_bytes(f"{sample} raw\n".encode())
+    (pass_a / "report-raw-1.txt").write_bytes(f"{sample} raw one\n".encode())
+    return wanted
+
+
+def test_gate_pin_reports_copies_the_winners_two_passes_and_digests_pass_a(tmp_path, capsys):
+    """pin.main --reports copies the winner's pass a into the run directory and pass b under
+    b/, and writes the sha256 of the three pinned files per sample."""
+    runs_root = tmp_path / "runs"
+    wanted = {}
+    for sample in BAKEOFF_SAMPLES:
+        files = lay_out_a_winner(runs_root, sample, GLM_FLASH)
+        wanted[sample] = {name: hashlib.sha256(body).hexdigest() for name, body in files.items()}
+
+    digests_path = tmp_path / "phase5-digests.json"
+    code = pin.main(
+        [
+            str(runs_root),
+            "--reports",
+            "--samples",
+            *BAKEOFF_SAMPLES,
+            "--digests",
+            str(digests_path),
+        ]
+    )
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert json.loads(digests_path.read_text(encoding="utf-8")) == wanted
+    raw = digests_path.read_text(encoding="utf-8")
+    assert raw == json.dumps(wanted, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    for sample in BAKEOFF_SAMPLES:
+        sample_dir = runs_root / sample
+        for name in PINNED_FILES:
+            assert (sample_dir / name).read_bytes() == f"{sample} a {name}\n".encode()
+            assert (sample_dir / "b" / name).read_bytes() == f"{sample} b {name}\n".encode()
+        assert (sample_dir / "digest.md").exists()
+        assert (sample_dir / "write-summary.json").exists()
+        assert (sample_dir / "report-raw.txt").exists()
+        assert (sample_dir / "report-raw-1.txt").exists()
+        assert sample in out
+    assert GLM_FLASH in out
+
+
+def test_gate_pin_reports_refuses_a_sample_with_no_winner(tmp_path, capsys):
+    """pin.main --reports refuses, names the sample and copies and digests nothing."""
+    runs_root = tmp_path / "runs"
+    lay_out_a_winner(runs_root, BAKEOFF_SAMPLES[0], GLM_FLASH)
+    other = runs_root / BAKEOFF_SAMPLES[1]
+    other.mkdir(parents=True)
+    (other / "write-bakeoff.json").write_text(
+        json.dumps(fake_bakeoff_table(None)), encoding="utf-8"
+    )
+
+    digests_path = tmp_path / "phase5-digests.json"
+    code = pin.main(
+        [
+            str(runs_root),
+            "--reports",
+            "--samples",
+            *BAKEOFF_SAMPLES,
+            "--digests",
+            str(digests_path),
+        ]
+    )
+    out = capsys.readouterr().out
+
+    assert code == 1
+    assert not digests_path.exists()
+    assert BAKEOFF_SAMPLES[1] in out
+    assert not (runs_root / BAKEOFF_SAMPLES[0] / "report.md").exists()
+
+
+def test_gate_pin_reports_refuses_a_sample_with_no_table(tmp_path, capsys):
+    """A sample with no write-bakeoff.json is the same refusal as a table naming no winner."""
+    runs_root = tmp_path / "runs"
+    lay_out_a_winner(runs_root, BAKEOFF_SAMPLES[0], GLM_FLASH)
+    (runs_root / BAKEOFF_SAMPLES[1]).mkdir(parents=True)
+
+    digests_path = tmp_path / "phase5-digests.json"
+    code = pin.main(
+        [
+            str(runs_root),
+            "--reports",
+            "--samples",
+            *BAKEOFF_SAMPLES,
+            "--digests",
+            str(digests_path),
+        ]
+    )
+    out = capsys.readouterr().out
+
+    assert code == 1
+    assert not digests_path.exists()
+    assert BAKEOFF_SAMPLES[1] in out
+
+
+def test_gate_default_digests_path_names_the_phase_5_file():
+    """The default digest file of the reports mode is tests/phase5-digests.json."""
+    assert pin.default_digests_path(reports=True).name == "phase5-digests.json"
+    assert pin.default_digests_path(reports=True).parent == ROOT / "tests"
+    assert pin.default_digests_path(dossiers=True).name == "phase4-digests.json"
+    assert pin.default_digests_path().name == "phase2-digests.json"

@@ -26,11 +26,12 @@ from types import TracebackType
 import httpx
 
 # Per million tokens, prompt then completion, as PLAN.md section 5 reads, from the gateway's
-# model list on 2026-09-06.
+# model list on 2026-09-07. DeepSeek V4 Flash and DeepSeek V4 Pro both went up; Luna and the
+# two GLM endpoints read what they read on 2026-09-06.
 PRICES: dict[str, tuple[float, float]] = {
     "openai/gpt-5.6-luna": (0.200, 1.200),
-    "deepseek/deepseek-v4-flash-0731": (0.050, 0.100),
-    "deepseek/deepseek-v4-pro": (0.657, 1.314),
+    "deepseek/deepseek-v4-flash-0731": (0.140, 0.280),
+    "deepseek/deepseek-v4-pro": (0.955, 1.911),
     "z-ai/glm-5.3": (1.400, 4.400),
     "z-ai/glm-5.3-flash": (0.075, 0.250),
 }
@@ -38,6 +39,13 @@ PRICES: dict[str, tuple[float, float]] = {
 # The tables the repository has priced a call at before, newest first. A ledger row written
 # before a price moved reconciles at one of these, so it is kept here.
 PAST_PRICES: tuple[dict[str, tuple[float, float]], ...] = (
+    {
+        "openai/gpt-5.6-luna": (0.200, 1.200),
+        "deepseek/deepseek-v4-flash-0731": (0.050, 0.100),
+        "deepseek/deepseek-v4-pro": (0.657, 1.314),
+        "z-ai/glm-5.3": (1.400, 4.400),
+        "z-ai/glm-5.3-flash": (0.075, 0.250),
+    },
     {
         "openai/gpt-5.6-luna": (0.200, 1.200),
         "deepseek/deepseek-v4-flash-0731": (0.065, 0.180),

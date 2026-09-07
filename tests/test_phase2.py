@@ -158,16 +158,16 @@ def test_gateway_estimate_tokens_is_characters_over_four_rounded_up():
 
 
 def test_gateway_price_table_is_plan_section_5():
-    """Per million tokens, prompt then completion, as PLAN.md section 5 reads on 2026-09-06."""
+    """Per million tokens, prompt then completion, as PLAN.md section 5 reads on 2026-09-07."""
     assert PRICES == {
         "openai/gpt-5.6-luna": (0.200, 1.200),
-        "deepseek/deepseek-v4-flash-0731": (0.050, 0.100),
-        "deepseek/deepseek-v4-pro": (0.657, 1.314),
+        "deepseek/deepseek-v4-flash-0731": (0.140, 0.280),
+        "deepseek/deepseek-v4-pro": (0.955, 1.911),
         "z-ai/glm-5.3": (1.400, 4.400),
         "z-ai/glm-5.3-flash": (0.075, 0.250),
     }
-    assert price(MODEL, 1_000_000, 1_000_000) == pytest.approx(0.150)
-    assert price(MODEL, 90_000, 60_000) == pytest.approx(0.0045 + 0.006)
+    assert price(MODEL, 1_000_000, 1_000_000) == pytest.approx(0.420)
+    assert price(MODEL, 90_000, 60_000) == pytest.approx(0.0126 + 0.0168)
     assert price("z-ai/glm-5.3", 0, 0) == 0.0
     with pytest.raises(KeyError):
         price("google/gemini", 1, 1)
@@ -179,13 +179,20 @@ def test_gateway_past_prices_keep_the_older_tables():
     assert PAST_PRICES == (
         {
             "openai/gpt-5.6-luna": (0.200, 1.200),
+            "deepseek/deepseek-v4-flash-0731": (0.050, 0.100),
+            "deepseek/deepseek-v4-pro": (0.657, 1.314),
+            "z-ai/glm-5.3": (1.400, 4.400),
+            "z-ai/glm-5.3-flash": (0.075, 0.250),
+        },
+        {
+            "openai/gpt-5.6-luna": (0.200, 1.200),
             "deepseek/deepseek-v4-flash-0731": (0.065, 0.180),
             "deepseek/deepseek-v4-pro": (0.870, 1.740),
             "z-ai/glm-5.3": (1.400, 4.400),
             "z-ai/glm-5.3-flash": (0.075, 0.250),
         },
     )
-    assert known_prices(MODEL) == [(0.050, 0.100), (0.065, 0.180)]
+    assert known_prices(MODEL) == [(0.140, 0.280), (0.050, 0.100), (0.065, 0.180)]
     assert known_prices("z-ai/glm-5.3") == [(1.400, 4.400)]
     assert known_prices("openai/gpt-5.6-luna") == [(0.200, 1.200)]
     with pytest.raises(KeyError):
@@ -343,7 +350,7 @@ def test_gateway_batch_refuses_past_the_phase_cap_before_any_request(tmp_path):
     ledger = Ledger(path)
     transport = FakeTransport([reply("{}")])
     gateway = Gateway(api_key="k", transport=transport)
-    # $7.90 spent in phase 2; 4m tokens in at $0.050/m is $0.20 more, past the $8 cap.
+    # $7.90 spent in phase 2; 4m tokens in at $0.140/m is $0.56 more, past the $8 cap.
     assert ledger.spent(PHASE) + price(MODEL, 4_000_000, 0) > PHASE_CAP
 
     with pytest.raises(CapExceeded):
@@ -2183,7 +2190,9 @@ def test_bakeoff_slug_and_the_tiers_run_in_price_order():
     assert bakeoff.slug(DS_PRO) == "deepseek-v4-pro"
     assert bakeoff.slug(GLM) == "glm-5.3"
 
-    assert bakeoff.TIERS["flash"] == (DS_FLASH, GLM_FLASH, LUNA)
+    # The order inside a tier is the price of one pass, so it moved when DeepSeek V4 Flash
+    # went from 0.050 to 0.140 in on 2026-09-07.
+    assert bakeoff.TIERS["flash"] == (GLM_FLASH, DS_FLASH, LUNA)
     assert bakeoff.TIERS["pro"] == (DS_PRO, GLM)
     assert set(bakeoff.TIERS["flash"]) | set(bakeoff.TIERS["pro"]) == set(PRICES)
     for tier in bakeoff.TIERS.values():
@@ -2244,8 +2253,8 @@ def test_bakeoff_gateway_models_reads_the_price_list():
     """One GET of the gateway's model list, priced per million tokens."""
     payload = {
         "data": [
-            {"id": DS_FLASH, "pricing": {"prompt": "0.00000004998", "completion": "0.00000009996"}},
-            {"id": DS_PRO, "pricing": {"prompt": "0.000000657198", "completion": "0.000001314396"}},
+            {"id": DS_FLASH, "pricing": {"prompt": "0.00000014", "completion": "0.00000028"}},
+            {"id": DS_PRO, "pricing": {"prompt": "0.00000095526", "completion": "0.00000191052"}},
             {"id": GLM, "pricing": {"prompt": "0.0000014", "completion": "0.0000044"}},
         ]
     }
@@ -2258,7 +2267,7 @@ def test_bakeoff_gateway_models_reads_the_price_list():
     gateway = Gateway(api_key="k", transport=httpx.MockTransport(handle))
     found = gateway.models()
 
-    assert found == {DS_FLASH: (0.04998, 0.09996), DS_PRO: (0.657198, 1.314396), GLM: (1.4, 4.4)}
+    assert found == {DS_FLASH: (0.14, 0.28), DS_PRO: (0.95526, 1.91052), GLM: (1.4, 4.4)}
     assert len(seen) == 1
     assert seen[0].method == "GET"
     assert str(seen[0].url) == "https://openrouter.ai/api/v1/models"
@@ -2564,7 +2573,7 @@ def test_bakeoff_the_winner_is_the_cheapest_passing_row(tmp_path, capsys):
     perfect = perfect_replies("northstar-dental", runs_root / "northstar-dental")
     transport = BakeoffTransport(
         {DS_FLASH: perfect, GLM_FLASH: perfect},
-        usage={DS_FLASH: (100_000, 100_000), GLM_FLASH: (100, 100)},
+        usage={DS_FLASH: (100, 100), GLM_FLASH: (100_000, 100_000)},
     )
     gateway = Gateway(api_key="k", transport=transport)
 
@@ -2585,13 +2594,13 @@ def test_bakeoff_the_winner_is_the_cheapest_passing_row(tmp_path, capsys):
     assert code == 0
 
     table = json.loads((runs_root / "northstar-dental" / "bakeoff.json").read_text(encoding="utf-8"))
-    cheap = row_of(table, GLM_FLASH)
-    dear = row_of(table, DS_FLASH)
+    cheap = row_of(table, DS_FLASH)
+    dear = row_of(table, GLM_FLASH)
     assert cheap["passes"] is True and dear["passes"] is True
     assert cheap["dollars"] < dear["dollars"]
-    assert table["winner"] == GLM_FLASH
+    assert table["winner"] == DS_FLASH
     # The winner is the row measured cheaper, not the one the price table calls cheaper.
-    assert price(GLM_FLASH, 1, 1) > price(DS_FLASH, 1, 1)
+    assert price(DS_FLASH, 1, 1) > price(GLM_FLASH, 1, 1)
 
 
 def test_bakeoff_dry_run_writes_a_table_of_not_run_rows_and_makes_no_request(tmp_path, capsys):
