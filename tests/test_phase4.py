@@ -716,7 +716,7 @@ def test_dossier_lesser_matters_ranks_the_rest_of_the_room(
 
 
 def test_dossier_every_decoy_sits_in_lesser_matters_and_in_no_comparison(dossiered, key):
-    """No decoy is in the first matter's set or in a comparison, and every one is a lesser matter."""
+    """No decoy is in the first matter's set or in a comparison, and each is a lesser matter."""
     decoys = {decoy.document for decoy in key.decoys}
     assert decoys
     listed = {row.doc for row in lesser_rows(dossiered.text)}
