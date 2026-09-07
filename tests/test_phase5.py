@@ -1193,10 +1193,7 @@ def readout(terminalreporter):
             continue
         record = json.loads(verify_path.read_text(encoding="utf-8"))
         for number, failures in enumerate(record.get("rounds", []), start=1):
-            counts = {
-                name: sum(1 for failure in failures if failure["check"] == name)
-                for name in verifier.CHECKS
-            }
+            counts = verifier.counts_of(failures)
             terminalreporter.write_line(verifier.counts_line(sample, counts, number))
             for failure in failures:
                 terminalreporter.write_line(verifier.failure_line(failure))
