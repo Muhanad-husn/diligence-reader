@@ -804,6 +804,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("run_dir")
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument(
+        "--from-reply",
+        dest="from_reply",
+        default=None,
+        help="a saved reply to rebuild the report from, making no call and paying nothing",
+    )
+    parser.add_argument(
         "--out",
         default=None,
         help="a second file name under the run directory to keep this draw's report under",
@@ -838,23 +844,38 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
 
     messages = build_messages(brief_path.read_text(encoding="utf-8"), digest)
 
-    if gateway is None:
-        gateway = Gateway()
-    if ledger is None:
-        ledger = Ledger(Path(__file__).resolve().parents[2] / "LEDGER.md")
+    if args.from_reply:
+        # A saved reply rebuilds the report with no call and no ledger row, which is how the
+        # schedule is changed and measured without paying again for a narrative that has not
+        # changed. The tokens and the seconds of the draw that wrote the reply carry forward
+        # from the summary it left, because they are still what the report cost.
+        reply = Path(args.from_reply).read_text(encoding="utf-8")
+        previous = run_dir / "write-summary.json"
+        before = json.loads(previous.read_text(encoding="utf-8")) if previous.exists() else {}
+        tokens_in = int(before.get("tokens_in", 0))
+        tokens_out = int(before.get("tokens_out", 0))
+        seconds = float(before.get("seconds", 0.0))
+        print(f"reply {sample_dir.name}: rebuilt from {args.from_reply}, no call made")
+    else:
+        if gateway is None:
+            gateway = Gateway()
+        if ledger is None:
+            ledger = Ledger(Path(__file__).resolve().parents[2] / "LEDGER.md")
 
-    estimated_in = estimate_tokens("\n".join(message["content"] for message in messages))
-    started = time.monotonic()
-    with ledger.batch(
-        sample_dir.name, PHASE, args.model, tokens_in=estimated_in, tokens_out=MAX_OUTPUT_TOKENS
-    ) as batch:
-        completion = batch.record(
-            gateway.complete(args.model, messages, max_tokens=MAX_OUTPUT_TOKENS, json=False)
-        )
-    seconds = time.monotonic() - started
+        estimated_in = estimate_tokens("\n".join(message["content"] for message in messages))
+        started = time.monotonic()
+        with ledger.batch(
+            sample_dir.name, PHASE, args.model, tokens_in=estimated_in, tokens_out=MAX_OUTPUT_TOKENS
+        ) as batch:
+            completion = batch.record(
+                gateway.complete(args.model, messages, max_tokens=MAX_OUTPUT_TOKENS, json=False)
+            )
+        seconds = time.monotonic() - started
+        reply = completion.text
+        tokens_in, tokens_out = completion.tokens_in, completion.tokens_out
+        (run_dir / "report-raw.txt").write_text(reply, encoding="utf-8")
 
-    (run_dir / "report-raw.txt").write_text(completion.text, encoding="utf-8")
-    narrative = parse_reply(completion.text)
+    narrative = parse_reply(reply)
     evidence, cut = evidence_within_reach(dossier)
     report = f"{narrative}\n## {EVIDENCE_HEADING}\n\n{evidence}"
     write_report(run_dir, report)
@@ -871,9 +892,9 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
         "evidence_cut": cut,
         "sentences": len(sentences(report)),
         "citations": len(citations(report)),
-        "tokens_in": completion.tokens_in,
-        "tokens_out": completion.tokens_out,
-        "dollars": price(args.model, completion.tokens_in, completion.tokens_out),
+        "tokens_in": tokens_in,
+        "tokens_out": tokens_out,
+        "dollars": price(args.model, tokens_in, tokens_out),
         "seconds": seconds,
     }
     (run_dir / "write-summary.json").write_text(
