@@ -25,9 +25,17 @@ key: the recall, the verifier and the rubric are read out of the grade.json, ver
 write-summary.json that each pass left on disk.
 
 --recount rebuilds every row from the pass directories already sitting under
-runs/<sample>/write-bakeoff/ on disk, with no gateway call and no ledger line. A model with no
-directory on any sample it is asked about stays a blank row. --dry-run prints one estimate per
-model and writes the blank table.
+runs/<sample>/write-bakeoff/ on disk, with no gateway call and no ledger line. A recount reads
+the reports under the verifier of the day: the recall and the rubric come from grade.json, and
+the verifier value of each pass comes from running rlm.verify.verify over that pass's
+report.md against the sample's sections.jsonl, index.jsonl, dossier.md and map.json, not from
+the passes field verify.json stored. The verify.json files are left as they are. A model with
+no directory on any sample it is asked about stays a blank row. --dry-run prints one estimate
+per model and writes the blank table.
+
+A run named with --samples writes only the samples it names and reads the row from every
+sample the kept table already holds, so a rerun of one sample leaves the other samples of the
+row and of the table where they were.
 """
 
 from __future__ import annotations
@@ -39,7 +47,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-from rlm import write
+from rlm import verify, write
 from rlm.gateway import PRICES, Gateway, Ledger, estimate_tokens, price
 
 PHASE = write.PHASE
@@ -102,22 +110,52 @@ def blank_row(model: str, tier: str) -> dict:
     return row
 
 
-def read_pass(out_dir: Path) -> dict | None:
+def sample_room(runs_root: Path, sample: str) -> tuple | None:
+    """The sections, the index, the dossier and the map one sample's run directory holds.
+
+    None where any of the three files the verifier needs is absent, which is how a pass whose
+    room is not on disk keeps the verifier value verify.json stored.
+    """
+    run_dir = runs_root / sample
+    names = ("sections.jsonl", "index.jsonl", "dossier.md")
+    if not all((run_dir / name).exists() for name in names):
+        return None
+    return (
+        verify.read_jsonl(run_dir / "sections.jsonl"),
+        verify.read_jsonl(run_dir / "index.jsonl"),
+        (run_dir / "dossier.md").read_text(encoding="utf-8"),
+        verify.read_mapping(run_dir / "map.json"),
+    )
+
+
+def verified_now(out_dir: Path, room: tuple) -> bool:
+    """Whether one pass's report.md on disk verifies under the verifier of the day."""
+    report = (out_dir / "report.md").read_text(encoding="utf-8")
+    sections, index, dossier, mapping = room
+    return bool(verify.verify(report, sections, index, dossier, mapping)["passes"])
+
+
+def read_pass(out_dir: Path, room: tuple | None = None) -> dict | None:
     """What one pass on disk says about itself, or None where it did not finish.
 
-    The recall and the rubric come from grade.json, the verifier from verify.json and the
-    dollars and the seconds from write-summary.json. The rubric is the grade's score where the
-    grade holds rubric rows, and None where it holds none, which is how a sample whose key has
-    no rubric is told from one whose key has one. No key is read.
+    The recall and the rubric come from grade.json, the dollars and the seconds from
+    write-summary.json. The rubric is the grade's score where the grade holds rubric rows, and
+    None where it holds none, which is how a sample whose key has no rubric is told from one
+    whose key has one. The verifier value comes from verify.json's passes field, and where a
+    room is given it comes instead from reading report.md again with the verifier of the day.
+    No key is read.
     """
     if not all((out_dir / name).exists() for name in PASS_FILES):
         return None
     grade = json.loads((out_dir / "grade.json").read_text(encoding="utf-8"))
     verified = json.loads((out_dir / "verify.json").read_text(encoding="utf-8"))
     summary = json.loads((out_dir / "write-summary.json").read_text(encoding="utf-8"))
+    passes = bool(verified["passes"])
+    if room is not None and (out_dir / "report.md").exists():
+        passes = verified_now(out_dir, room)
     return {
         "recall": grade["recall"],
-        "verifier": bool(verified["passes"]),
+        "verifier": passes,
         "rubric": grade["score"] if grade.get("rubric") else None,
         "dollars": summary["dollars"],
         "seconds": summary["seconds"],
@@ -201,55 +239,29 @@ def model_estimate(estimates: dict[str, tuple[int, int]], model: str) -> float:
     return sum(2 * price(model, *tokens) for tokens in estimates.values())
 
 
-def measure(
+def fill_row(
     row: dict,
     samples: list[str],
-    samples_root: Path,
     runs_root: Path,
-    gateway: Gateway | None,
-    ledger: Ledger | None,
-    grader: Callable[[Path, Path, Path, str], dict] | None,
+    rooms: dict[str, tuple | None],
+    required: tuple[str, ...] = (),
 ) -> None:
-    """Runs one model's two passes on every sample and fills its row."""
+    """Fills one row from the pass directories on disk, one entry per sample with both passes.
+
+    A sample of required whose passes are not on disk is a refusal. A row with no pass at all
+    is left as it was, which is how a model that never ran stays a blank row.
+    """
     dollars = 0.0
     seconds = 0.0
     entries: dict[str, dict] = {}
 
     for sample in samples:
         a_dir, b_dir = pass_dirs(runs_root, sample, row["slug"])
-        run_write(
-            samples_root / sample,
-            runs_root / sample,
-            a_dir,
-            row["model"],
-            gateway,
-            ledger,
-            grader,
-        )
-        first, second = read_pass(a_dir), read_pass(b_dir)
+        room = rooms.get(sample)
+        first, second = read_pass(a_dir, room), read_pass(b_dir, room)
         if first is None or second is None:
-            raise ValueError(f"the write on {sample} left no pass to read")
-        entries[sample] = sample_entry(first, second)
-        dollars += first["dollars"] + second["dollars"]
-        seconds += first["seconds"] + second["seconds"]
-
-    row["samples"] = entries
-    row["dollars"] = round(dollars, 6)
-    row["seconds"] = seconds
-    row["passes"] = passes_rule(entries, samples)
-
-
-def recount_row(row: dict, samples: list[str], runs_root: Path) -> None:
-    """Rebuilds one row from the pass directories already on disk, with no gateway call. A model
-    with no pass on any sample stays the blank row it started as."""
-    dollars = 0.0
-    seconds = 0.0
-    entries: dict[str, dict] = {}
-
-    for sample in samples:
-        a_dir, b_dir = pass_dirs(runs_root, sample, row["slug"])
-        first, second = read_pass(a_dir), read_pass(b_dir)
-        if first is None or second is None:
+            if sample in required:
+                raise ValueError(f"the write on {sample} left no pass to read")
             continue
         entries[sample] = sample_entry(first, second)
         dollars += first["dollars"] + second["dollars"]
@@ -262,6 +274,44 @@ def recount_row(row: dict, samples: list[str], runs_root: Path) -> None:
     row["dollars"] = round(dollars, 6)
     row["seconds"] = seconds
     row["passes"] = passes_rule(entries, samples)
+
+
+def measure(
+    row: dict,
+    samples: list[str],
+    table_samples: list[str],
+    samples_root: Path,
+    runs_root: Path,
+    rooms: dict[str, tuple | None],
+    gateway: Gateway | None,
+    ledger: Ledger | None,
+    grader: Callable[[Path, Path, Path, str], dict] | None,
+) -> None:
+    """Runs one model's two passes on every sample of samples and fills its row.
+
+    The row is read off disk over table_samples, which is every sample the table covers, so a
+    run restricted to one sample keeps the samples it did not write.
+    """
+    for sample in samples:
+        a_dir, _ = pass_dirs(runs_root, sample, row["slug"])
+        run_write(
+            samples_root / sample,
+            runs_root / sample,
+            a_dir,
+            row["model"],
+            gateway,
+            ledger,
+            grader,
+        )
+    fill_row(row, table_samples, runs_root, rooms, required=tuple(samples))
+
+
+def recount_row(
+    row: dict, samples: list[str], runs_root: Path, rooms: dict[str, tuple | None]
+) -> None:
+    """Rebuilds one row from the pass directories already on disk, with no gateway call. A model
+    with no pass on any sample stays the blank row it started as."""
+    fill_row(row, samples, runs_root, rooms)
 
 
 def build_table(samples: list[str], rows: dict[str, dict]) -> dict:
@@ -341,6 +391,25 @@ def kept_rows(runs_root: Path, first_sample: str) -> dict[str, dict]:
     return {row["model"]: row for row in table["rows"]}
 
 
+def table_samples_of(kept: dict[str, dict], samples: list[str]) -> list[str]:
+    """Every sample the written table covers: the run's own and the ones the kept rows hold.
+
+    A run restricted to one sample leaves the other samples' passes on disk, so the table it
+    writes still carries them. The order is the order of SAMPLES, and a sample outside that
+    tuple comes after them in the order it was met.
+    """
+    found = list(samples)
+    for row in kept.values():
+        entries = row.get("samples")
+        if not isinstance(entries, dict):
+            continue
+        for sample in entries:
+            if sample not in found:
+                found.append(sample)
+    known = [sample for sample in SAMPLES if sample in found]
+    return known + [sample for sample in found if sample not in known]
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     """Reads the command line of one bake-off."""
     parser = argparse.ArgumentParser(prog="python -m rlm.writebakeoff")
@@ -379,9 +448,10 @@ def main(
     samples = list(args.samples)
 
     if args.recount:
+        rooms = {sample: sample_room(runs_root, sample) for sample in samples}
         rows = {model: blank_row(model, tier) for tier in TIERS for model in TIERS[tier]}
         for model in rows:
-            recount_row(rows[model], samples, runs_root)
+            recount_row(rows[model], samples, runs_root, rooms)
         table = build_table(samples, rows)
         write_table(runs_root, samples, table)
         print_table(table)
@@ -396,6 +466,8 @@ def main(
             return 2
 
     kept = kept_rows(runs_root, samples[0]) if wanted is not None else {}
+    table_samples = table_samples_of(kept, samples)
+    rooms = {sample: sample_room(runs_root, sample) for sample in table_samples}
     rows = {
         model: kept[model]
         if wanted is not None and model not in wanted and model in kept
@@ -417,8 +489,8 @@ def main(
         print(f"{model}: two passes on {len(samples)} samples estimate ${estimate:.4f}")
 
     if args.dry_run:
-        table = build_table(samples, rows)
-        write_table(runs_root, samples, table)
+        table = build_table(table_samples, rows)
+        write_table(runs_root, table_samples, table)
         print_table(table)
         return 0
 
@@ -431,15 +503,25 @@ def main(
         for one_tier, model in chosen:
             if one_tier != tier:
                 continue
-            measure(rows[model], samples, samples_root, runs_root, gateway, ledger, grader)
-            table = build_table(samples, rows)
-            write_table(runs_root, samples, table)
+            measure(
+                rows[model],
+                samples,
+                table_samples,
+                samples_root,
+                runs_root,
+                rooms,
+                gateway,
+                ledger,
+                grader,
+            )
+            table = build_table(table_samples, rows)
+            write_table(runs_root, table_samples, table)
             print_table(table)
             if tier != "flash" and rows[model]["passes"] is True:
                 break
 
-    table = build_table(samples, rows)
-    write_table(runs_root, samples, table)
+    table = build_table(table_samples, rows)
+    write_table(runs_root, table_samples, table)
     print_table(table)
     return 0
 
