@@ -624,6 +624,32 @@ def side_missing(side: str, triples, wanted_words: set[str], index_days) -> set[
     return missing
 
 
+def split_by_content(row, fact, document_words):
+    """The row's documents split into the fact's two sides by their words and numbers alone.
+
+    Days are left out on purpose: cut_days takes them out of both the side and the quotes before
+    words_of and numbers_of ever see them, so the split is the one a reader would make from the
+    room's own words, before a day is asked of either side at all. None where no split of the
+    row's documents carries both sides this way.
+    """
+    first, second = fact.value.split(AGAINST, 1)
+    held = set().union(*(document_words.get(doc, set()) for doc in fact.documents))
+    wanted = [words_of(side) & held for side in (first, second)]
+    docs = sorted({triple.doc for triple in row})
+    for mask in range(1, 2 ** len(docs) - 1):
+        left = {doc for at, doc in enumerate(docs) if mask >> at & 1}
+        parts = (left, set(docs) - left)
+        carries = True
+        for at, (side, part) in enumerate(zip((first, second), parts)):
+            quoted = " ".join(triple.quote for triple in row if triple.doc in part)
+            if numbers_of(side) - numbers_of(quoted) or wanted[at] - words_of(quoted):
+                carries = False
+                break
+        if carries:
+            return parts
+    return None
+
+
 def split_row(row, fact, document_words, index_days):
     """Reads a row as the two sides of a fact, or returns what each side fails to carry.
 
@@ -685,6 +711,42 @@ def test_dossier_comparisons_carry_every_planted_comparison(
             f"{fact.id}: {fact.value!r} is not carried by its row: "
             f"{[sorted(one) for found in reasons if found for one in found]}"
         )
+
+
+def test_dossier_deadline_comparison_quotes_its_own_day(dossiered, key, document_words):
+    """A comparison that names three or more documents is a deadline against the action taken
+    after it, the room's own words split three ways: the window, the day it counts from and the
+    action. Where a side of such a fact names a day, the row's own part for that side has to
+    quote the day itself, straightened, and not rely on a day the phase 1 index happened to read
+    somewhere else in the same document.
+    """
+    facts = [fact for fact in comparison_facts(key) if len(fact.documents) > 2]
+    if not facts:
+        pytest.skip("the key plants no comparison of three or more documents")
+    rows = comparison_rows(dossiered.text)
+    checked = 0
+    for fact in facts:
+        first, second = fact.value.split(AGAINST, 1)
+        wanted_docs = set(fact.documents)
+        hits = [row for row in rows if {triple.doc for triple in row} == wanted_docs]
+        assert hits, f"{fact.id}: no row naming {sorted(wanted_docs)}"
+        for side in (first, second):
+            day = days_of(side)
+            if not day:
+                continue
+            checked += 1
+            at = 0 if side == first else 1
+            carried = False
+            for row in hits:
+                split = split_by_content(row, fact, document_words)
+                if split is None:
+                    continue
+                quoted = " ".join(triple.quote for triple in row if triple.doc in split[at])
+                if day <= days_of(quoted):
+                    carried = True
+                    break
+            assert carried, f"{fact.id}: {side!r} does not quote its own day"
+    assert checked >= 1
 
 
 def test_dossier_comparison_anchors_belong_to_their_documents(dossiered, key, known_anchors):
