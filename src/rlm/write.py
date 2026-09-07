@@ -1,9 +1,10 @@
 """Writes one sample's findings report from its brief and its dossier, in one gateway call.
 
 The report has two halves and only the first is written by a model. build_digest reads the
-dossier's first matter and keeps about a hundred rows of it: every comparison, one row for each
-name, the models blind to the matter, the largest lesser matters, and the dated turning points
-and largest figures of the documents the matter is made of. That digest goes to digest.md and
+dossier's first matter and keeps about a hundred and fifty rows of it: every comparison, one
+row for each name, the models blind to the matter, the largest lesser matters and every lesser
+matter naming a document the matter does not hold, and the dated turning points and largest
+figures of the documents the matter is made of. That digest goes to digest.md and
 is the user message; the dossier itself is never sent, and the model sees no answer key,
 because nothing here reads one. The reply is the five sections the brief asks for, every
 sentence of them ending in a citation `[<doc> | <anchor>]` copied off a digest row.
@@ -134,10 +135,11 @@ DIGEST_ROWS = 150
 # inside a sentence come first and the dossier's own order decides the rest.
 COMPARISON_ROWS = 30
 
-# The most lesser matters a digest carries. The dossier ranks that section by the largest money
-# figure of each document, so these are its largest and the rest are what a report would have
-# said least about. Every digest row costs a quoted sentence of a capped reply, so the least
-# material section is the one that gives room back.
+# The most lesser matters a digest carries out of the documents the matter already holds. The
+# dossier ranks that section by the largest money figure of each document, so these are its
+# largest. Every digest row costs a quoted sentence of a capped reply, so the least material
+# section is the one that gives room back, and this is the number the timeline and the figures
+# are sized against.
 LESSER_ROWS = 6
 
 # The most words a row's quote may run to before the digest passes it over. A dossier row can
@@ -409,23 +411,46 @@ def named_rows(rows: list[str]) -> list[str]:
     return sorted(found, key=lambda row: order[row])
 
 
+def lesser_rows(rows: list[str], held: set[str]) -> list[str]:
+    """The lesser matters the digest keeps: the largest by money, then every row naming a
+    document the matter does not hold.
+
+    The dossier ranks this section by the largest money figure of each document, so the first
+    LESSER_ROWS of it are the largest. A report that has to say what is smaller has to have
+    seen it, and a row whose document sits outside the matter is the only line the writer will
+    ever have on that document, so it is kept whatever its figure. On sample 1 the largest six
+    are the room's revenue and its audit opinions, and the licence clean-up, the search partner
+    and the mail gateway sit at ranks 45 and past it, which is why the rank alone did not reach
+    them.
+    """
+    ordered = quotable_first(rows)
+    kept = list(ordered[:LESSER_ROWS])
+    kept.extend(row for row in ordered[LESSER_ROWS:] if row_document(row) not in held)
+    return kept
+
+
 def digest_sections(dossier: str) -> dict[str, list[str]]:
     """The rows the digest keeps, by the dossier heading they came from.
 
-    Every comparison row, every lesser matter and every model blind to the matter goes in
-    whole, because those are the matter's contradictions, its rest and its blind spots and
-    there are few of them. The names give one row each. The timeline gives its dated turning
-    points and the figures give the largest money and the counts and defined terms, and those
-    two are what a total over DIGEST_ROWS is trimmed out of, the figures before the timeline,
-    because a date the report loses is a date the report cannot write.
+    Every comparison row and every model blind to the matter goes in whole, because those are
+    the matter's contradictions and its blind spots and there are few of them. The lesser
+    matters give their largest by money and every row naming a document the matter does not
+    hold. The names give one row each. The timeline gives its dated turning points and the
+    figures give the largest money and the counts and defined terms, and those two are what a
+    total over DIGEST_ROWS is trimmed out of, the figures before the timeline, because a date
+    the report loses is a date the report cannot write.
     """
     sections = dossier_sections(dossier)
     names = named_rows(sections.get("Names", []))
     weight = document_weight(sections)
-    lesser = quotable_first(sections.get("Lesser matters", []))[:LESSER_ROWS]
+    lesser = lesser_rows(sections.get("Lesser matters", []), set(weight))
     models = sections.get("Models blind to it", [])
     comparisons = quotable_first(sections.get("Comparisons", []))[:COMPARISON_ROWS]
-    room = max(0, DIGEST_ROWS - len(names) - len(lesser) - len(models) - len(comparisons))
+    # The lesser matters outside the matter are not charged against the timeline and the
+    # figures: a date the report loses is a date the report cannot write, and the rows that
+    # name what is smaller are one short line each.
+    charged = min(LESSER_ROWS, len(lesser))
+    room = max(0, DIGEST_ROWS - len(names) - charged - len(models) - len(comparisons))
     # Every document of the matter gets a timeline row before any document takes a second,
     # so the timeline is at least as long as the matter is wide, within the room there is.
     timeline = timeline_rows(
