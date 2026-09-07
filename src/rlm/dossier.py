@@ -30,13 +30,15 @@ A comparison is written differently, because it has two sides and each side has 
 back to the document that says it. A comparison row is two or more `<doc> | <quote> | <anchor>`
 parts joined by ` || `. A side of a comparison is one or more parts of one document, so a
 document may say its half of a comparison in as many places as it takes, and a comparison whose
-window, its start and its action sit in three documents has three sides in one row. Seven rules
+window, its start and its action sit in three documents has three sides in one row. Eight rules
 write the rows: a draft against its final, a booked reserve against a range of what it could
 cost, a deadline against the action taken after it, a model against the series it still
 assumes, a termination right against what the seed document found, a limit against the holding
-that exceeds it, and a warranty that nothing material happened against a committee that has not
-decided whether it did. Each rule reads flags, figures and cross references from the notes and
-version pairs and consequences from the map. Every pair a rule finds is written, and where two
+that exceeds it, a warranty that nothing material happened against a committee that has not
+decided whether it did, and a document that asks to be read against another against what that
+one says back. Each rule reads flags, figures and cross references from the notes, version
+pairs and consequences from the map, and the sections where the room asks for the comparison in
+its own words. Every pair a rule finds is written, and where two
 rules reach the same documents they write one row between them. The rows are sorted by the
 documents they name.
 
@@ -124,6 +126,13 @@ TICKET_WORD = re.compile(r"\bticket\b", re.IGNORECASE)
 # What ends an agreement.
 TERMINATION_WORDS = re.compile(r"\b(terminate|terminates|termination)\b", re.IGNORECASE)
 
+# What a document writes where it asks to be read against another document.
+COMPARE_WORDS = re.compile(
+    r"\b(compare|compared|compares|comparison|reconcile|reconciled|reconciles|"
+    r"reconciliation|versus)\b",
+    re.IGNORECASE,
+)
+
 # A warranty carries a negation beside a materiality word. A reservation carries the
 # materiality itself and says it is not settled yet.
 NEGATIONS = re.compile(r"\b(no|not|never|nor)\b", re.IGNORECASE)
@@ -143,6 +152,16 @@ def one_line(text) -> str:
     return _WHITESPACE.sub(" ", str(text)).strip()
 
 
+def quoted(text) -> str:
+    """A quote as a row writes it: one line, without the pipe a table row closes with.
+
+    The quote is the one field of a row allowed to hold a pipe, so the row's own last pipe has
+    to be the one before the anchor. A markdown table row closes with a pipe that separates
+    nothing from nothing, and dropping it is what lets the row be read back.
+    """
+    return one_line(text).rstrip("| ")
+
+
 def title_of(path: str) -> str:
     """The document's title: its file name up to the first dot, with underscores as spaces."""
     return Path(path).name.split(".", 1)[0].replace("_", " ")
@@ -156,7 +175,7 @@ def row(first, doc: str, quote, anchor: str) -> str:
     slash, so that a reader and a parser both find the document in the second field.
     """
     head = one_line(first).replace("|", "/") or EMPTY
-    return f"- {head} | {doc} | {one_line(quote) or EMPTY} | {anchor}"
+    return f"- {head} | {doc} | {quoted(quote) or EMPTY} | {anchor}"
 
 
 def day_in(text) -> str | None:
@@ -350,7 +369,7 @@ def money_value(surface) -> float | None:
 
 def part(doc: str, quote, anchor: str) -> tuple[str, str, str]:
     """One `<doc> | <quote> | <anchor>` part of a comparison row."""
-    return (doc, one_line(quote), anchor)
+    return (doc, quoted(quote), anchor)
 
 
 def version_pairs_rows(matter: dict, notes: dict[str, dict]) -> list[list[tuple[str, str, str]]]:
@@ -551,7 +570,12 @@ def covenant_rows(matter: dict, notes: dict[str, dict]) -> list[list[tuple[str, 
     """Covenant against incident: a termination right against what the seed document found.
 
     A covenant is a flag quoted with a termination word. It is written against the flag of the
-    matter's seed document whose words the covenant's document shares the most of.
+    matter's seed document that shares the most words with the covenant's own flag and with the
+    worries of the covenant's document, the two counts added. The flag's own words are what
+    reach a board deck that says no change-of-control item is flagged: the clause it has to
+    meet is the one that terminates on a change of control, not whichever sentence of the
+    agreement the deck as a whole sounds most like. The document's worries are what keep a
+    termination-on-incident clause against the finding that the incident happened.
     """
     seeds = [doc for doc in matter["seed"] if doc in notes]
     rows = []
@@ -559,21 +583,20 @@ def covenant_rows(matter: dict, notes: dict[str, dict]) -> list[list[tuple[str, 
         note = notes.get(doc)
         if not note:
             continue
-        held = worry_words(note)
+        worries = worry_words(note)
         for flag in note["flags"]:
             if not TERMINATION_WORDS.search(one_line(flag["quote"])):
                 continue
+            held = content_words(flag["quote"])
             for seed in seeds:
                 if seed == doc:
                     continue
                 best = None
                 for other in notes[seed]["flags"]:
-                    shared = len(
-                        held
-                        & content_words(
-                            f"{other['flag']} {other['quote']} {other['consequence']}"
-                        )
+                    written = content_words(
+                        f"{other['flag']} {other['quote']} {other['consequence']}"
                     )
+                    shared = len(held & content_words(other["quote"])) + len(worries & written)
                     mark = (-shared, other["anchor"])
                     if best is None or mark < best[0]:
                         best = (mark, other)
@@ -585,6 +608,103 @@ def covenant_rows(matter: dict, notes: dict[str, dict]) -> list[list[tuple[str, 
                         part(seed, best[1]["quote"], best[1]["anchor"]),
                     ]
                 )
+    return rows
+
+
+def sections_by_document(
+    sections: list[dict], ids_by_path: dict[str, str]
+) -> dict[str, list[tuple[str, str]]]:
+    """Every section of the run as (anchor, one line of text), by the document it sits in."""
+    found: dict[str, list[tuple[str, str]]] = {}
+    for section in sections:
+        doc = document_of(section["anchor"], ids_by_path)
+        if doc is not None:
+            found.setdefault(doc, []).append((section["anchor"], one_line(section["text"])))
+    return found
+
+
+def closest_section(
+    held: list[tuple[str, str]], text, without: set[str] = frozenset()
+) -> tuple[str, str] | None:
+    """The section of a document that shares the most words with a text, earliest anchor first.
+
+    The words in `without` are not counted. None where the document shares no other word with
+    the text at all.
+    """
+    wanted = content_words(text) - set(without)
+    best = None
+    for anchor, written in held:
+        shared = len(wanted & content_words(written))
+        if not shared:
+            continue
+        mark = (-shared, anchor)
+        if best is None or mark < best[0]:
+            best = (mark, (anchor, written))
+    return None if best is None else best[1]
+
+
+def named_by(nodes: dict[str, dict]) -> dict[str, str]:
+    """Every document by a name a cross reference can call it: its id and its file name.
+
+    A file name two documents of the room share names neither of them, because a reference to
+    it says nothing about which one is meant.
+    """
+    carriers: dict[str, set[str]] = {}
+    for doc, node in nodes.items():
+        for name in (doc, Path(node["path"]).name):
+            carriers.setdefault(name.upper(), set()).add(doc)
+    return {name: held.pop() for name, held in carriers.items() if len(held) == 1}
+
+
+def compare_rows(
+    matter: dict,
+    nodes: dict[str, dict],
+    notes: dict[str, dict],
+    sections: list[dict],
+    ids_by_path: dict[str, str],
+) -> list[list[tuple[str, str, str]]]:
+    """Asked against answered: a document that says to read it against another, and both answers.
+
+    A note names another document of the set by its id or its file name, and the place where it
+    names it asks for the comparison in its own words. The row carries that place, the place in
+    the named document that shares the most words with it, and the place back in the naming
+    document that shares the most words with that one. The row quotes the sections and not the
+    note, because it is the room asking: what a workbook answers a memo with is a row of the
+    workbook, not a worry someone wrote about it.
+
+    The words of the two documents' own names are not counted on either side. A memo that says
+    to read it against `revenue_summary.xlsx` shares the word revenue with every row of that
+    workbook, and the row wanted is the one that shares what the memo is asking about.
+    """
+    inside = set(matter["cluster"])
+    held = sections_by_document(sections, ids_by_path)
+    named = named_by(nodes)
+    rows = []
+    for doc in sorted(inside):
+        note = notes.get(doc)
+        if not note:
+            continue
+        asked = set()
+        for reference in note["cross_references"]:
+            other = named.get(str(reference["value"]).strip().upper())
+            if other is None or other == doc or other not in inside:
+                continue
+            asked.add((reference["anchor"], other))
+        for anchor, other in sorted(asked):
+            text = dict(held.get(doc, [])).get(anchor)
+            if not text or not COMPARE_WORDS.search(text):
+                continue
+            without = content_words(
+                f"{doc} {nodes[doc]['path']} {other} {nodes[other]['path']}"
+            )
+            answer = closest_section(held.get(other, []), text, without)
+            if answer is None:
+                continue
+            back = closest_section(held.get(doc, []), answer[1], without)
+            found = [part(doc, text, anchor), part(other, answer[1], answer[0])]
+            if back is not None:
+                found.append(part(doc, back[1], back[0]))
+            rows.append(found)
     return rows
 
 
@@ -691,6 +811,7 @@ def comparison_lines(
         + covenant_rows(matter, notes)
         + policy_rows(nodes, notes)
         + warranty_rows(cluster, notes)
+        + compare_rows(matter, nodes, notes, sections, ids_by_path)
     )
     merged: dict[tuple[str, ...], list[tuple[str, str, str]]] = {}
     for found in rows:
