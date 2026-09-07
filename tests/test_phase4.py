@@ -1,14 +1,27 @@
 """Phase 4 dossier tests. The dossier reads a sample's map, index, sections and notes and
 writes dossier.md: the matter's document set, its timeline, the names the notes gave it, its
-figures and the models blind to it. These tests run the dossier twice, the second time into a
-temporary directory, and check that the two files are byte identical, that the first matter's
-document set holds every document of the key's matter-documents fact and none of its decoys,
-that every planted document is ranked above every decoy both in the map and in the dossier's
-own list, that every phase 1 and phase 2 fact of the key has a row carrying its value with an
-anchor that parses, belongs to one of the fact's documents and is one of the anchors the phase
-1 and 2 artefacts wrote, that the names section carries the workstream, the programme and the
-ticket, that the models section carries the map's consequences, and that the run prints one
-readout line.
+figures, the models blind to it, the comparisons the room's own words make and the lesser
+matters the room holds outside the set. These tests run the dossier twice, the second time
+into a temporary directory, and check that the two files are byte identical, that the first
+matter's document set holds every document of the key's matter-documents fact and none of its
+decoys, that every planted document is ranked above every decoy both in the map and in the
+dossier's own list, that every phase 1 and phase 2 fact of the key has a row carrying its
+value with an anchor that parses, belongs to one of the fact's documents and is one of the
+anchors the phase 1 and 2 artefacts wrote, that the names section carries the workstream, the
+programme and the ticket, that the models section carries the map's consequences, that every
+comparison the key plants for phase 4 has a row naming its documents and quoting both sides of
+its value, that the lesser matters section ranks every flagged document outside the set by its
+largest money figure with every decoy in it, and that the run prints one readout line.
+
+A comparison row is two or more `<doc> | <quote> | <anchor>` triples joined by ` || `. A side
+of a comparison is the half of the key's value on one side of ` against `. A side is carried
+when the quotes of one part of the row, its documents disjoint from the other side's, hold
+every number of the side, every day of the side, and every word of the side that the fact's
+documents carry at all. A day may also be carried by the phase 1 index having read that day in
+one of those documents, which is how a mail header's own date reaches a row whose sections drop
+it. Words are matched with one plural or tense ending dropped, so `drafted` reads `Draft` and
+`retained` reads `RETAINED`. A word of the key's value that no document of the fact carries is
+not asserted; it is written into the phase 4 readout instead.
 
 Only sample 1 is enabled in this slice. Samples 2 and 3 are widened in slice 03, and a sample
 whose dossier inputs are absent is skipped."""
@@ -16,14 +29,17 @@ whose dossier inputs are absent is skipped."""
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 
+from rlm.amounts import date_matches, normalise_amount
 from rlm.dossier import main
 from rlm.key import load_key
+from rlm.map import read_notes
 from rlm.notes import straighten
 from rlm.sections import parse_anchor
 
@@ -49,6 +65,28 @@ SECTIONS = (
 
 # The sections whose rows are `- <date or figure> | <doc> | <quote> | <anchor>`.
 ROW_SECTIONS = ("Timeline", "Names", "Figures", "Models blind to it")
+
+# The section whose rows are triples joined by ` || `, and the one that ranks the room's rest.
+COMPARISONS = "Comparisons"
+LESSER = "Lesser matters"
+
+# What splits a comparison fact's value into its two sides.
+AGAINST = " against "
+
+# What an empty field is written as, in the dossier and here.
+EMPTY = "-"
+
+# The words a value carries that say nothing about where it came from, before stemming.
+STOP_SOURCE = (
+    "a an and any are as at be been by for from has have in is it its no not of on or "
+    "that the their there this to was were what which with"
+)
+
+_LETTERS = re.compile(r"[A-Za-z]{2,}")
+_DIGITS = re.compile(r"[0-9]+")
+
+# The endings one pass of the stemmer drops, longest first.
+_ENDINGS = ("ings", "ing", "ions", "ion", "ies", "ied", "ees", "ed", "es", "ly", "s", "e", "y")
 
 
 @dataclass(frozen=True)
@@ -378,6 +416,331 @@ def test_dossier_prints_one_readout_line(dossiered, sample):
             assert word in line
 
 
+# ------------------------------------------------- comparisons and lesser matters
+
+
+@dataclass(frozen=True)
+class Triple:
+    """One `<doc> | <quote> | <anchor>` part of a comparison row."""
+
+    doc: str
+    quote: str
+    anchor: str
+
+
+def stem(word: str) -> str:
+    """The word lower cased with one plural or tense ending dropped.
+
+    The ending is dropped only where at least three letters are left, so `days` reads `day`,
+    `drafted` reads `draft`, `creation` reads `creat` and `was` is left alone.
+    """
+    word = word.lower()
+    for ending in _ENDINGS:
+        if word.endswith(ending) and len(word) - len(ending) >= 3:
+            return word[: -len(ending)]
+    return word
+
+
+STOP_WORDS = frozenset(stem(word) for word in STOP_SOURCE.split())
+
+
+def cut_days(text) -> str:
+    """The text with every day it names cut out, so a day is not read as a number or a word."""
+    text = straighten(str(text))
+    for start, end, _ in reversed(date_matches(text)):
+        text = text[:start] + " " + text[end:]
+    return text
+
+
+def words_of(text) -> set[str]:
+    """Every word of the text that says something, stemmed, with the days cut out first."""
+    return {stem(word) for word in _LETTERS.findall(cut_days(text))} - STOP_WORDS
+
+
+def numbers_of(text) -> set[str]:
+    """Every run of digits the text names, with the days cut out and the thousands marks gone."""
+    return set(_DIGITS.findall(cut_days(text).replace(",", "")))
+
+
+def days_of(text) -> set[str]:
+    """Every day the text names, as ISO days."""
+    return {day for _, _, day in date_matches(straighten(str(text)))}
+
+
+def comparison_rows(text: str) -> list[tuple[Triple, ...]]:
+    """The Comparisons section read back as rows of triples.
+
+    A row is `- <doc> | <quote> | <anchor>` repeated and joined by ` || `. The quote is the
+    only field that may hold a pipe, so the anchor is read off the end of each triple and the
+    quote is what is left in the middle.
+    """
+    rows = []
+    for line in sections_of(text).get(COMPARISONS, []):
+        triples = []
+        for part in line[2:].split(" || "):
+            fields = part.split(" | ")
+            assert len(fields) >= 3, line
+            triples.append(
+                Triple(doc=fields[0], quote=" | ".join(fields[1:-1]), anchor=fields[-1])
+            )
+        assert len(triples) >= 2, line
+        rows.append(tuple(triples))
+    return rows
+
+
+def lesser_rows(text: str) -> list[Row]:
+    """The Lesser matters section read back as four-field rows, in the order it wrote them."""
+    found = []
+    for line in sections_of(text).get(LESSER, []):
+        fields = line[2:].split(" | ")
+        assert len(fields) >= 4, line
+        found.append(
+            Row(
+                section=LESSER,
+                first=fields[0],
+                doc=fields[1],
+                quote=" | ".join(fields[2:-1]),
+                anchor=fields[-1],
+                line=line,
+            )
+        )
+    return found
+
+
+@pytest.fixture
+def notes_by_doc(run_dir, key):
+    """Every note of the run, by document id."""
+    return read_notes(run_dir, {path: doc for doc, path in key.documents.items()})
+
+
+@pytest.fixture
+def document_words(run_dir, key):
+    """Every word each document holds, stemmed, read from the sections the phase 1 pass wrote."""
+    found: dict[str, set[str]] = {}
+    ids = {path: doc for doc, path in key.documents.items()}
+    for line in (run_dir / "sections.jsonl").read_text(encoding="utf-8").splitlines():
+        record = json.loads(line)
+        doc = ids.get(record["doc"])
+        if doc is None:
+            continue
+        found.setdefault(doc, set()).update(words_of(record["text"]))
+    return found
+
+
+@pytest.fixture
+def index_days(run_dir, key):
+    """Every day the phase 1 index read, by the document it read it in."""
+    found: dict[str, set[str]] = {}
+    ids = {path: doc for doc, path in key.documents.items()}
+    for line in (run_dir / "index.jsonl").read_text(encoding="utf-8").splitlines():
+        record = json.loads(line)
+        if record["kind"] != "date":
+            continue
+        for anchor in record["anchors"]:
+            doc = ids.get(anchor.rsplit("#", 1)[0])
+            if doc is not None:
+                found.setdefault(doc, set()).add(str(record["value"]))
+    return found
+
+
+def comparison_facts(key) -> list:
+    """The key's phase 4 comparison facts, in the order the key wrote them."""
+    return [fact for fact in key.facts if fact.phase == 4 and fact.kind == "comparison"]
+
+
+def side_missing(side: str, triples, wanted_words: set[str], index_days) -> set[str]:
+    """What of the side the triples fail to carry, empty where they carry all of it.
+
+    The triples are the part of a row that stands for one side. A number and a day have to be
+    in the quotes themselves, except that a day the phase 1 index read in one of the triples'
+    documents counts as carried, which is how a document whose sections drop its own header
+    date still carries it. A word has to be in the quotes, stemmed.
+    """
+    quoted = " ".join(triple.quote for triple in triples)
+    carried_days = days_of(quoted)
+    for triple in triples:
+        carried_days |= index_days.get(triple.doc, set())
+    missing = {f"number {number}" for number in numbers_of(side) - numbers_of(quoted)}
+    missing |= {f"day {day}" for day in days_of(side) - carried_days}
+    missing |= {f"word {word}" for word in wanted_words - words_of(quoted)}
+    return missing
+
+
+def split_row(row, fact, document_words, index_days):
+    """Reads a row as the two sides of a fact, or returns what each side fails to carry.
+
+    Each side is given the triples of one part of the row, and the two parts name no document
+    in common. Every way of splitting the row's documents in two is tried and the first that
+    carries both sides wins, so the row is read the way a person reads it: this document says
+    one thing, that one says the other.
+    """
+    first, second = fact.value.split(AGAINST, 1)
+    held = set().union(*(document_words.get(doc, set()) for doc in fact.documents))
+    wanted = [words_of(side) & held for side in (first, second)]
+    docs = sorted({triple.doc for triple in row})
+    best = None
+    for mask in range(1, 2 ** len(docs) - 1):
+        left = {doc for at, doc in enumerate(docs) if mask >> at & 1}
+        parts = (left, set(docs) - left)
+        found = [
+            side_missing(
+                side,
+                [triple for triple in row if triple.doc in part],
+                wanted[at],
+                index_days,
+            )
+            for at, (side, part) in enumerate(zip((first, second), parts))
+        ]
+        if not found[0] and not found[1]:
+            return None
+        if best is None or sum(len(one) for one in found) < sum(len(one) for one in best):
+            best = found
+    return best
+
+
+# What of a comparison's value no document of the fact holds, gathered for the readout.
+_UNREACHED: dict[str, list[str]] = {}
+
+
+def test_dossier_comparisons_carry_every_planted_comparison(
+    dossiered, sample, key, document_words, index_days
+):
+    """Every comparison the key plants for phase 4 has a row that quotes both of its sides.
+
+    The row names the fact's documents and no others, and its quotes carry both sides of the
+    fact's value: each side's numbers, its days and the words its own documents hold.
+    """
+    facts = comparison_facts(key)
+    assert facts, "the key plants no phase 4 comparison"
+    rows = comparison_rows(dossiered.text)
+    assert rows, "the Comparisons section is empty"
+    for fact in facts:
+        wanted = set(fact.documents)
+        held = set().union(*(document_words.get(doc, set()) for doc in fact.documents))
+        for side in fact.value.split(AGAINST, 1):
+            for word in sorted(words_of(side) - held):
+                _UNREACHED.setdefault(sample, []).append(f"{fact.id}: {word}")
+        hits = [row for row in rows if {triple.doc for triple in row} == wanted]
+        assert hits, f"{fact.id}: no row naming {sorted(wanted)}"
+        reasons = [split_row(row, fact, document_words, index_days) for row in hits]
+        assert any(found is None for found in reasons), (
+            f"{fact.id}: {fact.value!r} is not carried by its row: "
+            f"{[sorted(one) for found in reasons if found for one in found]}"
+        )
+
+
+def test_dossier_comparison_anchors_belong_to_their_documents(dossiered, key, known_anchors):
+    """Every comparison row cites a place the phase 1 and 2 artefacts wrote in its own document."""
+    rows = comparison_rows(dossiered.text)
+    assert rows
+    for row in rows:
+        for triple in row:
+            assert triple.doc in key.documents, triple
+            path = key.documents[triple.doc]
+            assert parse_anchor(triple.anchor).doc == path, triple
+            assert triple.anchor in known_anchors.get(path, set()), triple
+            assert triple.quote and triple.quote != EMPTY, triple
+
+
+def test_dossier_comparisons_are_sorted_and_written_once(dossiered):
+    """The rows are sorted by the documents they name and no run of documents is written twice."""
+    rows = comparison_rows(dossiered.text)
+    keys = [tuple(triple.doc for triple in row) for row in rows]
+    assert keys == sorted(keys)
+    assert len(keys) == len(set(keys))
+
+
+def test_dossier_draft_against_final_comes_from_the_map_version_pair(dossiered, mapped):
+    """The map's version pair has a comparison row of its own."""
+    pairs = {tuple(sorted(pair["docs"])) for pair in mapped["matters"][0]["versions"]}
+    assert pairs
+    named = {
+        tuple(sorted({triple.doc for triple in row}))
+        for row in comparison_rows(dossiered.text)
+    }
+    assert pairs <= named, sorted(pairs - named)
+
+
+def test_dossier_comparisons_reach_outside_the_seed(dossiered, key, mapped):
+    """The comparisons name more documents than the seed, and every one is a room document."""
+    named = {triple.doc for row in comparison_rows(dossiered.text) for triple in row}
+    assert named <= set(key.documents)
+    assert len(named) > len(mapped["matters"][0]["seed"])
+
+
+def expected_lesser(key, mapped, notes_by_doc) -> list[tuple[float, str]]:
+    """The documents Lesser matters has to list, in the order it has to list them.
+
+    Every document outside the matter's set whose note carries a flag, ranked by the largest
+    money figure its note holds, largest first, and then by id. A document with a flag and no
+    money figure follows the ones with money.
+    """
+    inside = set(mapped["matters"][0]["cluster"])
+    found = []
+    for doc in sorted(set(key.documents) - inside):
+        note = notes_by_doc.get(doc)
+        if not note or not note["flags"]:
+            continue
+        largest = 0.0
+        for figure in note["figures"]:
+            if "$" not in figure["surface"]:
+                continue
+            try:
+                value, _ = normalise_amount(figure["surface"])
+            except ValueError:
+                continue
+            largest = max(largest, value)
+        found.append((largest, doc))
+    found.sort(key=lambda pair: (-pair[0], pair[1]))
+    return found
+
+
+def test_dossier_lesser_matters_ranks_the_rest_of_the_room(
+    dossiered, key, mapped, notes_by_doc, known_anchors
+):
+    """Lesser matters lists every flagged document outside the set, ranked by its largest money
+    figure and then by id, each with the figure, a quote and an anchor of its own."""
+    wanted = expected_lesser(key, mapped, notes_by_doc)
+    assert wanted, "the room holds no flagged document outside the set"
+    listed = lesser_rows(dossiered.text)
+    assert [doc for _, doc in wanted] == [row.doc for row in listed]
+    for (largest, doc), row in zip(wanted, listed):
+        path = key.documents[doc]
+        assert parse_anchor(row.anchor).doc == path, row.line
+        assert row.anchor in known_anchors.get(path, set()), row.line
+        assert row.quote and row.quote != EMPTY, row.line
+        if largest:
+            assert normalise_amount(row.first)[0] == largest, row.line
+        else:
+            assert row.first == EMPTY, row.line
+
+
+def test_dossier_every_decoy_sits_in_lesser_matters_and_in_no_comparison(dossiered, key):
+    """No decoy is in the first matter's set or in a comparison, and each is a lesser matter."""
+    decoys = {decoy.document for decoy in key.decoys}
+    assert decoys
+    listed = {row.doc for row in lesser_rows(dossiered.text)}
+    assert decoys <= listed, sorted(decoys - listed)
+    inside = {doc for _, doc in document_rows(dossiered.text)}
+    assert not (decoys & inside), sorted(decoys & inside)
+    compared = {triple.doc for row in comparison_rows(dossiered.text) for triple in row}
+    assert not (decoys & compared), sorted(decoys & compared)
+
+
+def test_dossier_readout_counts_comparisons_and_lesser_matters(dossiered, sample):
+    """The readout line carries the number of comparison rows and of lesser matters it wrote."""
+    comparisons = len(comparison_rows(dossiered.text))
+    lesser = len(lesser_rows(dossiered.text))
+    assert comparisons and lesser
+    lines = [
+        line for line in dossiered.printed.splitlines() if line.startswith(f"dossier {sample}:")
+    ]
+    assert lines
+    for line in lines:
+        assert f"comparisons {comparisons}" in line, line
+        assert f"lesser matters {lesser}" in line, line
+
+
 # ---------------------------------------------------------------- the readout
 
 
@@ -409,7 +772,9 @@ def readout(terminalreporter):
             f"phase 4 {sample}: documents {len(listed)}, rows {len(rows)}, "
             f"timeline {counted['Timeline']}, names {counted['Names']}, "
             f"figures {counted['Figures']}, "
-            f"consequences {counted['Models blind to it']}, seconds {seconds:.1f}"
+            f"consequences {counted['Models blind to it']}, "
+            f"comparisons {len(comparison_rows(run.text))}, "
+            f"lesser matters {len(lesser_rows(run.text))}, seconds {seconds:.1f}"
         )
         terminalreporter.write_line(
             f"phase 4 {sample}: planted recall {recall:.1f}% "
@@ -419,3 +784,7 @@ def readout(terminalreporter):
             terminalreporter.write_line(f"phase 4 {sample}: not in the set {doc}")
         for doc in sorted(decoys & listed):
             terminalreporter.write_line(f"phase 4 {sample}: decoy in the set {doc}")
+        for note in _UNREACHED.get(sample, []):
+            terminalreporter.write_line(
+                f"phase 4 {sample}: no document of the fact holds this word, {note}"
+            )
