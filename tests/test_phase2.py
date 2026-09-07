@@ -933,6 +933,103 @@ def test_all_documents_main_notes_every_document_of_the_key(tmp_path, capsys):
     assert (summary["model"], summary["pass"], summary["sample"]) == (MODEL, "a", "atlas")
 
 
+def test_all_documents_only_merges_its_counts_into_the_existing_summary(tmp_path, capsys):
+    """A partial pass with --only recomputes the summary from what is now on disk, not from the
+    documents it asked, and folds their usage into the previous totals."""
+    key = load_key(ROOT / "samples" / "atlas")
+    ledger_path = tmp_path / "LEDGER.md"
+    write_ledger(ledger_path, [("2026-09-05", "", "", "", 0, 0, 0.0, 50.0)])
+    out = tmp_path / "out"
+
+    full_transport = FakeTransport(
+        [reply(json.dumps(MINIMAL_NOTE), tokens_in=2500, tokens_out=400) for _ in key.documents]
+    )
+    code = main(
+        [str(ROOT / "samples" / "atlas"), str(ROOT / "runs" / "atlas"), "--model", MODEL, "--out", str(out)],
+        gateway=Gateway(api_key="k", transport=full_transport),
+        ledger=Ledger(ledger_path),
+    )
+    capsys.readouterr()
+    assert code == 0
+    first_summary = json.loads((out / "notes-summary.json").read_text(encoding="utf-8"))
+    assert (first_summary["tokens_in"], first_summary["tokens_out"]) == (250_000, 40_000)
+
+    only_transport = FakeTransport([reply(json.dumps(MINIMAL_NOTE), tokens_in=9_000, tokens_out=900)])
+    code = main(
+        [
+            str(ROOT / "samples" / "atlas"),
+            str(ROOT / "runs" / "atlas"),
+            "--model",
+            MODEL,
+            "--only",
+            "DR-069",
+            "--out",
+            str(out),
+        ],
+        gateway=Gateway(api_key="k", transport=only_transport),
+        ledger=Ledger(ledger_path),
+    )
+    capsys.readouterr()
+    assert code == 0
+    assert len(only_transport.requests) == 1
+
+    summary = json.loads((out / "notes-summary.json").read_text(encoding="utf-8"))
+    assert set(summary) == SUMMARY_KEYS
+    assert list(summary) == sorted(summary)
+    assert summary["documents"] == 100
+    assert summary["noted"] == 100
+    assert summary["dropped"] == 0
+    assert summary["tokens_in"] == 250_000 - 2_500 + 9_000
+    assert summary["tokens_out"] == 40_000 - 400 + 900
+    assert summary["dollars"] == pytest.approx(price(MODEL, summary["tokens_in"], summary["tokens_out"]))
+
+    notes_on_disk = [json.loads(path.read_text(encoding="utf-8")) for path in (out / "notes").glob("*.json")]
+    assert len(notes_on_disk) == 100
+    verified = sum(len(note[field]) for note in notes_on_disk for field in QUOTED_FIELDS)
+    assert summary["verified"] == verified
+
+    records = [json.loads(line) for line in (out / "notes-verify.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert summary["re_asked"] == sum(1 for record in records if record["outcome"] == "re-asked")
+    assert summary["dropped_items"] == sum(1 for record in records if record["outcome"] == "dropped")
+
+
+def test_all_documents_only_into_an_empty_out_dir_counts_the_key_from_disk(tmp_path, capsys):
+    """--only into a fresh out directory with no summary yet still counts the whole key: what is
+    on disk is one note out of a hundred, not the one document just asked."""
+    key = load_key(ROOT / "samples" / "atlas")
+    ledger_path = tmp_path / "LEDGER.md"
+    write_ledger(ledger_path, [("2026-09-05", "", "", "", 0, 0, 0.0, 50.0)])
+    transport = FakeTransport([reply(json.dumps(MINIMAL_NOTE), tokens_in=2500, tokens_out=400)])
+    out = tmp_path / "out"
+
+    code = main(
+        [
+            str(ROOT / "samples" / "atlas"),
+            str(ROOT / "runs" / "atlas"),
+            "--model",
+            MODEL,
+            "--only",
+            "DR-069",
+            "--out",
+            str(out),
+        ],
+        gateway=Gateway(api_key="k", transport=transport),
+        ledger=Ledger(ledger_path),
+    )
+    capsys.readouterr()
+    assert code == 0
+    assert (out / "notes-summary.json").exists()
+
+    summary = json.loads((out / "notes-summary.json").read_text(encoding="utf-8"))
+    assert set(summary) == SUMMARY_KEYS
+    assert summary["documents"] == len(key.documents) == 100
+    assert summary["noted"] == 1
+    assert summary["dropped"] == 99
+    assert summary["tokens_in"] == 2_500
+    assert summary["tokens_out"] == 400
+    assert summary["dollars"] == pytest.approx(price(MODEL, 2_500, 400))
+
+
 def test_all_documents_reask_asks_again_with_the_failed_quotes(tmp_path, capsys):
     """A document whose items fail is asked once more, with those quotes and its first reply."""
     atlas_sections()
