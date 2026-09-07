@@ -16,21 +16,25 @@ The matter is seeded at the document whose three strongest links are the stronge
 Every document is then scored by what it shares with the seed, plus one round of that score
 spread along the edges, each neighbour's contribution divided by its own total weight so that
 the room's index and its Q&A log, which link to everything, pass on almost nothing. The cluster
-is the prefix of the ranked list still scoring at least a hundredth of the highest score.
+is the prefix of the ranked list still scoring at least a hundredth of the highest score the
+room itself produced. The top score is the seed's, which the map sets at one and a half times
+the room's best, so a cut taken against it is a cut taken against a number the map invented;
+the cut is taken against the next score down.
 
 The matter then carries two things a graph of shared values cannot see. Its `versions` are the
 index's draft and final pairs where at least one of the two is in the cluster, with the two
-dates and the two status lists the map already read. Its `consequences` are two links the map
+dates and the two status lists the map already read. Its `consequences` are the links the map
 finds by mechanism. A `series-break` is a table of periods in the room whose numbers turn: the
 step from one period to the next starts running one way and each step is bigger than the
 column's usual step. A series turns once, at the earliest period any of its columns turns, and
-the matter keeps the turn nearest its own date, inside a week of it and on or after it, in a
-document that is not the seed. Where two series turn on the same day the map keeps the one in
-the document scoring highest against the seed. A `model-after` is a document whose name, folder
-or note says model, forecast, plan or synergy, dated after the matter, whose note still carries
-a figure the broken series left behind: the same number, ignoring the currency and the unit
-letter, so 615m and 615 are one figure and 4100 is not 410. The figure has to be a figure of
-another cluster document's note as well. The matter keeps the earliest such model.
+the matter keeps every series that turns inside a week of its own date and on or after it, in a
+document that is not the seed. Two tables of the same weeks turn on the same day when the
+matter moved both, and both are the matter's consequence. A `model-after` is a document whose
+name, folder or note says model, forecast, plan or synergy, dated after the matter, whose note
+still carries a figure the broken series left behind: the same number, ignoring the currency
+and the unit letter, so 615m and 615 are one figure and 4100 is not 410. The figure has to be a
+figure of another cluster document's note as well. The matter keeps every such model, because a
+number that outlived the matter in two models is two models to correct, not one.
 
 Each consequence adds a twentieth of the highest score to its document before the ranking is
 taken, which is five times the cluster cut. A document the room barely mentions is lifted inside
@@ -74,7 +78,8 @@ DATE_WINDOW = 7
 # A value more than this share of the room carries is background, not a link.
 BREADTH_SHARE = 0.5
 
-# A document stays in the cluster while it scores at least this share of the highest score.
+# A document stays in the cluster while it scores at least this share of the highest score the
+# room produced, which is the score below the seed's.
 CLUSTER_SHARE = 0.01
 
 # What one consequence adds to a document's score, as a share of the highest score. Five times
@@ -143,13 +148,17 @@ def value_weight(kind: str, carriers: int) -> float:
 def cluster_size(scores: list[float]) -> int:
     """How many of the ranked documents are in the cluster.
 
-    Scores come in descending order. The cut is a share of the highest score, so it moves with
-    the room and is not a count fitted to any one sample: a document is in the cluster while it
-    scores at least a hundredth of what the strongest document scores.
+    Scores come in descending order. The cut is a share of a score, so it moves with the room
+    and is not a count fitted to any one sample: a document is in the cluster while it scores
+    at least a hundredth of the highest score the room itself produced. That is the second
+    score, not the first: the first is the seed's, which the map sets at one and a half times
+    the room's best, and a cut taken against it is a cut taken against the map's own arithmetic.
+    A room of one document has no second score and the first stands in for it.
     """
     if not scores or scores[0] <= 0:
         return 0
-    cut = scores[0] * CLUSTER_SHARE
+    basis = scores[1] if len(scores) > 1 and scores[1] > 0 else scores[0]
+    cut = basis * CLUSTER_SHARE
     size = 0
     for score in scores:
         if score < cut:
@@ -671,19 +680,21 @@ def row_series(
 
 
 def series_break(
-    series: list[dict], date: str | None, seed: list[str], scores: dict[str, float]
-) -> tuple[dict | None, set[str]]:
-    """The matter's one series break, and the numbers that series carried before it turned.
+    series: list[dict], date: str | None, seed: list[str]
+) -> tuple[list[dict], set[str]]:
+    """Every series break of the matter, and the numbers those series carried before turning.
 
-    A series turns at the earliest period any of its columns turns. The matter keeps the turn
-    nearest its own date, on or after it and no more than DATE_WINDOW days later, in a document
-    that is not the seed. Where two series turn on the same day the map keeps the one in the
-    document scoring highest against the seed.
+    A series turns at the earliest period any of its columns turns. The matter keeps every
+    series that turns on or after its own date and no more than DATE_WINDOW days later, in a
+    document that is not the seed. Two tables of the same weeks turn on the same day when the
+    matter moved both, and both are kept. The breaks come back sorted by document and period,
+    and the numbers are the union of what the turning columns carried before their turn.
     """
     began = as_iso(date) if date else None
     if began is None:
-        return None, set()
-    best = None
+        return [], set()
+    found = []
+    before: set[str] = set()
     for table in series:
         if table["doc"] in seed:
             continue
@@ -695,24 +706,19 @@ def series_break(
         day = table["days"][at]
         if day < began or (day - began).days > DATE_WINDOW:
             continue
-        marker = ((day - began).days, -scores.get(table["doc"], 0.0), table["doc"])
-        if best is None or marker < best[0]:
-            best = (marker, table, turns, at, day)
-    if best is None:
-        return None, set()
-    _, table, turns, at, day = best
-    before = set()
-    for column, turn in zip(table["columns"], turns):
-        if turn == at:
-            before.update(format(value, "g") for value in column[:at])
-    found = {
-        "anchor": table["anchors"][at],
-        "doc": table["doc"],
-        "kind": "series-break",
-        "period": day.isoformat(),
-        "series": table["series"],
-    }
-    return found, before
+        for column, turn in zip(table["columns"], turns):
+            if turn == at:
+                before.update(format(value, "g") for value in column[:at])
+        found.append(
+            {
+                "anchor": table["anchors"][at],
+                "doc": table["doc"],
+                "kind": "series-break",
+                "period": day.isoformat(),
+                "series": table["series"],
+            }
+        )
+    return sorted(found, key=lambda row: (row["doc"], row["period"])), before
 
 
 def model_after(
@@ -721,24 +727,26 @@ def model_after(
     cluster: set[str],
     date: str | None,
     before: set[str],
-) -> dict | None:
-    """The earliest model written after the matter that still carries one of its old numbers.
+) -> list[dict]:
+    """Every model written after the matter that still carries one of its old numbers.
 
     A model is a document whose file name, whose folder or whose note's own words say model,
     forecast, plan or synergy. It is a consequence of the matter where its first date is after
     the matter, where one of its note's figures is a number the broken series carried before it
     turned, and where another cluster document's note carries that figure as well. The anchor is
-    the figure's place in the model.
+    the figure's place in the model, and the first such figure of the note stands for the model.
+    A number that outlived the matter in two models is two models to correct, so every model is
+    kept and not only the earliest. The models come back sorted by document.
     """
     if not date or not before:
-        return None
+        return []
     carried: dict[str, set[str]] = {}
     for doc in cluster:
         for figure in notes.get(doc, {}).get("figures", []):
             number = figure_number(figure["surface"])
             if number:
                 carried.setdefault(number, set()).add(doc)
-    best = None
+    found = []
     for doc in sorted(notes):
         node = nodes[doc]
         if not node["date"] or node["date"] <= date:
@@ -754,19 +762,16 @@ def model_after(
                 continue
             if not carried.get(number, set()) - {doc}:
                 continue
-            marker = (node["date"], doc)
-            if best is None or marker < best[0]:
-                best = (
-                    marker,
-                    {
-                        "anchor": figure["anchor"],
-                        "date": node["date"],
-                        "doc": doc,
-                        "kind": "model-after",
-                    },
-                )
+            found.append(
+                {
+                    "anchor": figure["anchor"],
+                    "date": node["date"],
+                    "doc": doc,
+                    "kind": "model-after",
+                }
+            )
             break
-    return best[1] if best else None
+    return found
 
 
 def build_map(sample_dir: Path, run_dir: Path) -> dict:
@@ -825,13 +830,9 @@ def build_map(sample_dir: Path, run_dir: Path) -> dict:
     versions = version_pairs(records, ids_by_path, nodes, set(cluster))
 
     by_anchor = {section["anchor"]: section for section in sections}
-    broken, before = series_break(
-        row_series(records, by_anchor, ids_by_path), date, seed, scores
-    )
+    broken, before = series_break(row_series(records, by_anchor, ids_by_path), date, seed)
     modelled = model_after(notes, nodes, set(cluster), date, before)
-    consequences = sorted(
-        (row for row in (broken, modelled) if row), key=lambda row: (row["kind"], row["doc"])
-    )
+    consequences = sorted(broken + modelled, key=lambda row: (row["kind"], row["doc"]))
 
     bonus = max(scores.values(), default=0.0) * CONSEQUENCE_SHARE
     for row in consequences:
