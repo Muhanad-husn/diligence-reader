@@ -329,13 +329,24 @@ def test_a_second_round_kept_the_first_reply(report, verified):
     assert first.read_text(encoding="utf-8") != last.read_text(encoding="utf-8")
 
 
+def matter_documents(key) -> set[str]:
+    """The documents of the matter, off the key.
+
+    Sample 1 and sample 3 name them on a `matter-documents` fact. Sample 2 has no such fact,
+    so the matter is every document its facts are planted in, less the decoys, which is the
+    same set said the long way round.
+    """
+    named = {doc for fact in key.facts if fact.id == "matter-documents" for doc in fact.documents}
+    if named:
+        return named
+    planted = {doc for fact in key.facts for doc in fact.documents}
+    return planted - {decoy.document for decoy in key.decoys}
+
+
 def test_no_decoy_is_cited_above_the_first_finding_of_the_matter(report, key):
     """A decoy ranked over the matter is the failure the room was built to catch."""
-    matter = set()
-    for fact in key.facts:
-        if fact.id == "matter-documents":
-            matter.update(fact.documents)
-    assert matter, "the key names no matter-documents fact"
+    matter = matter_documents(key)
+    assert matter, "the key names no document of the matter"
     decoys = {decoy.document for decoy in key.decoys}
     findings = verifier.findings(report.text)
     assert findings, "the report ranks no findings"
@@ -351,10 +362,17 @@ def test_no_decoy_is_cited_above_the_first_finding_of_the_matter(report, key):
 
 
 def test_digest_is_written_and_is_the_size_the_writer_prints(report):
-    """digest.md is on disk and holds no more rows than DIGEST_ROWS allows."""
+    """digest.md is on disk and holds no more charged rows than DIGEST_ROWS allows.
+
+    The lesser matters beyond LESSER_ROWS are the rows naming a document the matter does not
+    hold, and the digest does not charge them against its room, so the file runs longer than
+    DIGEST_ROWS by however many of them the dossier carries.
+    """
     rows = [line for line in report.digest.splitlines() if line.startswith("- ")]
     assert rows
-    assert len(rows) <= writer.DIGEST_ROWS
+    lesser = writer.digest_sections(report.dossier).get("Lesser matters", [])
+    uncharged = max(0, len(lesser) - writer.LESSER_ROWS)
+    assert len(rows) - uncharged <= writer.DIGEST_ROWS
     assert report.digest.endswith("\n")
 
 
