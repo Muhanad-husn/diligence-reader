@@ -1,5 +1,5 @@
-"""Pins a sample's notes or map and writes the sha256 of every pinned file into a digests file.
-Three modes.
+"""Pins a sample's notes, map or sections and writes the sha256 of every pinned file into a
+digests file. Four modes.
 
 The default mode reads runs/<sample>/bakeoff.json's winner and copies that winner's pass a byte
 for byte from runs/<sample>/bakeoff/<slug>/a/ into runs/<sample>/: notes/ replaces the sample's
@@ -19,6 +19,13 @@ runs/<sample>/map.json to exist for every requested sample; a sample missing it 
 printed with the sample name, and the run stops with exit 1 before a digest is written for any
 sample. It only reads each sample's map.json as it sits on disk and digests it. The digests go
 to tests/phase3-digests.json by default.
+
+The --sections mode does not read a bake-off winner and copies nothing. It requires
+runs/<sample>/sections.jsonl and runs/<sample>/index.jsonl to both exist for every requested
+sample; a sample missing either is a refusal, printed with the sample name, and the run stops
+with exit 1 before a digest is written for any sample. It only reads each sample's sections.jsonl
+and index.jsonl as they sit on disk and digests them. The digests go to tests/phase1-digests.json
+by default.
 
 Nothing here calls a model or writes LEDGER.md; in every mode the run is bytes on disk, never a
 rerun.
@@ -43,10 +50,16 @@ from rlm import bakeoff
 SAMPLES = ("atlas", "northwind", "northstar-dental")
 
 
-def default_digests_path(maps: bool = False) -> Path:
+def default_digests_path(maps: bool = False, sections: bool = False) -> Path:
     """tests/phase2-digests.json at the repo root, or tests/phase3-digests.json when maps is
-    true. Both sit in the same tests/ directory, the parent of the rlm package's src."""
-    name = "phase3-digests.json" if maps else "phase2-digests.json"
+    true, or tests/phase1-digests.json when sections is true. All three sit in the same tests/
+    directory, the parent of the rlm package's src."""
+    if sections:
+        name = "phase1-digests.json"
+    elif maps:
+        name = "phase3-digests.json"
+    else:
+        name = "phase2-digests.json"
     return Path(__file__).resolve().parents[2] / "tests" / name
 
 
@@ -146,6 +159,30 @@ def pin_maps(runs_root: Path, samples: list[str], digests_path: Path) -> int:
     return 0
 
 
+def pin_sections(runs_root: Path, samples: list[str], digests_path: Path) -> int:
+    """Digests each sample's sections.jsonl and index.jsonl as they already sit on disk.
+    Nothing is copied or removed and no bake-off winner is read. A sample missing either file
+    is a refusal, printed with the sample name, before a digest is written for any sample."""
+    for sample in samples:
+        sample_dir = runs_root / sample
+        has_sections = (sample_dir / "sections.jsonl").exists()
+        has_index = (sample_dir / "index.jsonl").exists()
+        if not has_sections or not has_index:
+            print(f"{sample}: runs/{sample}/sections.jsonl or index.jsonl missing, nothing digested")
+            return 1
+
+    all_digests: dict[str, dict[str, str]] = {}
+    for sample in samples:
+        sample_dir = runs_root / sample
+        sections_digest = hashlib.sha256((sample_dir / "sections.jsonl").read_bytes()).hexdigest()
+        index_digest = hashlib.sha256((sample_dir / "index.jsonl").read_bytes()).hexdigest()
+        all_digests[sample] = {"sections.jsonl": sections_digest, "index.jsonl": index_digest}
+        print(f"{sample}: sections.jsonl and index.jsonl digested")
+
+    write_digests(digests_path, all_digests)
+    return 0
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     """Reads the command line of one pin run."""
     parser = argparse.ArgumentParser(prog="python -m rlm.pin")
@@ -154,6 +191,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--digests", default=None)
     parser.add_argument("--from-notes", action="store_true")
     parser.add_argument("--maps", action="store_true")
+    parser.add_argument("--sections", action="store_true")
     return parser.parse_args(argv)
 
 
@@ -161,9 +199,16 @@ def main(argv: list[str]) -> int:
     """Pins each sample's bake-off winner and writes tests/phase2-digests.json. With
     --from-notes, digests the notes already on disk instead, without a bake-off winner. With
     --maps, digests each sample's map.json already on disk instead, into
-    tests/phase3-digests.json by default."""
+    tests/phase3-digests.json by default. With --sections, digests each sample's sections.jsonl
+    and index.jsonl already on disk instead, into tests/phase1-digests.json by default."""
     args = parse_args(argv)
     runs_root = Path(args.runs_root)
+
+    if args.sections:
+        digests_path = (
+            Path(args.digests) if args.digests else default_digests_path(sections=True)
+        )
+        return pin_sections(runs_root, args.samples, digests_path)
 
     if args.maps:
         digests_path = Path(args.digests) if args.digests else default_digests_path(maps=True)

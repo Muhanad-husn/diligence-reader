@@ -953,3 +953,106 @@ def readout(terminalreporter):
             terminalreporter.write_line(
                 f"phase 1 {sample}: not resolved {fact.id} (kind {fact.kind}, phase {fact.phase})"
             )
+
+
+# ---------------------------------------------------------------- the gate: re-pinning
+
+
+def test_gate_pin_sections_digests_what_is_on_disk(tmp_path, capsys):
+    """pin.main --sections digests each sample's sections.jsonl and index.jsonl as they sit on
+    disk, copies nothing and writes two digests per sample keyed sections.jsonl and index.jsonl."""
+    from rlm import pin
+
+    runs_root = tmp_path / "runs"
+    wanted = {}
+    for sample in ("atlas", "northwind"):
+        sample_dir = runs_root / sample
+        sample_dir.mkdir(parents=True)
+        sections_bytes = (json.dumps({"sample": sample, "doc": "a"}) + "\n").encode()
+        index_bytes = (json.dumps({"sample": sample, "kind": "b"}) + "\n").encode()
+        (sample_dir / "sections.jsonl").write_bytes(sections_bytes)
+        (sample_dir / "index.jsonl").write_bytes(index_bytes)
+        wanted[sample] = {
+            "sections.jsonl": hashlib.sha256(sections_bytes).hexdigest(),
+            "index.jsonl": hashlib.sha256(index_bytes).hexdigest(),
+        }
+
+    digests_path = tmp_path / "phase1-digests.json"
+    code = pin.main(
+        [
+            str(runs_root),
+            "--sections",
+            "--samples",
+            "atlas",
+            "northwind",
+            "--digests",
+            str(digests_path),
+        ]
+    )
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert json.loads(digests_path.read_text(encoding="utf-8")) == wanted
+    raw = digests_path.read_text(encoding="utf-8")
+    assert raw == json.dumps(wanted, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    assert "atlas" in out and "northwind" in out
+    for sample in wanted:
+        assert (runs_root / sample / "sections.jsonl").exists()
+        assert (runs_root / sample / "index.jsonl").exists()
+
+
+def test_gate_pin_sections_refuses_a_sample_with_no_sections(tmp_path, capsys):
+    """pin.main --sections refuses, names the sample and writes no digest when a sample's
+    sections.jsonl is missing, even when its index.jsonl is present."""
+    from rlm import pin
+
+    runs_root = tmp_path / "runs"
+    (runs_root / "atlas").mkdir(parents=True)
+    (runs_root / "atlas" / "sections.jsonl").write_bytes(b"{}\n")
+    (runs_root / "atlas" / "index.jsonl").write_bytes(b"{}\n")
+    (runs_root / "northwind").mkdir(parents=True)
+    (runs_root / "northwind" / "index.jsonl").write_bytes(b"{}\n")
+
+    digests_path = tmp_path / "phase1-digests.json"
+    code = pin.main(
+        [
+            str(runs_root),
+            "--sections",
+            "--samples",
+            "atlas",
+            "northwind",
+            "--digests",
+            str(digests_path),
+        ]
+    )
+    out = capsys.readouterr().out
+
+    assert code == 1
+    assert not digests_path.exists()
+    assert "northwind" in out
+
+
+def test_gate_default_digests_path_follows_sections_mode():
+    """The default digest file for --sections is tests/phase1-digests.json at the repo root."""
+    from rlm import pin
+
+    assert pin.default_digests_path(sections=True).name == "phase1-digests.json"
+    assert pin.default_digests_path(sections=True).parent == ROOT / "tests"
+
+
+def test_gate_pin_sections_matches_the_committed_digests(tmp_path, capsys):
+    """--sections over the pinned runs writes the same bytes as the committed digest file."""
+    from rlm import pin
+
+    for sample in ENABLED:
+        sample_dir = ROOT / "runs" / sample
+        if not (sample_dir / "sections.jsonl").exists() or not (sample_dir / "index.jsonl").exists():
+            pytest.skip(f"runs/{sample} sections.jsonl or index.jsonl absent; run phase 1 ingest first")
+
+    digests_path = tmp_path / "phase1-digests.json"
+    code = pin.main([str(ROOT / "runs"), "--sections", "--digests", str(digests_path)])
+    capsys.readouterr()
+
+    assert code == 0
+    committed = (ROOT / "tests" / "phase1-digests.json").read_bytes()
+    assert digests_path.read_bytes() == committed
