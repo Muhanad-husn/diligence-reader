@@ -1,11 +1,15 @@
-"""Phase 5 report tests. The writer reads a sample's brief and its dossier and asks one model
-call for report.md: an executive summary, the findings ranked by materiality, the most
-material issue quantified, the lesser issues and the open items. These tests read the report
-off disk and check that it carries the five second level headings in the brief's order with
-one trailing newline, that every sentence outside the recommendation line and the Calculation
-lines ends in one or more citations, that every citation names a document and an anchor that
-appear together on one row of the dossier, that recall over the key's facts reads 100, and
-that LEDGER.md gained a phase 5 row for the sample.
+"""Phase 5 report tests. Code chooses the evidence and the model writes it up: build_digest
+keeps about a hundred and fifty rows of the dossier's first matter, digest.md is the user
+message of one model call, and report.md comes back with an executive summary, the findings
+ranked by materiality, the most material issue quantified, the lesser issues and the open
+items. These tests read the digest and the report off disk and check that the digest is
+deterministic and holds every comparison row and every lesser matter the dossier kept, that
+every digest row is quoted whole in the report with its citation, that the report carries the
+five second level headings in the brief's order with one trailing newline, that every sentence
+outside the recommendation line and the Calculation lines ends in one or more citations, that
+every citation names a document and an anchor that appear together on one row of the dossier,
+that recall over the key's facts reads 100, and that LEDGER.md gained a phase 5 row for the
+sample.
 
 A citation is `[<doc> | <anchor>]`. A row of the dossier is any line the dossier writes under
 one of its headings: the four field rows of Timeline, Names, Figures and the models section,
@@ -41,9 +45,11 @@ import httpx
 import pytest
 
 from rlm import write as writer
+from rlm.carry import days_of, numbers_of, stem, words_of
 from rlm.gateway import PRICES, Gateway, Ledger, price
-from rlm.grade import measure_recall
+from rlm.grade import CONNECTIVES, measure_recall, side_carried
 from rlm.key import load_key
+from rlm.notes import straighten
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -75,11 +81,12 @@ _REPORTS: dict[str, "Report"] = {}
 
 @dataclass(frozen=True)
 class Report:
-    """One sample's written report: the file, its text and the dossier it was written from."""
+    """One sample's written report: the file, its text, its digest and its dossier."""
 
     path: Path
     text: str
     dossier: str
+    digest: str
 
 
 # ---------------------------------------------------------------- reading the artefacts back
@@ -94,11 +101,15 @@ def report(sample, run_dir):
     dossier = run_dir / "dossier.md"
     if not path.exists() or not dossier.exists():
         pytest.skip(SKIP_REASON)
+    digest = run_dir / "digest.md"
+    if not digest.exists():
+        pytest.skip(SKIP_REASON)
     if sample not in _REPORTS:
         _REPORTS[sample] = Report(
             path=path,
             text=path.read_text(encoding="utf-8"),
             dossier=dossier.read_text(encoding="utf-8"),
+            digest=digest.read_text(encoding="utf-8"),
         )
     return _REPORTS[sample]
 
@@ -184,6 +195,83 @@ def test_ledger_holds_a_phase_5_row_for_the_sample(report, sample):
     assert phase_5, f"no phase 5 ledger row for {sample}"
 
 
+# ---------------------------------------------------------------- the digest
+
+
+def test_digest_is_written_and_is_the_size_the_writer_prints(report):
+    """digest.md is on disk and holds no more rows than DIGEST_ROWS allows."""
+    rows = [line for line in report.digest.splitlines() if line.startswith("- ")]
+    assert rows
+    assert len(rows) <= writer.DIGEST_ROWS
+    assert report.digest.endswith("\n")
+
+
+def test_digest_is_the_same_twice_from_the_same_dossier(report):
+    """The digest is code and nothing else, so two builds of it are the same file."""
+    first = writer.digest_markdown(report.dossier)
+    second = writer.digest_markdown(report.dossier)
+    assert first == second
+    assert first == report.digest
+    assert writer.build_digest(report.dossier) == writer.build_digest(report.dossier)
+
+
+def test_digest_holds_every_comparison_row_of_the_dossier(report):
+    """The comparisons are the matter contradicting itself, so none of them is dropped."""
+    sections = writer.dossier_sections(report.dossier)
+    for row in sections.get("Comparisons", []):
+        assert row in report.digest, row[:120]
+
+
+def test_digest_holds_the_lesser_matters_and_the_models(report):
+    """The lesser matters go in largest first, and every model blind to the matter goes in."""
+    sections = writer.dossier_sections(report.dossier)
+    lesser = sections.get("Lesser matters", [])
+    for row in lesser[: writer.LESSER_ROWS]:
+        assert row in report.digest, row[:120]
+    for row in sections.get("Models blind to it", []):
+        assert row in report.digest, row[:120]
+
+
+def test_digest_gives_one_row_to_each_distinct_name(report):
+    """Every name the dossier gives the matter reaches the digest once, and only once."""
+    sections = writer.dossier_sections(report.dossier)
+    names = writer.named_rows(sections.get("Names", []))
+    assert len(names) == len({writer.row_fields(row)[0] for row in sections.get("Names", [])})
+    for row in names:
+        assert row in report.digest, row[:120]
+
+
+def test_digest_rows_come_only_from_the_dossier(report):
+    """A digest row is a dossier row, copied whole and not written."""
+    dossier_rows = set()
+    for rows in writer.dossier_sections(report.dossier).values():
+        dossier_rows.update(rows)
+    for row in writer.build_digest(report.dossier):
+        assert row in dossier_rows, row[:120]
+
+
+def test_report_quotes_every_digest_row_whole_with_its_citation(report):
+    """The one rule of the prompt: every row of the digest is quoted once, whole, and cited."""
+    straightened = straighten(report.text)
+    missing = []
+    for row in writer.build_digest(report.dossier):
+        if row.count(" || "):
+            halves = [part.split(" | ") for part in row[2:].split(" || ")]
+            quotes = [(part[0], " | ".join(part[1:-1]), part[-1]) for part in halves]
+        else:
+            fields = writer.row_fields(row)
+            quotes = [(fields[1], writer.row_quote(row), fields[-1])]
+        for doc, quote, anchor in quotes:
+            if straighten(quote) not in straightened:
+                missing.append(f"{doc} {quote[:60]}")
+                continue
+            if f"[{doc} | {anchor}]" not in report.text:
+                missing.append(f"{doc} uncited {quote[:40]}")
+    assert not missing, f"{len(missing)} digest rows not quoted whole and cited: " + " || ".join(
+        missing[:8]
+    )
+
+
 # ---------------------------------------------------------------- the fake transport
 
 
@@ -248,7 +336,11 @@ def fake_sample(tmp_path):
     run_dir.mkdir()
     (sample_dir / "brief.md").write_text("# Brief\n\nFind the matter.\n", encoding="utf-8")
     (run_dir / "dossier.md").write_text(
-        "# Dossier: atlas\n\n### Timeline\n\n- 2025-10-18 | DR-001 | a quote | a/b.pdf#p1l1\n",
+        "# Dossier: atlas\n\n## Matter 1\n\n### Timeline\n\n"
+        "- 2025-10-18 | DR-001 | a quote | a/b.pdf#p1l1\n\n"
+        "### Names\n\n- AURORA | DR-001 | a name | a/b.pdf#p1l2\n\n"
+        "### Comparisons\n\n"
+        "- DR-001 | one half | a/b.pdf#p1l3 || DR-002 | the other half | c/d.pdf#p2l1\n",
         encoding="utf-8",
     )
     ledger_path = tmp_path / "LEDGER.md"
@@ -267,7 +359,7 @@ def test_write_default_model_is_glm_flash(fake_sample):
     assert writer.DEFAULT_MODEL == MODEL
     body = json.loads(transport.requests[0].content)
     assert body["model"] == MODEL
-    assert body["max_tokens"] == writer.MAX_OUTPUT_TOKENS
+    assert body["max_tokens"] == writer.MAX_OUTPUT_TOKENS == 16000
     assert (run_dir / "report.md").read_text(encoding="utf-8").startswith("## Executive summary")
     assert (run_dir / "report-raw.txt").read_text(encoding="utf-8") == FAKE_REPORT
 
@@ -402,10 +494,10 @@ def test_write_asks_the_gateway_for_prose_not_json(fake_sample):
 # ---------------------------------------------------------------- the prompt and the parse
 
 
-def test_build_messages_carries_the_headings_and_the_whole_dossier():
-    """The five headings are in the instructions and the dossier is the user message, whole."""
+def test_build_messages_carries_the_headings_and_the_whole_digest():
+    """The five headings are in the instructions and the digest is the user message, whole."""
     brief = "# Brief\n\nFind the matter.\n"
-    dossier = "# Dossier: atlas\n\n### Timeline\n\n- 2025-10-18 | DR-001 | a quote | a/b.pdf#p1l1\n"
+    dossier = "# Digest\n\n### Timeline\n\n- 2025-10-18 | DR-001 | a quote | a/b.pdf#p1l1\n"
 
     messages = writer.build_messages(brief, dossier)
 
@@ -482,6 +574,48 @@ def test_the_writer_never_reads_the_key():
     assert "load_key" not in source
     assert "key.json" not in source
     assert "rlm.key" not in source
+
+
+
+
+# ---------------------------------------------------------------- the grader's carry rule
+
+
+REPORT_WITH_THE_ROOMS_OWN_WORDS = (
+    "The model assumed 615m monthly active users flat across the period "
+    "[DR-096 | a/b.xlsx#Base Case!A5]. The dashboard read 594m in the week of 2025-11-10 "
+    "[DR-048 | c/d.xlsx#Weekly MAU!A12]."
+)
+
+
+def carried(side: str, report: str) -> bool:
+    """Whether one comparison side is carried by a report, by the grader's own rule."""
+    return side_carried(side, numbers_of(report), days_of(report), words_of(report))
+
+
+def test_carry_reads_a_comparison_side_written_in_the_rooms_own_words():
+    """A side the report says in its own order and its own words is still carried."""
+    assert carried("615m MAU assumed flat", REPORT_WITH_THE_ROOMS_OWN_WORDS)
+    assert carried("594m in the week of 2025-11-10", REPORT_WITH_THE_ROOMS_OWN_WORDS)
+
+
+def test_carry_refuses_a_side_whose_number_is_missing():
+    """A number is not a connective: a side whose figure the report never wrote is not carried."""
+    assert not carried("408m mobile MAU assumed flat", REPORT_WITH_THE_ROOMS_OWN_WORDS)
+    assert not carried("594m in the week of 2025-11-17", REPORT_WITH_THE_ROOMS_OWN_WORDS)
+
+
+def test_carry_refuses_a_side_whose_word_the_report_never_wrote():
+    """Only the connectives are forgiven; a word that carries meaning has to be there."""
+    assert not carried("615m MAU assumed flat in Dublin", REPORT_WITH_THE_ROOMS_OWN_WORDS)
+
+
+def test_carry_connectives_are_the_words_a_key_joins_a_side_with():
+    """The list is small, it is stemmed, and every word of it joins rather than states."""
+    for word in ("against", "assumed", "flat", "week", "drafted", "limit"):
+        assert stem(word) in CONNECTIVES
+    for word in ("aurora", "kestrel", "ironlake", "912.8m", "backup"):
+        assert stem(word) not in CONNECTIVES
 
 
 # ---------------------------------------------------------------- the readout
