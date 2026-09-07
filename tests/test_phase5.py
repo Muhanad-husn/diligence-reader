@@ -195,6 +195,21 @@ def headings_of(text: str) -> list[str]:
 # ---------------------------------------------------------------- the artefact
 
 
+def test_cited_sentences_count_a_citation_in_the_middle_of_a_sentence():
+    """A citation written mid-sentence still names a section the sentence came from."""
+    line = (
+        "The draft shows \"$3,404m\" [DR-018 | a/b.pdf#p2l3] against the memo \"$240m\" "
+        "[DR-088 | c/d.pdf#p1l56]. A second sentence cites once [DR-001 | e/f.pdf#p1l1]."
+    )
+
+    found = verifier.cited_sentences(line)
+
+    assert [cites for _, cites in found] == [
+        [("DR-018", "a/b.pdf#p2l3"), ("DR-088", "c/d.pdf#p1l56")],
+        [("DR-001", "e/f.pdf#p1l1")],
+    ]
+
+
 def test_report_is_markdown_with_one_trailing_newline(report):
     assert report.text
     assert report.text.endswith("\n") and not report.text.endswith("\n\n")
@@ -686,12 +701,35 @@ def test_write_sends_the_failures_back_once_and_keeps_both_replies(fake_sample):
     assert record["calls"] == 2
     assert [failure["check"] for failure in record["rounds"][0]] == ["numbers"]
     assert record["rounds"][1] == []
+    assert record["report_round"] == 2
     assert record["passes"] is True
 
     assert (run_dir / "report-raw-1.txt").read_text(encoding="utf-8") == FAKE_REPORT_WITH_A_BAD_NUMBER
     assert (run_dir / "report-raw.txt").read_text(encoding="utf-8") == FAKE_REPORT
     written = (run_dir / "report.md").read_text(encoding="utf-8")
     assert "$999m" not in written and "$240m to $465m" in written
+
+
+def test_write_keeps_the_first_reply_when_the_second_is_cut_short(fake_sample, capsys):
+    """A second reply that lost headings was cut at the cap, so report.md is the first reply."""
+    sample_dir, run_dir, ledger = fake_sample
+    cut_short = FAKE_REPORT.split("## The most material issue quantified")[0]
+    transport = FakeTransport([reply(FAKE_REPORT_WITH_A_BAD_NUMBER), reply(cut_short)])
+    gateway = Gateway(api_key="test-key", transport=transport)
+
+    assert writer.main([str(sample_dir), str(run_dir)], gateway=gateway, ledger=ledger) == 0
+
+    assert len(transport.requests) == 2
+    record = json.loads((run_dir / "verify.json").read_text(encoding="utf-8"))
+    assert len(record["rounds"]) == 2
+    assert record["report_round"] == 1
+    assert record["passes"] is False
+    written = (run_dir / "report.md").read_text(encoding="utf-8")
+    assert "$999m" in written
+    assert headings_of(written) == list(HEADINGS)
+    assert (run_dir / "report-raw.txt").read_text(encoding="utf-8") == cut_short
+    assert "second reply cut short" in capsys.readouterr().out
+    assert not writer.is_whole(cut_short) and writer.is_whole(FAKE_REPORT)
 
 
 def test_write_sums_both_calls_into_one_ledger_row(fake_sample):
@@ -920,8 +958,32 @@ def citation_failures(sentence: str) -> list[dict]:
     return verifier.check_citations(one_finding(sentence), ROOM_SECTIONS, ROOM_INDEX, ROOM_MAP)
 
 
+def test_check_numbers_takes_a_day_off_the_dossier_row_that_cites_the_section():
+    """A date the row carries beside its anchor is sourced, even when the section lacks it."""
+    dossier = "\n".join(
+        ["# Dossier: atlas", "", "## Matter 1", "", "### Timeline", "",
+         "- 2025-12-11 | DR-001 | a quote | a/b.pdf#p1l1", ""]
+    )
+    report = one_finding("The notice was drafted on 2025-12-11 [DR-001 | a/b.pdf#p1l1].")
+
+    assert verifier.check_numbers(report, ROOM_SECTIONS, dossier) == []
+    failures = verifier.check_numbers(report, ROOM_SECTIONS)
+    assert [failure["reason"] for failure in failures] == ["2025-12-11 is in no cited section"]
+    assert verifier.dossier_rows_by_anchor(dossier) == {
+        "a/b.pdf#p1l1": "2025-12-11 | DR-001 | a quote | a/b.pdf#p1l1"
+    }
+
+
 def test_check_citations_takes_a_citation_that_resolves():
     assert citation_failures("A thing [DR-001 | a/b.pdf#p1l1].") == []
+
+
+def test_check_citations_refuses_a_sentence_with_no_citation():
+    """A topic sentence with no citation is a citation failure, so the re-ask can fix it."""
+    failures = citation_failures("A thing with no citation. A cited thing [DR-001 | a/b.pdf#p1l1].")
+    assert [failure["check"] for failure in failures] == ["citations"]
+    assert failures[0]["line"] == "A thing with no citation."
+    assert "no citation" in failures[0]["reason"]
 
 
 def test_check_citations_refuses_an_anchor_that_does_not_parse():

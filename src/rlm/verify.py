@@ -192,15 +192,17 @@ def trailing_citations(text: str) -> list[tuple[str, str]]:
 def cited_sentences(text: str) -> list[tuple[str, list[tuple[str, str]]]]:
     """Every sentence of these lines with the citations that cover it.
 
-    A sentence's own citations are the group it ends in. Where it ends in none, the group at
-    the end of the line it sits on covers it, because a line of several sentences cites once.
+    A sentence's own citations are every citation written inside it, wherever it sits: the
+    prompt asks for one group at the end, but a writer that cites in the middle of a sentence
+    has still named the section that sentence came from, and the number check reads it. Where
+    a sentence holds none, the group at the end of the line it sits on covers it, because a
+    line of several sentences cites once.
     """
     found = []
     for line in body_lines(text):
         at_end = trailing_citations(line)
         for sentence in split_sentences(line):
-            own = trailing_citations(sentence) if is_cited(sentence) else []
-            found.append((sentence, own or at_end))
+            found.append((sentence, citations(sentence) or at_end))
     return found
 
 
@@ -294,12 +296,18 @@ def rung_name(level: int) -> str:
 def check_citations(
     report: str, sections: list[dict], index: list[dict], mapping: dict[str, str] | None = None
 ) -> list[dict]:
-    """Every citation of the five written sections resolves to a section of a known document."""
+    """Every sentence of the five written sections ends in a citation, and every citation
+    resolves to a section of a known document."""
     texts = section_index(sections)
     documents = index_documents(index)
     found = []
     for _, text in narrative_blocks(report):
         for line in body_lines(text):
+            for sentence in split_sentences(line):
+                if not is_cited(sentence):
+                    # A sentence with no citation of its own has nothing to resolve, and the
+                    # prompt exempts no sentence but the recommendation and the arithmetic.
+                    found.append(failure("citations", sentence, "the sentence ends in no citation"))
             for doc, anchor in citations(line):
                 try:
                     parsed = parse_anchor(anchor)
@@ -323,15 +331,38 @@ def check_citations(
     return found
 
 
-def check_numbers(report: str, sections: list[dict]) -> list[dict]:
-    """Every number and every day of a cited sentence is in one of its cited sections."""
+def dossier_rows_by_anchor(dossier: str) -> dict[str, str]:
+    """The rows of the dossier's first matter that carry each anchor, joined as one text.
+
+    A timeline row carries a date in its first field and a figures row a figure, and the code
+    that wrote the row read that field out of the document and anchored the row at the words
+    beside it, which is not always the line the date sits on: a mail's date is in its header
+    and its subject line is what the row cites. The writer copies the field off the row it was
+    handed, so the row is part of what the sentence's citation names.
+    """
+    found: dict[str, list[str]] = {}
+    for rows in dossier_sections(dossier).values():
+        for row in rows:
+            for part in row[2:].split(" || "):
+                for field in part.split(" | "):
+                    if "#" in field:
+                        found.setdefault(field.strip(), []).append(part)
+    return {anchor: " ".join(parts) for anchor, parts in found.items()}
+
+
+def check_numbers(report: str, sections: list[dict], dossier: str = "") -> list[dict]:
+    """Every number and every day of a cited sentence is in one of its cited sections, or on
+    the dossier row that cites that section."""
     texts = section_index(sections)
+    rows = dossier_rows_by_anchor(dossier) if dossier else {}
     found = []
     for _, text in narrative_blocks(report):
         cited = [(sentence, cites) for sentence, cites in cited_sentences(text) if cites]
         room: set[str] = set()
         for sentence, cites in cited:
-            source = " ".join(texts.get(anchor, "") for _, anchor in cites)
+            source = " ".join(
+                texts.get(anchor, "") + " " + rows.get(anchor, "") for _, anchor in cites
+            )
             numbers = source_numbers(source)
             days = days_of(source)
             room |= numbers | sentence_numbers(sentence)
@@ -407,7 +438,7 @@ def verify(
     """Runs the four checks over one report and returns the failures, the counts and the verdict."""
     failures = []
     failures.extend(check_citations(report, sections, index, mapping))
-    failures.extend(check_numbers(report, sections))
+    failures.extend(check_numbers(report, sections, dossier))
     failures.extend(check_certainty(report, sections))
     failures.extend(check_order(report, dossier))
     return {"failures": failures, "passes": not failures, "counts": counts_of(failures)}

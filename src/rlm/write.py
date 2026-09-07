@@ -22,7 +22,8 @@ way. The report is then verified by rlm.verify against sections.jsonl, index.jso
 dossier, and where the first reply fails the failures go back to the model once, as a list, in
 a second call carrying the first reply. The last reply is kept verbatim in report-raw.txt and
 the first in report-raw-1.txt when there were two, the whole report in report.md and the
-rounds in verify.json.
+rounds in verify.json. A second reply that lost any of the five headings was cut short at the
+cap, and then the first reply is the report and verify.json's report_round says so.
 
 Both calls run inside one ledger batch, which prints the estimated tokens and the price before
 anything is sent and writes one phase 5 row of LEDGER.md, summed over the calls, when they
@@ -688,11 +689,13 @@ reason, then the sentence as you wrote it:
 
 {items}
 
-Return the whole report again, from `## Executive summary`, with every sentence listed above
-either fixed or left out, and every other sentence exactly as you wrote it. Keep every rule of
-the instructions: the same five headings in the same order, every sentence ending in its
-citation copied character for character off its row, every quotation the room's own words, and
-every certainty word the room's own."""
+Return the whole report again, from `## Executive summary`, and do not rewrite it: copy your
+first reply line for line and change only the sentences listed above, each one either fixed
+from its row or left out. Keep the same five headings in the same order, one short sentence
+per line as before, every sentence ending in its citation copied character for character off
+its row, every quotation the room's own words, and every certainty word the room's own. A
+number, a date or a certainty word that its row does not carry goes out of the sentence. You
+have 8000 tokens for the whole reply, so do not deliberate and do not lengthen anything."""
 
 
 def failure_items(failures: list[dict]) -> str:
@@ -725,6 +728,16 @@ def parse_reply(reply: str) -> str:
     if start > 0:
         text = text[start:]
     return text.strip() + "\n"
+
+
+def is_whole(narrative: str) -> bool:
+    """Says whether a reply carries the brief's five headings in order.
+
+    A reply cut short at the token cap loses its last sections, and the writer falls back to
+    the reply before it rather than write a report with no lesser issues and no open items.
+    """
+    found = [line[3:].strip() for line in narrative.splitlines() if line.startswith("## ")]
+    return found[: len(HEADINGS) - 1] == list(HEADINGS[:-1])
 
 
 def write_report(run_dir: Path, report: str) -> Path:
@@ -954,9 +967,15 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
         if len(replies) > 1:
             (run_dir / "report-raw-1.txt").write_text(replies[0], encoding="utf-8")
 
-    report = build(replies[-1])
+    kept = len(replies)
     if len(replies) > 1:
-        rounds.append(check(report))
+        rounds.append(check(build(replies[1])))
+        if not is_whole(parse_reply(replies[1])):
+            # The second reply lost headings, which is what a reply cut short at the cap looks
+            # like. The first reply is the report then, and verify.json says so.
+            kept = 1
+            print(f"verify {sample_dir.name}: second reply cut short, report.md is the first reply")
+    report = build(replies[kept - 1])
     write_report(run_dir, report)
     evidence_lines = [line for line in evidence.splitlines() if line.startswith("- ")]
     if args.out:
@@ -969,7 +988,8 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
                 "sample": sample_dir.name,
                 "model": args.model,
                 "rounds": rounds,
-                "passes": not rounds[-1],
+                "report_round": kept,
+                "passes": not rounds[kept - 1],
                 "calls": calls,
             },
             indent=2,
@@ -992,7 +1012,7 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
         "sentences": len(sentences(report)),
         "citations": len(citations(report)),
         "calls": calls,
-        "verify_failures": len(rounds[-1]),
+        "verify_failures": len(rounds[kept - 1]),
         "tokens_in": tokens_in,
         "tokens_out": tokens_out,
         "dollars": price(args.model, tokens_in, tokens_out),
