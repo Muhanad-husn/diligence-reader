@@ -4,7 +4,9 @@ One reader per format. PDF text comes from pdftext, page by page, and every page
 a second time with pypdf as an independent check; a page the two engines disagree on is written
 with a warning and counted, never repaired. Ruled tables come from pdfplumber, one section per
 table row. Workbooks come from openpyxl with data_only=True, one section per non-empty row and
-no header inference. CSV, plain text, markdown, EML and MBOX come from the standard library.
+no header inference. CSV, plain text, markdown, EML and MBOX come from the standard library. A mail message is read
+into one section per header line, before one section per block of its body; header lines are
+numbered after the body, the numbering `rlm.sections` sets out.
 
 Records are sorted by doc then ordinal and their JSON keys are sorted, so two runs of the same
 sample write the same bytes. The sample's key is read for its list of documents and nothing
@@ -276,11 +278,31 @@ def read_text(path: Path, doc: str) -> list[Section]:
 
 
 def mail_sections(doc: str, message, anchor_for: Callable[[int], str]) -> list[Section]:
-    """Makes one section per block of a mail body, all headed by the message's own headers."""
+    """Makes one section per header line of a message and one per block of its body.
+
+    The header sections come first, so a document's own sender, recipients, date and subject
+    are text a later stage can quote and anchor rather than words only the heading carried.
+    Header lines are numbered after the message's body: a message whose body runs to line B
+    carries its first header line at line B + 1. The body keeps the numbering it has always
+    had, so every body anchor written before headers were sectioned still names the same block.
+    """
     heading = " | ".join(f"{name}: {message[name]}" for name in MAIL_HEADERS if message[name])
     body = message.get_body(preferencelist=("plain",))
     text = body.get_content() if body is not None else ""
-    return [
+    lines = text.split("\n")
+    sections = [
+        Section(
+            doc=doc,
+            ordinal=0,
+            kind="text",
+            anchor=anchor_for(len(lines) + position),
+            heading=heading or None,
+            text=f"{name}: {value}",
+            warning=None,
+        )
+        for position, (name, value) in enumerate(message.items(), start=1)
+    ]
+    sections.extend(
         Section(
             doc=doc,
             ordinal=0,
@@ -290,8 +312,9 @@ def mail_sections(doc: str, message, anchor_for: Callable[[int], str]) -> list[S
             text=block,
             warning=None,
         )
-        for first, block in split_blocks(text.split("\n"))
-    ]
+        for first, block in split_blocks(lines)
+    )
+    return sections
 
 
 def read_eml(path: Path, doc: str) -> list[Section]:
