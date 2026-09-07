@@ -33,6 +33,11 @@ return.
 `b/` under it, off the same dossier, sections, index and map, so the two differ only by the
 draw. Each pass is its own ledger batch and leaves its own phase 5 row.
 
+`--out-dir` moves both passes somewhere else. The room is still read from the run directory,
+so the dossier, the sections, the index and the map are the run's own; only what the passes
+write lands under the directory given. That is how rlm.writebakeoff runs one model into
+`runs/<sample>/write-bakeoff/<slug>/` without copying the room.
+
 Where the sample has an answer key, rlm.grade.grade reads the report each pass wrote and leaves
 grade.json beside it: the recall over the key's facts, the rubric rows with their points and
 reasons, the score, and the grader's model and seconds. Nothing here opens the key; the writer
@@ -882,6 +887,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="a second file name under the run directory to keep this draw's report under",
     )
     parser.add_argument(
+        "--out-dir",
+        dest="out_dir",
+        default=None,
+        help="a directory to write the passes into, when it is not the run directory",
+    )
+    parser.add_argument(
         "--passes",
         type=int,
         choices=(1, 2),
@@ -1106,9 +1117,10 @@ def main(
     # Nothing is graded without an answer key, and the key is read by the grader alone.
     graded = has_key(sample_dir)
 
-    directories = [(run_dir, "a")]
+    out_root = Path(args.out_dir) if args.out_dir else run_dir
+    directories = [(out_root, "a")]
     if args.passes == 2:
-        directories.append((run_dir / "b", "b"))
+        directories.append((out_root / "b", "b"))
 
     summaries: list[dict] = []
     grades: list[dict] = []
@@ -1123,7 +1135,7 @@ def main(
     if len(grades) == 2:
         # The spread of the two draws lives with pass a's grade, which is the graded artefact
         # of the run; pass b's grade file holds its own score and nothing about pass a.
-        path = run_dir / "grade.json"
+        path = out_root / "grade.json"
         written = json.loads(path.read_text(encoding="utf-8"))
         written["score_b"] = grades[1]["score"]
         written["spread"] = abs(grades[0]["score"] - grades[1]["score"])
