@@ -397,8 +397,7 @@ def test_gate_pin_maps_digests_what_is_on_disk(tmp_path, capsys):
     for sample in ("atlas", "northwind"):
         sample_dir = runs_root / sample
         sample_dir.mkdir(parents=True)
-        map_bytes = json.dumps({"sample": sample}, indent=1, sort_keys=True).encode() + b"
-"
+        map_bytes = json.dumps({"sample": sample}, indent=1, sort_keys=True).encode() + b"\n"
         (sample_dir / "map.json").write_bytes(map_bytes)
         wanted[sample] = {"map.json": hashlib.sha256(map_bytes).hexdigest()}
 
@@ -411,8 +410,7 @@ def test_gate_pin_maps_digests_what_is_on_disk(tmp_path, capsys):
     assert code == 0
     assert json.loads(digests_path.read_text(encoding="utf-8")) == wanted
     raw = digests_path.read_text(encoding="utf-8")
-    assert raw == json.dumps(wanted, indent=2, sort_keys=True, ensure_ascii=False) + "
-"
+    assert raw == json.dumps(wanted, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
     assert "atlas" in out and "northwind" in out
     for sample in wanted:
         assert (runs_root / sample / "map.json").exists()
@@ -424,8 +422,7 @@ def test_gate_pin_maps_refuses_a_sample_with_no_map(tmp_path, capsys):
 
     runs_root = tmp_path / "runs"
     (runs_root / "atlas").mkdir(parents=True)
-    (runs_root / "atlas" / "map.json").write_bytes(b"{}
-")
+    (runs_root / "atlas" / "map.json").write_bytes(b"{}\n")
     (runs_root / "northwind").mkdir(parents=True)
 
     digests_path = tmp_path / "phase3-digests.json"
