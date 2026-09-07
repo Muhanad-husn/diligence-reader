@@ -18,10 +18,27 @@ import tempfile
 import time
 from pathlib import Path
 
+from rlm.carry import days_of, numbers_of, stem, words_of
 from rlm.key import Fact, Key, load_key
 
 # The two sides of a comparison fact are joined by this literal string and by nothing else.
 COMPARISON_JOIN = " against "
+
+# The words a key uses to hold the two sides of a comparison together, stemmed.
+#
+# A comparison side is carried when every number, every day and every word of it is in the
+# report. Phase 4 asks that rule only of the words the fact's own documents hold, because a
+# dossier row is written out of those documents. The grader cannot ask that: it reads a report
+# and a key and never opens the room, so it has no way to know which words a document holds.
+# These are the words a key writes to join a side to its standard, its clock or its period,
+# and they are the ones a report may reasonably phrase its own way. Every other word of a side
+# has to be in the report.
+CONNECTIVE_SOURCE = (
+    "against assumed flat week drafted opened created retained limit policy determination "
+    "determinable incident termination security material conclusive removed months days from "
+    "ticket notice on in of and a the no not"
+)
+CONNECTIVES = frozenset(stem(word) for word in CONNECTIVE_SOURCE.split())
 
 _CURRENCY = re.compile(r"\bus\$|\busd\b|[$£€]")
 _THOUSANDS = re.compile(r"(?<=\d),(?=\d{3}(?!\d))")
@@ -49,20 +66,58 @@ def cited_documents(report: str, key: Key) -> set[str]:
     return {doc_id for doc_id in key.documents if doc_id.casefold() in lowered}
 
 
-def is_recalled(fact: Fact, report_normalised: str, cited: set[str]) -> bool:
+def side_carried(
+    side: str, report_numbers: set[str], report_days: set[str], report_words: set[str]
+) -> bool:
+    """Says whether the report carries one side of a comparison, by phase 4's carry rule.
+
+    Every number of the side is in the report, with its days cut out first and its thousands
+    marks dropped. Every day of the side is in the report, read as an ISO day whatever surface
+    either of them writes it in. Every word of the side that says something is in the report
+    with one plural or tense ending dropped, unless it is one of CONNECTIVES, which are the
+    words a key uses to join the side to what it is measured against.
+    """
+    if not numbers_of(side) <= report_numbers:
+        return False
+    if not days_of(side) <= report_days:
+        return False
+    return all(word in report_words or word in CONNECTIVES for word in words_of(side))
+
+
+def is_recalled(
+    fact: Fact,
+    report_normalised: str,
+    cited: set[str],
+    report_numbers: set[str] | None = None,
+    report_days: set[str] | None = None,
+    report_words: set[str] | None = None,
+) -> bool:
     """Says whether the report carries this fact, by the rule for the fact's kind.
 
-    A document fact needs every one of its documents cited. A comparison fact is split on
-    the literal string " against " and needs both sides present and one document cited.
-    Every other kind needs its value present and one document cited.
+    A document fact needs every one of its documents cited. A comparison fact is split on the
+    literal string " against " and needs one document cited and each side carried by the rule
+    of side_carried, because the two sides of a comparison are the key's own summary of what
+    the room said twice and no report repeats them word for word. Every other kind needs its
+    value present as a substring of the normalised report, and one document cited.
+
+    The three report sets are read from report_normalised when they are not passed in; a
+    caller grading many facts reads them once and passes them.
     """
     if fact.kind == "document":
         return all(doc in cited for doc in fact.documents)
     if not any(doc in cited for doc in fact.documents):
         return False
     if fact.kind == "comparison":
-        sides = fact.value.split(COMPARISON_JOIN)
-        return all(normalise(side) in report_normalised for side in sides)
+        if report_numbers is None:
+            report_numbers = numbers_of(report_normalised)
+        if report_days is None:
+            report_days = days_of(report_normalised)
+        if report_words is None:
+            report_words = words_of(report_normalised)
+        return all(
+            side_carried(side, report_numbers, report_days, report_words)
+            for side in fact.value.split(COMPARISON_JOIN)
+        )
     return normalise(fact.value) in report_normalised
 
 
@@ -70,10 +125,15 @@ def measure_recall(key: Key, report: str) -> tuple[float, list[str], list[str]]:
     """Returns the recall percentage over all of the key's facts, and the ids either way."""
     report_normalised = normalise(report)
     cited = cited_documents(report, key)
+    report_numbers = numbers_of(report)
+    report_days = days_of(report)
+    report_words = words_of(report)
     recalled = []
     missed = []
     for fact in key.facts:
-        if is_recalled(fact, report_normalised, cited):
+        if is_recalled(
+            fact, report_normalised, cited, report_numbers, report_days, report_words
+        ):
             recalled.append(fact.id)
         else:
             missed.append(fact.id)
