@@ -134,3 +134,5 @@ Ceiling $50. Written by the code that makes gateway calls; a line added by hand 
 | 2026-09-07 | northwind | 5 | z-ai/glm-5.3 | 41593 | 9409 | 0.0996 | 46.9232 |
 | 2026-09-07 | northstar-dental | 5 | z-ai/glm-5.3 | 19973 | 5696 | 0.0530 | 46.8702 |
 | 2026-09-07 | northstar-dental | 5 | z-ai/glm-5.3 | 19621 | 6294 | 0.0552 | 46.8150 |
+| 2026-09-08 | northwind | 5 | z-ai/glm-5.3 | 41131 | 8785 | 0.0962 | 46.7188 |
+| 2026-09-08 | northwind | 5 | z-ai/glm-5.3 | 40548 | 8260 | 0.0931 | 46.6257 |

@@ -74,7 +74,7 @@ from rlm import write as writer
 from rlm import writebakeoff
 from rlm.carry import days_of, numbers_of, stem, words_of
 from rlm.gateway import PRICES, Gateway, Ledger, price
-from rlm.grade import CONNECTIVES, measure_recall, side_carried
+from rlm.grade import CONNECTIVES, measure_recall, normalise, side_carried
 from rlm.key import load_key
 from rlm.notes import straighten
 from rlm.sections import parse_anchor
@@ -1043,6 +1043,69 @@ def test_sentences_do_not_break_on_a_full_stop_inside_a_quotation():
     assert all(writer.is_cited(sentence) for sentence in found)
 
 
+def test_sentences_do_not_break_inside_a_common_abbreviation():
+    """An abbreviation carries a full stop of its own and that full stop ends no sentence."""
+    text = (
+        "## Findings ranked by materiality\n\n"
+        "Invoice No. 4471 was paid in full [DR-001 | a/b.pdf#p1l1].\n"
+        "The processor is TelemetryWorks Inc. in Portland [DR-002 | c/d.pdf#p1l2].\n"
+    )
+
+    found = writer.sentences(text)
+
+    assert found == [
+        "Invoice No. 4471 was paid in full [DR-001 | a/b.pdf#p1l1].",
+        "The processor is TelemetryWorks Inc. in Portland [DR-002 | c/d.pdf#p1l2].",
+    ]
+    assert all(writer.is_cited(sentence) for sentence in found)
+
+
+def test_sentences_still_break_at_a_real_sentence_end_on_a_line_holding_an_abbreviation():
+    """The abbreviation rule keeps every full stop that does end a sentence."""
+    text = (
+        "## Findings ranked by materiality\n\n"
+        "The processor is TelemetryWorks Inc. in Portland [DR-001 | a/b.pdf#p1l1]. "
+        "The transfer mechanism is none [DR-002 | c/d.pdf#p1l2].\n"
+    )
+
+    found = writer.sentences(text)
+
+    assert found == [
+        "The processor is TelemetryWorks Inc. in Portland [DR-001 | a/b.pdf#p1l1].",
+        "The transfer mechanism is none [DR-002 | c/d.pdf#p1l2].",
+    ]
+    assert all(writer.is_cited(sentence) for sentence in found)
+
+
+def test_the_abbreviations_are_a_module_constant_of_the_split():
+    """The list the split reads is one constant, and a single letter is an initial."""
+    assert set(writer.ABBREVIATIONS) >= {
+        "no.",
+        "nos.",
+        "inc.",
+        "ltd.",
+        "co.",
+        "corp.",
+        "llc.",
+        "vs.",
+        "v.",
+        "e.g.",
+        "i.e.",
+        "etc.",
+        "mr.",
+        "ms.",
+        "dr.",
+        "st.",
+    }
+    assert writer.split_sentences("Signed by J. Okonkwo for the board.") == [
+        "Signed by J. Okonkwo for the board."
+    ]
+    assert writer.split_sentences("The fee, e.g. the annual one, ran on. It then stopped.") == [
+        "The fee, e.g. the annual one, ran on.",
+        "It then stopped.",
+    ]
+
+
 def test_citations_read_the_document_and_the_anchor():
     text = "One thing [DR-001 | a/b.pdf#p1l1] and another [DR-002 | c/d.xlsx#Q&A Log!A11].\n"
 
@@ -1169,6 +1232,39 @@ def test_check_numbers_does_not_fold_a_count_of_records_into_a_million():
     """912,800,000 is not 912.8m: the digits differ and the check says so."""
     failures = number_failures("The object holds 912.8m records [DR-002 | c/d.xlsx#Inventory!A5].")
     assert failures and any("912" in failure["reason"] for failure in failures)
+
+
+def test_check_numbers_reads_a_decimal_figure_whole():
+    """30.1% is one number and not a 30 beside a 1, on both sides of the check."""
+    sections = [section_record("a/b.pdf#p1l1", "Meridian is 30.1% of total ARR.")]
+    report = one_finding("Meridian is 30.1% of ARR [DR-001 | a/b.pdf#p1l1].")
+
+    assert normalise("30.1%") == "30.1%"
+    assert verifier.sentence_numbers("Meridian is 30.1% of ARR.") == {"30.1"}
+    assert "30.1" in verifier.source_numbers("Meridian is 30.1% of total ARR.")
+    assert verifier.check_numbers(report, sections) == []
+
+
+def test_check_numbers_reads_a_money_figure_with_cents_whole():
+    """$185,000.00 is one number, read as rlm.grade.normalise leaves it."""
+    sections = [section_record("a/b.pdf#p1l1", "a fixed fee of $185,000.00 for the services")]
+    report = one_finding("The fixed fee is $185,000.00 [DR-001 | a/b.pdf#p1l1].")
+
+    assert normalise("$185,000.00") == "185000.00"
+    assert verifier.sentence_numbers("The fixed fee is $185,000.00.") == {"185000.00"}
+    assert "185000.00" in verifier.source_numbers("a fixed fee of $185,000.00 for the services")
+    assert verifier.check_numbers(report, sections) == []
+
+
+def test_check_numbers_refuses_a_decimal_the_cited_section_never_wrote():
+    """A decimal in no cited section still fails, and its parts elsewhere do not save it."""
+    sections = [section_record("a/b.pdf#p1l1", "Sections 11.1 and 12.2, within sixty (60) days.")]
+    report = one_finding("The right runs against 30.1% of ARR [DR-001 | a/b.pdf#p1l1].")
+
+    failures = verifier.check_numbers(report, sections)
+
+    assert [failure["check"] for failure in failures] == ["numbers"]
+    assert failures[0]["reason"] == "30.1 is in no cited section"
 
 
 def test_check_numbers_reads_a_day_in_any_format_the_room_wrote_it_in():
@@ -2012,6 +2108,113 @@ def test_writebakeoff_recount_rebuilds_the_rows_from_disk_with_no_call(bakeoff_r
     for model in (DS_FLASH, LUNA, DS_PRO, GLM):
         row = bakeoff_row(after, model)
         assert all(row[field] == "not run" for field in BAKEOFF_MEASURED), model
+
+
+STALE_VERIFY = (
+    json.dumps(
+        {
+            "sample": "atlas",
+            "rounds": [[{"check": "numbers", "line": "a line", "reason": "an old reading"}]],
+            "passes": False,
+        },
+        indent=2,
+    )
+    + "\n"
+)
+
+
+def test_writebakeoff_recount_reverifies_each_report_under_the_verifier_of_the_day(
+    bakeoff_room, capsys
+):
+    """A recount reads each pass's report.md again and leaves verify.json where it is."""
+    samples_root, runs_root, ledger = bakeoff_room
+    transport = WriteTransport()
+    gateway = Gateway(api_key="k", transport=transport)
+    grader = BakeoffGrader(runs_root, scores={GLM_FLASH: (90.0, 86.0)})
+
+    writebakeoff.main(
+        [str(samples_root), str(runs_root), "--samples", *BAKEOFF_SAMPLES, "--models", GLM_FLASH],
+        gateway=gateway,
+        ledger=ledger,
+        grader=grader,
+    )
+    capsys.readouterr()
+
+    name = writebakeoff.slug(GLM_FLASH)
+    pass_dirs = [
+        out_dir
+        for sample in BAKEOFF_SAMPLES
+        for out_dir in (
+            runs_root / sample / "write-bakeoff" / name,
+            runs_root / sample / "write-bakeoff" / name / "b",
+        )
+    ]
+    for out_dir in pass_dirs:
+        (out_dir / "verify.json").write_text(STALE_VERIFY, encoding="utf-8")
+
+    code = writebakeoff.main(
+        [str(samples_root), str(runs_root), "--samples", *BAKEOFF_SAMPLES, "--recount"],
+        gateway=gateway,
+        ledger=ledger,
+        grader=grader,
+    )
+    capsys.readouterr()
+    assert code == 0
+
+    row = bakeoff_row(read_table(runs_root), GLM_FLASH)
+    for sample in BAKEOFF_SAMPLES:
+        entry = row["samples"][sample]
+        assert entry["verifier_a"] is True, sample
+        assert entry["verifier_b"] is True, sample
+    assert row["passes"] is True
+    for out_dir in pass_dirs:
+        assert (out_dir / "verify.json").read_text(encoding="utf-8") == STALE_VERIFY
+
+
+def test_writebakeoff_a_rerun_of_one_sample_keeps_the_other_samples_of_the_row(
+    bakeoff_room, capsys
+):
+    """A run restricted to one sample rewrites that sample and the table stays whole."""
+    samples_root, runs_root, ledger = bakeoff_room
+    transport = WriteTransport()
+    gateway = Gateway(api_key="k", transport=transport)
+    grader = BakeoffGrader(runs_root, scores={GLM_FLASH: (90.0, 86.0)})
+
+    writebakeoff.main(
+        [str(samples_root), str(runs_root), "--samples", *BAKEOFF_SAMPLES, "--models", GLM_FLASH],
+        gateway=gateway,
+        ledger=ledger,
+        grader=grader,
+    )
+    capsys.readouterr()
+    calls = len(transport.requests)
+
+    code = writebakeoff.main(
+        [
+            str(samples_root),
+            str(runs_root),
+            "--samples",
+            BAKEOFF_SAMPLES[1],
+            "--models",
+            GLM_FLASH,
+        ],
+        gateway=gateway,
+        ledger=ledger,
+        grader=grader,
+    )
+    capsys.readouterr()
+    assert code == 0
+    # Two passes on the one sample the rerun names, and none on the other.
+    assert len(transport.requests) == calls + 2
+
+    table = read_table(runs_root)
+    assert table["samples"] == list(BAKEOFF_SAMPLES)
+    row = bakeoff_row(table, GLM_FLASH)
+    assert set(row["samples"]) == set(BAKEOFF_SAMPLES)
+    assert row["passes"] is True
+    first = (runs_root / BAKEOFF_SAMPLES[0] / "write-bakeoff.json").read_bytes()
+    second = (runs_root / BAKEOFF_SAMPLES[1] / "write-bakeoff.json").read_bytes()
+    assert first == second
 
 
 def test_writebakeoff_dry_run_writes_a_blank_table_and_makes_no_request(bakeoff_room, capsys):
