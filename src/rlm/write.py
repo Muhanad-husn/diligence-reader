@@ -17,11 +17,17 @@ gives up its figures that are not money and then its shortest timeline lines, in
 and never a name, a comparison, a lesser matter or a model.
 
 The functions sentences, is_cited and citations here are how a sentence and its citation are
-read, and the phase 5 tests import them so that the writer and the tests read them the same
-way. The reply is kept verbatim in report-raw.txt and the whole report in report.md.
+read, and rlm.verify and the phase 5 tests import them so that all three read them the same
+way. The report is then verified by rlm.verify against sections.jsonl, index.jsonl and the
+dossier, and where the first reply fails the failures go back to the model once, as a list, in
+a second call carrying the first reply. The last reply is kept verbatim in report-raw.txt and
+the first in report-raw-1.txt when there were two, the whole report in report.md and the
+rounds in verify.json. A second reply that lost any of the five headings was cut short at the
+cap, and then the first reply is the report and verify.json's report_round says so.
 
-The call runs inside one ledger batch, which prints the estimated tokens and the price before
-anything is sent and writes one phase 5 row of LEDGER.md when the call returns.
+Both calls run inside one ledger batch, which prints the estimated tokens and the price before
+anything is sent and writes one phase 5 row of LEDGER.md, summed over the calls, when they
+return.
 """
 
 from __future__ import annotations
@@ -36,6 +42,7 @@ from pathlib import Path
 
 from rlm.amounts import normalise_amount
 from rlm.gateway import PRICES, Gateway, Ledger, estimate_tokens, price
+from rlm.notes import reask_messages
 
 PHASE = 5
 
@@ -677,6 +684,27 @@ THE BRIEF
 """
 
 
+REASK_FAILURES = """These sentences of your report did not verify. Each line is the check, the
+reason, then the sentence as you wrote it:
+
+{items}
+
+Return the whole report again, from `## Executive summary`, and do not rewrite it: copy your
+first reply line for line and change only the sentences listed above, each one either fixed
+from its row or left out. Keep the same five headings in the same order, one short sentence
+per line as before, every sentence ending in its citation copied character for character off
+its row, every quotation the room's own words, and every certainty word the room's own. A
+number, a date or a certainty word that its row does not carry goes out of the sentence. You
+have 8000 tokens for the whole reply, so do not deliberate and do not lengthen anything."""
+
+
+def failure_items(failures: list[dict]) -> str:
+    """The failures of one round, one line each: the check, the reason, then the sentence."""
+    return "\n".join(
+        f"- {item['check']}: {item['reason']}: {item['line']}" for item in failures
+    )
+
+
 def build_messages(brief: str, digest: str) -> list[dict]:
     """The two messages of the call: the instructions with the brief, then the digest."""
     return [
@@ -700,6 +728,16 @@ def parse_reply(reply: str) -> str:
     if start > 0:
         text = text[start:]
     return text.strip() + "\n"
+
+
+def is_whole(narrative: str) -> bool:
+    """Says whether a reply carries the brief's five headings in order.
+
+    A reply cut short at the token cap loses its last sections, and the writer falls back to
+    the reply before it rather than write a report with no lesser issues and no open items.
+    """
+    found = [line[3:].strip() for line in narrative.splitlines() if line.startswith("## ")]
+    return found[: len(HEADINGS) - 1] == list(HEADINGS[:-1])
 
 
 def write_report(run_dir: Path, report: str) -> Path:
@@ -792,6 +830,7 @@ def summary_line(summary: dict) -> str:
     return (
         f"write {summary['sample']}: sentences {summary['sentences']}, "
         f"citations {summary['citations']}, evidence {summary['evidence_lines']} lines, "
+        f"calls {summary['calls']}, verify_failures {summary['verify_failures']}, "
         f"tokens_in {summary['tokens_in']}, tokens_out {summary['tokens_out']}, "
         f"seconds {summary['seconds']:.1f}"
     )
@@ -818,7 +857,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None = None) -> int:
-    """Writes one sample's report.md from its brief and its dossier in one gateway call."""
+    """Writes one sample's report.md, verifies it, and sends the failures back once."""
+    # rlm.verify reads a sentence and a citation the way this module does, so it imports from
+    # here. This import sits inside main so that the two modules do not import each other while
+    # they are still loading.
+    from rlm import verify as verifier
+
     args = parse_args(argv)
     if args.model not in PRICES:
         print(f"no such model in the price table: {args.model}")
@@ -828,11 +872,19 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
     run_dir = Path(args.run_dir)
     brief_path = sample_dir / "brief.md"
     dossier_path = run_dir / "dossier.md"
+    sections_path = run_dir / "sections.jsonl"
+    index_path = run_dir / "index.jsonl"
     if not dossier_path.exists():
         print(f"no dossier at {dossier_path}")
         return 2
     if not brief_path.exists():
         print(f"no brief at {brief_path}")
+        return 2
+    if not sections_path.exists():
+        print(f"no sections.jsonl at {sections_path}")
+        return 2
+    if not index_path.exists():
+        print(f"no index.jsonl at {index_path}")
         return 2
 
     dossier = dossier_path.read_text(encoding="utf-8")
@@ -844,17 +896,34 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
 
     messages = build_messages(brief_path.read_text(encoding="utf-8"), digest)
 
+    evidence, cut = evidence_within_reach(dossier)
+    sections = verifier.read_jsonl(sections_path)
+    index = verifier.read_jsonl(index_path)
+    mapping = verifier.read_mapping(run_dir / "map.json")
+
+    def build(text: str) -> str:
+        """The whole report of one reply: the narrative it holds and the schedule under it."""
+        return f"{parse_reply(text)}\n## {EVIDENCE_HEADING}\n\n{evidence}"
+
+    def check(text: str) -> list[dict]:
+        """The failures of one report, read against the room the dossier was built from."""
+        return verifier.verify(text, sections, index, dossier, mapping)["failures"]
+
+    rounds: list[list[dict]] = []
+    replies: list[str] = []
+
     if args.from_reply:
         # A saved reply rebuilds the report with no call and no ledger row, which is how the
         # schedule is changed and measured without paying again for a narrative that has not
         # changed. The tokens and the seconds of the draw that wrote the reply carry forward
         # from the summary it left, because they are still what the report cost.
-        reply = Path(args.from_reply).read_text(encoding="utf-8")
+        replies.append(Path(args.from_reply).read_text(encoding="utf-8"))
         previous = run_dir / "write-summary.json"
         before = json.loads(previous.read_text(encoding="utf-8")) if previous.exists() else {}
         tokens_in = int(before.get("tokens_in", 0))
         tokens_out = int(before.get("tokens_out", 0))
         seconds = float(before.get("seconds", 0.0))
+        rounds.append(check(build(replies[0])))
         print(f"reply {sample_dir.name}: rebuilt from {args.from_reply}, no call made")
     else:
         if gateway is None:
@@ -864,24 +933,74 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
 
         estimated_in = estimate_tokens("\n".join(message["content"] for message in messages))
         started = time.monotonic()
+        completions = []
         with ledger.batch(
             sample_dir.name, PHASE, args.model, tokens_in=estimated_in, tokens_out=MAX_OUTPUT_TOKENS
         ) as batch:
-            completion = batch.record(
-                gateway.complete(args.model, messages, max_tokens=MAX_OUTPUT_TOKENS, json=False)
+            completions.append(
+                batch.record(
+                    gateway.complete(args.model, messages, max_tokens=MAX_OUTPUT_TOKENS, json=False)
+                )
             )
+            replies.append(completions[0].text)
+            rounds.append(check(build(replies[0])))
+            if rounds[0]:
+                # One second call, and only one: the first reply and the failures under it, so
+                # that the model fixes the sentences the room does not carry and leaves the rest
+                # of its report alone. Both calls are in this batch and pay on one ledger row.
+                asking = REASK_FAILURES.format(items=failure_items(rounds[0]))
+                completions.append(
+                    batch.record(
+                        gateway.complete(
+                            args.model,
+                            reask_messages(messages, replies[0], asking),
+                            max_tokens=MAX_OUTPUT_TOKENS,
+                            json=False,
+                        )
+                    )
+                )
+                replies.append(completions[1].text)
         seconds = time.monotonic() - started
-        reply = completion.text
-        tokens_in, tokens_out = completion.tokens_in, completion.tokens_out
-        (run_dir / "report-raw.txt").write_text(reply, encoding="utf-8")
+        tokens_in = sum(completion.tokens_in for completion in completions)
+        tokens_out = sum(completion.tokens_out for completion in completions)
+        (run_dir / "report-raw.txt").write_text(replies[-1], encoding="utf-8")
+        if len(replies) > 1:
+            (run_dir / "report-raw-1.txt").write_text(replies[0], encoding="utf-8")
 
-    narrative = parse_reply(reply)
-    evidence, cut = evidence_within_reach(dossier)
-    report = f"{narrative}\n## {EVIDENCE_HEADING}\n\n{evidence}"
+    kept = len(replies)
+    if len(replies) > 1:
+        rounds.append(check(build(replies[1])))
+        if not is_whole(parse_reply(replies[1])):
+            # The second reply lost headings, which is what a reply cut short at the cap looks
+            # like. The first reply is the report then, and verify.json says so.
+            kept = 1
+            print(f"verify {sample_dir.name}: second reply cut short, report.md is the first reply")
+    report = build(replies[kept - 1])
     write_report(run_dir, report)
     evidence_lines = [line for line in evidence.splitlines() if line.startswith("- ")]
     if args.out:
         (run_dir / args.out).write_text(report, encoding="utf-8")
+
+    calls = 0 if args.from_reply else len(replies)
+    (run_dir / "verify.json").write_text(
+        json.dumps(
+            {
+                "sample": sample_dir.name,
+                "model": args.model,
+                "rounds": rounds,
+                "report_round": kept,
+                "passes": not rounds[kept - 1],
+                "calls": calls,
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    for number, failures in enumerate(rounds, start=1):
+        print(verifier.counts_line(sample_dir.name, verifier.counts_of(failures), number))
+        for item in failures:
+            print(verifier.failure_line(item))
 
     summary = {
         "sample": sample_dir.name,
@@ -892,6 +1011,8 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
         "evidence_cut": cut,
         "sentences": len(sentences(report)),
         "citations": len(citations(report)),
+        "calls": calls,
+        "verify_failures": len(rounds[kept - 1]),
         "tokens_in": tokens_in,
         "tokens_out": tokens_out,
         "dollars": price(args.model, tokens_in, tokens_out),
