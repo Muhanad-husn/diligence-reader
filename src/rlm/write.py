@@ -86,14 +86,29 @@ TERM_FIGURE_ROWS = 20
 
 # The most rows a digest carries. Every row has to be quoted once in a report of at most
 # MAX_OUTPUT_TOKENS tokens, and a comparison row costs three sentences rather than one, so the
-# ceiling is what the reply can hold, not what the dossier can offer.
-DIGEST_ROWS = 145
+# ceiling is what the reply can hold, not what the dossier can offer. A digest of 145 rows ran
+# the reply out of room inside the fourth section on 2026-09-07, 118 finished with a hundred
+# tokens to spare, and 110 leaves about a tenth of the cap while losing no fact the larger
+# digests carried.
+DIGEST_ROWS = 110
+
+# The most comparison rows a digest carries. Each of them costs three sentences of the reply,
+# one for the contradiction and one for each half quoted whole, and the halves are the longest
+# quotes the dossier holds, so thirty of them is half a report. The rows that can be quoted
+# inside a sentence come first and the dossier's own order decides the rest.
+COMPARISON_ROWS = 30
 
 # The most lesser matters a digest carries. The dossier ranks that section by the largest money
 # figure of each document, so these are its largest and the rest are what a report would have
 # said least about. Every digest row costs a quoted sentence of a capped reply, so the least
 # material section is the one that gives room back.
-LESSER_ROWS = 10
+LESSER_ROWS = 6
+
+# The most words a row's quote may run to before the digest passes it over. A dossier row can
+# be a whole spreadsheet line, a dozen cells joined by pipes, and a report asked to quote one
+# of those whole either spends a paragraph on it or quietly shortens it. Where a section has
+# rows to choose between, the digest takes one that can be quoted in a sentence.
+MAX_QUOTE_WORDS = 40
 
 # The words that mark a timeline row as a turning point rather than a background line.
 STATUS_WORDS = (
@@ -196,6 +211,23 @@ def row_quote(row: str) -> str:
     return " | ".join(fields[2:-1]) if len(fields) >= 4 else row
 
 
+def is_quotable(row: str) -> bool:
+    """Says whether a row's words can be quoted whole inside one sentence.
+
+    A row can run to a whole spreadsheet line, a dozen cells the dossier could not tell apart,
+    and a report asked to quote one of those whole either spends a paragraph on it or quietly
+    shortens it. Where a section has rows to choose between, the digest takes a short one.
+    """
+    return len(row_quote(row).split()) <= MAX_QUOTE_WORDS
+
+
+def quotable_first(rows: list[str]) -> list[str]:
+    """The rows that can be quoted in a sentence first, then the rest, order kept inside each."""
+    return [row for row in rows if is_quotable(row)] + [
+        row for row in rows if not is_quotable(row)
+    ]
+
+
 def turning_signals(row: str) -> int:
     """How many marks of a turning point one row carries.
 
@@ -240,14 +272,18 @@ def timeline_rows(rows: list[str], weight: dict[str, int], cap: int) -> list[str
         for row in document_rows:
             dates.setdefault(row_fields(row)[0], []).append(row)
         by_date = [
-            max(dates[date], key=lambda row: (turning_signals(row), -document_rows.index(row)))
+            max(
+                dates[date],
+                key=lambda row: (is_quotable(row), turning_signals(row), -document_rows.index(row)),
+            )
             for date in sorted(
                 dates,
                 key=lambda date: (-sum(turning_signals(row) for row in dates[date]), date),
             )
         ]
         by_strength = sorted(
-            document_rows, key=lambda row: (-turning_signals(row), document_rows.index(row))
+            document_rows,
+            key=lambda row: (not is_quotable(row), -turning_signals(row), document_rows.index(row)),
         )
         picked: list[str] = []
         for first, second in zip_longest(by_date, by_strength):
@@ -307,20 +343,27 @@ def figure_rows(
             other.append((-weight[doc], index, row))
     money.sort()
     other.sort()
+    money = [item for item in money if is_quotable(item[-1])] or money
+    other = [item for item in other if is_quotable(item[-1])] or other
     return [row for *_, row in money[:money_cap]] + [row for *_, row in other[:term_cap]]
 
 
 def named_rows(rows: list[str]) -> list[str]:
-    """The first row of each distinct name of the names section, in the dossier's order."""
+    """One row for each distinct name of the names section, in the dossier's order.
+
+    The row taken for a name is the first one that can be quoted inside a sentence, and the
+    first row of the name when none of them can.
+    """
     found = []
     seen = set()
-    for row in rows:
+    for row in quotable_first(rows):
         name = row_fields(row)[0]
         if name in seen:
             continue
         seen.add(name)
         found.append(row)
-    return found
+    order = {row: index for index, row in enumerate(rows)}
+    return sorted(found, key=lambda row: order[row])
 
 
 def digest_sections(dossier: str) -> dict[str, list[str]]:
@@ -336,9 +379,9 @@ def digest_sections(dossier: str) -> dict[str, list[str]]:
     sections = dossier_sections(dossier)
     names = named_rows(sections.get("Names", []))
     weight = document_weight(sections)
-    lesser = sections.get("Lesser matters", [])[:LESSER_ROWS]
+    lesser = quotable_first(sections.get("Lesser matters", []))[:LESSER_ROWS]
     models = sections.get("Models blind to it", [])
-    comparisons = sections.get("Comparisons", [])
+    comparisons = quotable_first(sections.get("Comparisons", []))[:COMPARISON_ROWS]
     room = max(0, DIGEST_ROWS - len(names) - len(lesser) - len(models) - len(comparisons))
     timeline = timeline_rows(
         sections.get("Timeline", []), weight, min(TIMELINE_ROWS, room * 2 // 3)
@@ -419,7 +462,11 @@ The quotation is the row's words field, copied from its first character to its l
 nothing of it left out. Never write three dots inside a quotation and never quote half a
 clause. The citation is `[<doc> | <anchor>]`, both halves copied character for character from
 that same row, the whole anchor with its path and its # and everything after it. Put the
-citation at the end of the sentence, then the full stop. One row, one sentence, one citation.
+citation at the end of the sentence, then the full stop. One row, one sentence, one citation:
+never two rows in one sentence and never one row in two.
+
+Copy the anchor character for character, spelling and all. Where an anchor looks misspelled,
+copy the misspelling: it is the address of a file and a corrected address points nowhere.
 
 A row's words field may hold a full stop of its own. Keep it and everything after it: that
 full stop is the room's and it does not end your sentence.
@@ -453,10 +500,12 @@ the rule above.
 THE SHAPE
 
 ## Executive summary
-  A first line beginning `Recommendation:`, then four sentences.
+  A first line beginning `Recommendation:`, then four sentences, each of them quoting a row
+  of the digest and ending in its citation like every other sentence of the report.
 ## Findings ranked by materiality
   ### Chronology
-    The Timeline rows, in date order, one sentence each, the date first.
+    Every Timeline row, in date order, one sentence each, the date first. All of them, not a
+    summary of them.
   ### The room against itself
     The Comparisons rows, three sentences each as set out above.
   ### The names and the figures
@@ -464,15 +513,16 @@ THE SHAPE
   ### The models blind to it
     The Models blind to it rows, one sentence each, saying what each model assumed.
 ## The most material issue quantified
-  Three sentences on the largest exposure the figures carry, then the `Calculation:` line,
-  then one `Recommendation:` line.
+  Three sentences on the largest exposure the figures carry, each quoting a row and ending in
+  its citation, then the `Calculation:` line, then one `Recommendation:` line.
 ## Lesser issues
   The Lesser matters rows, one sentence each, and why each is smaller than the matter.
 ## Open items
   Three sentences on what you would still need, each ending in a citation like any other.
 
-A line carries no citation only when it begins `Recommendation:` or `Calculation:`. Any line
-that states what you recommend begins `Recommendation:` and stands alone. Every other sentence
+A line carries no citation only when it begins `Recommendation:` or `Calculation:`. No summary
+sentence and no judgement of your own is exempt: if you cannot cite it, do not write it. Any
+line that states what you recommend begins `Recommendation:` and stands alone. Every other sentence
 of the report ends in a citation. Write no table, no block quote and no bold label on a line
 of its own. Write no em dash of your own. Do not write "e.g.", "i.e." or "approx." inside a
 sentence.

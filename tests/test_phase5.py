@@ -225,7 +225,7 @@ def test_digest_holds_every_comparison_row_of_the_dossier(report):
 def test_digest_holds_the_lesser_matters_and_the_models(report):
     """The lesser matters go in largest first, and every model blind to the matter goes in."""
     sections = writer.dossier_sections(report.dossier)
-    lesser = sections.get("Lesser matters", [])
+    lesser = writer.quotable_first(sections.get("Lesser matters", []))
     for row in lesser[: writer.LESSER_ROWS]:
         assert row in report.digest, row[:120]
     for row in sections.get("Models blind to it", []):
