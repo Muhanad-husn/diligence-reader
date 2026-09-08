@@ -260,10 +260,10 @@ def test_generator_writes_the_same_bytes_twice(tmp_path):
     if not SOURCE_SECTIONS.exists():
         pytest.skip(SKIP_NO_PIN)
 
-    assert generate(tmp_path / "one") == 0
-    assert generate(tmp_path / "two") == 0
+    assert generate(tmp_path / "one" / CONTROL) == 0
+    assert generate(tmp_path / "two" / CONTROL) == 0
 
-    assert tree(tmp_path / "one") == tree(tmp_path / "two")
+    assert tree(tmp_path / "one" / CONTROL) == tree(tmp_path / "two" / CONTROL)
 
 
 def test_generator_refuses_a_sections_file_that_is_not_the_pinned_one(tmp_path, capsys):
@@ -374,9 +374,9 @@ def test_control_brief_is_sample_ones_brief():
     if not CONTROL_DIR.exists():
         pytest.skip(SKIP_NO_CONTROL)
 
-    assert (CONTROL_DIR / "brief.md").read_bytes() == (
+    assert (CONTROL_DIR / "brief.md").read_text(encoding="utf-8") == (
         ROOT / "samples" / SOURCE / "brief.md"
-    ).read_bytes()
+    ).read_text(encoding="utf-8")
 
 
 def test_control_readme_lists_the_knob_and_the_facts_it_drops():

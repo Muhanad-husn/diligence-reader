@@ -61,7 +61,7 @@ from itertools import zip_longest
 from pathlib import Path
 
 from rlm.amounts import normalise_amount
-from rlm.gateway import PRICES, Gateway, Ledger, estimate_tokens, price
+from rlm.gateway import PHASE_CAPS, PRICES, Gateway, Ledger, estimate_tokens, price
 from rlm.notes import reask_messages
 
 PHASE = 5
@@ -992,6 +992,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=1,
         help="how many times to write the same request, the second one under b/",
     )
+    parser.add_argument(
+        "--phase",
+        type=int,
+        default=PHASE,
+        help="the phase the ledger books this run to, so that a phase 6 variant pays out "
+        "of phase 6's cap",
+    )
     return parser.parse_args(argv)
 
 
@@ -1029,6 +1036,9 @@ def main(
     args = parse_args(argv)
     if args.model not in PRICES:
         print(f"no such model in the price table: {args.model}")
+        return 2
+    if args.phase not in PHASE_CAPS:
+        print(f"no such phase in the caps: {args.phase}")
         return 2
     if args.from_reply and args.passes != 1:
         print("--from-reply rebuilds one pass and does not go with --passes 2")
@@ -1112,7 +1122,7 @@ def main(
             completions = []
             with ledger.batch(
                 sample_dir.name,
-                PHASE,
+                args.phase,
                 args.model,
                 tokens_in=estimated_in,
                 tokens_out=MAX_OUTPUT_TOKENS,
