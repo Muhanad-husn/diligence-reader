@@ -8,10 +8,12 @@ dated section within seven days of each other. A shared value weighs less the mo
 carry it, so AURORA in sixteen documents weighs a quarter of `vpauth-legacy-2019` in four.
 
 An `identifier` or `cross-reference` edge is kept only where a flag of both notes says it is
-about that value, or the value is inside a concealed item of both. A value only the index saw
-joins two documents by coincidence about as often as by matter; a value both notes named as the
-thing a worry is about is the matter itself. A flag's own words, its quote and its consequence
-are not looked inside: a flag that mentions a code in passing is not a flag about that code.
+about that value, or the value is inside a concealed item of both. A name is read folded, so a
+flag about `P. Raman` and a flag about `Raman, Priya` are flags about one person. A value only
+the index saw joins two documents by coincidence about as often as by matter; a value both notes
+named as the thing a worry is about is the matter itself. A flag's own words, its quote and its
+consequence are not looked inside: a flag that mentions a code in passing is not a flag about
+that code.
 Date and version edges are kept as they are, because neither is a coincidence of vocabulary.
 
 The matter is seeded at the document whose three strongest links are the strongest in the room.
@@ -30,9 +32,11 @@ set each share a value of the matter with it and those are two different values,
 the matter owns, or where one value of the matter it shares with one document of the set is an
 exact money figure the matter owns. A value of the matter is a value the room's notes write,
 as a cross reference or as a figure, whole or as a word inside one they write, and that the
-matter owns, every other document of the room carrying it being in the set already; an exact
-money figure is a value of the matter whether the matter owns it or not, because a figure only
-a few documents carry names a matter as well as a code does. It joins as `compare` where a set
+matter owns, every other document of the room naming it being in the set already, where a
+document names a value by a flag of its note and not by a concealed item quoting a sentence it
+appears in, and where a figure only that document read is not a value of the matter at all; an
+exact money figure is a value of the matter whether the matter owns it or not, because a figure
+only a few documents carry names a matter as well as a code does. It joins as `compare` where a set
 document's note names it at a place that asks, in the room's own words, for the two to be read
 against each other. It joins as `covenant` where one of its flags is quoted with a termination
 word and writes the same run of words as a flag of the seed or of a document the seed joined by
@@ -85,6 +89,7 @@ from rlm.words import (
     document_of,
     fold,
     folded_words,
+    name_forms,
     named_by,
     one_line,
     sections_by_document,
@@ -196,7 +201,78 @@ def read_notes(run_dir: Path, ids_by_path: dict[str, str]) -> dict[str, dict]:
     return notes
 
 
-def named_values(note: dict) -> tuple[set[str], str]:
+# The kinds of cross reference that carry a person's or an organisation's name.
+NAME_KINDS = ("name", "person")
+
+
+def name_index(notes: dict[str, dict]) -> tuple[dict[str, str], dict[str, str]]:
+    """Every person and organisation name the room's notes write, grouped by the forms they share.
+
+    A name is what a note called a person or an organisation. The index's own `name` records are
+    not read here, because the index writes a phrase around a name as readily as the name, and a
+    group of phrases is not a name. An index surface still reaches a group where it writes one of
+    the group's forms.
+
+    The first map takes any form of a name to its group's key; the second takes a group's key to
+    the spelling the map writes for it. Two spellings are one name where a form of one is a form
+    of the other, and the grouping runs across the room once, so `VistaPort`, `Vista Port` and
+    `Vista-Port` are one name whichever of the three a document wrote. The key is the smallest
+    form of the group and the spelling written is the first the room writes in value order, so
+    the same room gives the same map every time. A transposed-letter misspelling shares no form
+    and stays a name of its own.
+    """
+    values: set[str] = set()
+    for note in notes.values():
+        for reference in note["cross_references"]:
+            if reference["kind"] in NAME_KINDS:
+                values.add(str(reference["value"]))
+
+    forms_of = {value: name_forms(value) for value in sorted(values)}
+    forms_of = {value: forms for value, forms in forms_of.items() if forms}
+
+    parent = {value: value for value in forms_of}
+
+    def root(value: str) -> str:
+        while parent[value] != value:
+            parent[value] = parent[parent[value]]
+            value = parent[value]
+        return value
+
+    carriers: dict[str, list[str]] = {}
+    for value, forms in forms_of.items():
+        for form in forms:
+            carriers.setdefault(form, []).append(value)
+    for form in sorted(carriers):
+        first = carriers[form][0]
+        for other in carriers[form][1:]:
+            one, two = sorted((root(first), root(other)))
+            parent[two] = one
+
+    grouped: dict[str, list[str]] = {}
+    for value in sorted(forms_of):
+        grouped.setdefault(root(value), []).append(value)
+
+    by_form: dict[str, str] = {}
+    written: dict[str, str] = {}
+    for members in grouped.values():
+        key = min(form for value in members for form in forms_of[value])
+        written[key] = members[0]
+        for value in members:
+            for form in forms_of[value]:
+                by_form.setdefault(form, key)
+    return by_form, written
+
+
+def name_key(value, by_form: dict[str, str]) -> str | None:
+    """The key of the name group a value belongs to, or None where the room writes no such name."""
+    for form in name_forms(value):
+        key = by_form.get(form)
+        if key:
+            return key
+    return None
+
+
+def named_values(note: dict, by_form: dict[str, str]) -> tuple[set[str], str]:
     """The folded values a note's flags are about, and its concealed items as one folded string.
 
     This is where a value has to appear for the map to count it as a link: what a flag names as
@@ -205,19 +281,26 @@ def named_values(note: dict) -> tuple[set[str], str]:
     passing is not a flag about that code, and a value is not read inside another value, because
     legacy_uap is not legacy_uap_backup_2021.tar.gz. A note written before flags carried about
     reads as its concealed items alone.
+
+    An about value that is a name the room writes carries its name group's key beside its own
+    folded form, so a flag about `P. Raman` is about the same thing as a flag about
+    `Raman, Priya`.
     """
-    values = {
-        fold(value)
-        for flag in note["flags"]
-        for value in flag.get("about", [])
-        if isinstance(value, str) and fold(value)
-    }
+    values: set[str] = set()
+    for flag in note["flags"]:
+        for value in flag.get("about", []):
+            if not isinstance(value, str) or not fold(value):
+                continue
+            values.add(fold(value))
+            key = name_key(value, by_form)
+            if key:
+                values.add(key)
     concealed = fold(" ".join(part for item in note["concealed"] for part in (item["claim"], item["quote"])))
     return values, concealed
 
 
-def is_about(named: tuple[set[str], str] | None, folded: str) -> bool:
-    """Whether a folded value is one a note's flags are about, or sits in its concealed items.
+def flags_about(named: tuple[set[str], str] | None, folded: str) -> bool:
+    """Whether a folded value is one a note's flags are about.
 
     A value with a digit in it also counts when it sits whole, on word boundaries, inside one
     element: 24 months is inside twenty-four (24) months and vpauth-legacy-2019 is inside
@@ -226,8 +309,8 @@ def is_about(named: tuple[set[str], str] | None, folded: str) -> bool:
     """
     if not named or not folded:
         return False
-    values, concealed = named
-    if folded in values or folded in concealed:
+    values, _ = named
+    if folded in values:
         return True
     if not any(char.isdigit() for char in folded):
         return False
@@ -235,16 +318,49 @@ def is_about(named: tuple[set[str], str] | None, folded: str) -> bool:
     return any(inside.search(value) for value in values)
 
 
-def person_values(notes: dict[str, dict]) -> set[str]:
-    """The cross-reference values the notes call people more often than anything else.
+def concealed_about(named: tuple[set[str], str] | None, folded: str) -> bool:
+    """Whether a folded value sits in what a note wrote down as concealed."""
+    if not named or not folded:
+        return False
+    return folded in named[1]
+
+
+def is_about(named: tuple[set[str], str] | None, folded: str) -> bool:
+    """Whether a folded value is one a note's flags are about, or sits in its concealed items."""
+    return flags_about(named, folded) or concealed_about(named, folded)
+
+
+def about_both(
+    one: tuple[set[str], str] | None,
+    other: tuple[set[str], str] | None,
+    forms: tuple[str, ...],
+) -> bool:
+    """Whether two notes both say a value is the thing their worry is about.
+
+    A flag of both notes says it is about the value, or the value is inside a concealed item of
+    both, or one of each: a note that conceals what another note flags is writing about the same
+    thing from the other side.
+
+    The forms are the value's own folded form and, where the room writes it as a name, its name
+    group's key. Either form standing on both sides is the same value on both sides.
+    """
+    return any(
+        all(is_about(named, form) for named in (one, other)) for form in forms if form
+    )
+
+
+def person_values(notes: dict[str, dict], by_form: dict[str, str]) -> set[str]:
+    """The names the notes call people more often than anything else, by name group.
 
     A person's name is not evidence that two documents are about the same matter: a general
-    counsel signs the tax memo and the forensic memo alike.
+    counsel signs the tax memo and the forensic memo alike. A name spelled several ways is
+    counted once, so the spellings vote together and stand or fall together.
     """
     kinds: dict[str, collections.Counter] = {}
     for note in notes.values():
         for reference in note["cross_references"]:
-            kinds.setdefault(reference["value"], collections.Counter())[reference["kind"]] += 1
+            value = name_key(reference["value"], by_form) or reference["value"]
+            kinds.setdefault(value, collections.Counter())[reference["kind"]] += 1
     people = set()
     for value, counted in kinds.items():
         top = max(counted.items(), key=lambda pair: (pair[1], pair[0] == "person"))
@@ -271,6 +387,36 @@ def written_values(notes: dict[str, dict]) -> tuple[set[str], set[str]]:
             whole.add(fold(figure["surface"]))
     whole.discard("")
     return whole, {run for value in whole for run in word_runs(value)}
+
+
+def figure_writers(notes: dict[str, dict]) -> dict[str, set[str]]:
+    """Every run of words of a figure the room's notes read, with the documents that read it.
+
+    A figure is a number a note read off its own document, so the reach rule can ask whether any
+    note but the one it is judging read a figure.
+    """
+    writers: dict[str, set[str]] = {}
+    for doc_id, note in notes.items():
+        for figure in note["figures"]:
+            folded = fold(figure["surface"])
+            if not folded:
+                continue
+            for run in word_runs(folded):
+                writers.setdefault(run, set()).add(doc_id)
+    return writers
+
+
+def reference_runs(notes: dict[str, dict]) -> set[str]:
+    """Every run of words of a cross reference the room's notes write that is not a person."""
+    runs: set[str] = set()
+    for note in notes.values():
+        for reference in note["cross_references"]:
+            if reference["kind"] == "person":
+                continue
+            folded = fold(reference["value"])
+            if folded:
+                runs |= word_runs(folded)
+    return runs
 
 
 def word_runs(folded: str) -> set[str]:
@@ -404,6 +550,7 @@ def shared_values(
     ids_by_path: dict[str, str],
     first_anchors: dict[str, str],
     skipped: set[str],
+    names: tuple[dict[str, str], dict[str, str]],
 ) -> list[tuple[str, str, dict[str, str]]]:
     """Every value two or more documents share, as (kind, value, {document: anchor}).
 
@@ -411,7 +558,13 @@ def shared_values(
     `amount` record: an exact figure only a few documents carry names a matter as well as a code
     does. A cross reference is a value a note wrote, carried also by another note, by another
     document's index or by being the id of that document. A version is an index version pair.
+
+    A cross reference that is a person's or an organisation's name is carried by its name group,
+    so every spelling of one name is one value with one set of documents, written in the room's
+    first spelling of it. The index is looked up by the name group as well as by the folded
+    surface, so a note that wrote `P. Raman` finds the document whose index saw `Raman, Priya`.
     """
+    by_form, written = names
     found: list[tuple[str, str, dict[str, str]]] = []
 
     def anchors_of(record) -> dict[str, str]:
@@ -452,33 +605,44 @@ def shared_values(
         folded = fold(record["surface"])
         if not folded:
             continue
+        key = name_key(record["surface"], by_form) if record["kind"] == "name" else None
         for anchor in record["anchors"]:
             doc_id = document_of(anchor, ids_by_path)
             if doc_id:
                 index_carriers.setdefault(folded, {}).setdefault(doc_id, anchor)
+                if key:
+                    index_carriers.setdefault(key, {}).setdefault(doc_id, anchor)
 
     for surface, carriers in sorted(by_surface.items()):
-        if surface not in skipped:
-            found.append(("identifier", surface, carriers))
+        if surface in skipped or name_key(surface, by_form) in skipped:
+            continue
+        found.append(("identifier", surface, carriers))
     for _, (surface, carriers) in sorted(by_amount.items(), key=lambda item: str(item[0])):
         found.append(("identifier", surface, carriers))
     for surface, carriers in sorted(versions.items()):
         found.append(("version", surface, carriers))
 
     references: dict[str, dict[str, str]] = {}
+    spellings: dict[str, set[str]] = {}
     for doc_id in sorted(notes):
         for reference in notes[doc_id]["cross_references"]:
-            references.setdefault(reference["value"], {}).setdefault(doc_id, reference["anchor"])
-    for value, carriers in sorted(references.items()):
-        if value in skipped:
+            value = str(reference["value"])
+            key = name_key(value, by_form) or value
+            references.setdefault(key, {}).setdefault(doc_id, reference["anchor"])
+            spellings.setdefault(key, set()).add(value)
+    for key, carriers in sorted(references.items()):
+        if key in skipped or any(value in skipped for value in spellings[key]):
             continue
         carried = dict(carriers)
-        for doc_id, anchor in sorted(index_carriers.get(fold(value), {}).items()):
+        for doc_id, anchor in sorted(index_carriers.get(key, {}).items()):
             carried.setdefault(doc_id, anchor)
-        named = str(value).strip().upper()
-        if named in first_anchors:
-            carried.setdefault(named, first_anchors[named])
-        found.append(("cross-reference", value, carried))
+        for spelling in sorted(spellings[key]):
+            for doc_id, anchor in sorted(index_carriers.get(fold(spelling), {}).items()):
+                carried.setdefault(doc_id, anchor)
+            named = spelling.strip().upper()
+            if named in first_anchors:
+                carried.setdefault(named, first_anchors[named])
+        found.append(("cross-reference", written.get(key, key), carried))
     return found
 
 
@@ -541,23 +705,32 @@ def build_edges(
     ids_by_path: dict[str, str],
     first_anchors: dict[str, str],
     order: list[str],
-) -> list[dict]:
-    """Every edge of the map, sorted by its two documents, its kind and its value."""
+) -> tuple[list[dict], dict[str, set[str]]]:
+    """Every edge of the map, sorted by its two documents, its kind and its value, and the
+    documents whose own flags name each value the edges carry.
+
+    The second is read here because this is where a note's flags are already opened. A document
+    holds a value where an edge carries it; it names the value where a flag of its note says the
+    flag is about it, rather than a concealed item of the note quoting a sentence it appears in.
+    The reach rule reads ownership off the second.
+    """
     breadth = max(2, int(len(order) * BREADTH_SHARE))
-    skipped = person_values(notes) | ordinary_words(sections)
-    named = {doc_id: named_values(note) for doc_id, note in notes.items()}
+    names = name_index(notes)
+    by_form = names[0]
+    skipped = person_values(notes, by_form) | ordinary_words(sections)
+    named = {doc_id: named_values(note, by_form) for doc_id, note in notes.items()}
 
     edges: dict[tuple, dict] = {}
     for kind, value, carriers in shared_values(
-        records, notes, ids_by_path, first_anchors, skipped
+        records, notes, ids_by_path, first_anchors, skipped, names
     ):
         if len(carriers) < 2 or len(carriers) > breadth:
             continue
         weight = value_weight(kind, len(carriers))
-        folded = fold(value)
+        forms = (fold(value), name_key(value, by_form) or "")
         for a, b in itertools.combinations(sorted(carriers), 2):
             if kind != "version":
-                if not (is_about(named.get(a), folded) and is_about(named.get(b), folded)):
+                if not about_both(named.get(a), named.get(b), forms):
                     continue
             marker = (a, b, kind, str(value))
             if marker in edges and edges[marker]["weight"] >= weight:
@@ -571,11 +744,19 @@ def build_edges(
                 "weight": weight,
             }
 
+    naming: dict[str, set[str]] = {}
+    for marker in edges:
+        a, b, _, value = marker
+        forms = [form for form in (fold(value), name_key(value, by_form)) if form]
+        for doc in (a, b):
+            if any(flags_about(named.get(doc), form) for form in forms):
+                naming.setdefault(value, set()).add(doc)
+
     for pair, edge in date_edges(records, ids_by_path, breadth).items():
         marker = (pair[0], pair[1], "date", edge["value"])
         edges.setdefault(marker, edge)
 
-    return [edges[marker] for marker in sorted(edges)]
+    return [edges[marker] for marker in sorted(edges)], naming
 
 
 def adjacency(edges: list[dict]) -> dict[str, dict[str, float]]:
@@ -594,16 +775,21 @@ def choose_seed(edges: list[dict], order: list[str]) -> list[str]:
 
     A document is measured by the sum of its three heaviest links that are not mere date
     proximity, so a document sharing several rare values with several documents wins over one
-    the room mentions often.
+    the room mentions often. A link is a pair of documents, not a value: the pair is worth its
+    heaviest value and no more, so two documents that write four of the same rare words to each
+    other and to nobody else are one link, not four, and do not outweigh a document reaching
+    three others.
     """
-    strongest: dict[str, list[float]] = {}
+    strongest: dict[str, dict[str, float]] = {}
     for edge in edges:
         if edge["kind"] == "date":
             continue
-        strongest.setdefault(edge["a"], []).append(edge["weight"])
-        strongest.setdefault(edge["b"], []).append(edge["weight"])
+        for one, other in ((edge["a"], edge["b"]), (edge["b"], edge["a"])):
+            side = strongest.setdefault(one, {})
+            side[other] = max(side.get(other, 0.0), edge["weight"])
     pull = {
-        doc: sum(sorted(strongest.get(doc, []), reverse=True)[:SEED_LINKS]) for doc in order
+        doc: sum(sorted(strongest.get(doc, {}).values(), reverse=True)[:SEED_LINKS])
+        for doc in order
     }
     head = min(order, key=lambda doc: (-pull[doc], doc))
     return [head]
@@ -796,13 +982,23 @@ def reach_links(
     inside: set[str],
     order: list[str],
     written: tuple[set[str], set[str]],
+    naming: dict[str, set[str]],
+    figures: tuple[dict[str, set[str]], set[str]],
 ) -> dict[str, dict]:
     """Every document the set reaches by values of the matter, from two places or by one figure.
 
     A value of the matter is a value the room's notes write and the matter owns. The notes write
     it where a cross reference or a figure carries it, whole or as a word inside one they carry.
-    The matter owns it where every other document of the room that carries it is in the set
-    already, so the value reaches this one document and no other.
+    The matter owns it where every other document of the room that names it is in the set
+    already, so the value reaches this one document and no other. A document names a value where
+    a flag of its note says it is about it. A document that only conceals a quote the value
+    appears in holds the value but does not name it, and does not take it from the matter; where
+    no document names the value at all, every document that holds it is read instead.
+
+    A figure only the document being judged read is not the matter's either. A cross reference is
+    a note naming something outside itself, and the room writing one is the room pointing at a
+    thing; a figure is a number the note read off its own page. `Day-1` is a figure of the
+    retention plan and of no other note, so the retention plan does not reach itself in on it.
 
     Both halves are needed. `EBITDA`, `MAU`, `CEO` and `Day-1` are in no cross reference and no
     figure: the room writes them in front of a number, beside a person and on a milestone, and
@@ -822,6 +1018,7 @@ def reach_links(
     """
     breadth = REACH_SHARE * len(order)
     holders = value_holders(shared)
+    read_by, referenced = figures
     found: dict[str, dict] = {}
     for doc in order:
         if doc in inside:
@@ -833,7 +1030,10 @@ def reach_links(
             for value, (weight, carriers) in shared.get((doc, other), {}).items():
                 if carriers > breadth or not is_written(value, written):
                     continue
-                owns = not (holders[value] - inside - {doc})
+                folded = fold(value)
+                if folded not in referenced and not (read_by.get(folded, set()) - {doc}):
+                    continue
+                owns = not (naming.get(value, holders[value]) - inside - {doc})
                 if not (owns or value.startswith("$")):
                     continue
                 carried.setdefault(value, set()).add(other)
@@ -1153,7 +1353,7 @@ def build_map(sample_dir: Path, run_dir: Path) -> dict:
             }
         )
 
-    edges = build_edges(records, sections, notes, ids_by_path, first_anchors, order)
+    edges, naming = build_edges(records, sections, notes, ids_by_path, first_anchors, order)
     linked = adjacency(edges)
     seed = choose_seed(edges, order)
     scores = score_documents(linked, seed, order)
@@ -1161,6 +1361,7 @@ def build_map(sample_dir: Path, run_dir: Path) -> dict:
     nodes = {node["doc"]: node for node in documents}
     shared = value_edges(edges)
     written = written_values(notes)
+    figures = (figure_writers(notes), reference_runs(notes))
     why = reasons(edges, scores)
 
     via: dict[str, dict] = {head: {"from": [], "kind": "seed", "values": []} for head in seed}
@@ -1190,7 +1391,7 @@ def build_map(sample_dir: Path, run_dir: Path) -> dict:
     # still repeats, not for owning it, and the reach rule reads ownership off the set as it
     # stands: holding DR-005 first put its $1,480m in the set before reach judged it, and the
     # figure then reached DR-034, which the matter does not own.
-    hold(reach_links(shared, set(inside), order, written))
+    hold(reach_links(shared, set(inside), order, written, naming, figures))
     hold(model_links(modelled, notes, set(inside)))
     hold(compare_links(set(inside), nodes, notes, sections, ids_by_path))
     hold(covenant_links(core, notes, set(inside), order, written))

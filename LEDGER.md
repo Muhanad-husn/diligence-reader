@@ -210,3 +210,7 @@ Ceiling $50. Written by the code that makes gateway calls; a line added by hand 
 | 2026-09-08 | atlas-names | 6 | z-ai/glm-5.3-flash | 524094 | 378592 | 0.1340 | 39.7338 |
 | 2026-09-08 | atlas-names | 6 | z-ai/glm-5.3 | 44642 | 11400 | 0.1127 | 39.6211 |
 | 2026-09-08 | atlas-names | 6 | z-ai/glm-5.3 | 46354 | 14387 | 0.1282 | 39.4929 |
+| 2026-09-08 | northstar-dental | 5 | z-ai/glm-5.3 | 20627 | 8361 | 0.0657 | 39.4272 |
+| 2026-09-08 | northstar-dental | 5 | z-ai/glm-5.3 | 20751 | 5302 | 0.0524 | 39.3748 |
+| 2026-09-08 | atlas-names | 6 | z-ai/glm-5.3 | 45590 | 13512 | 0.1233 | 39.2515 |
+| 2026-09-08 | atlas-names | 6 | z-ai/glm-5.3 | 44649 | 11272 | 0.1121 | 39.1394 |

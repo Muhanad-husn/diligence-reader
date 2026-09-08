@@ -352,7 +352,7 @@ def edges_of(about_a: list[str], about_b: list[str]) -> list[dict]:
         TWO_DOCS,
         first_anchors,
         sorted(TWO_DOCS.values()),
-    )
+    )[0]
 
 
 def test_shared_rule_joins_two_documents_whose_flags_are_about_the_value():
