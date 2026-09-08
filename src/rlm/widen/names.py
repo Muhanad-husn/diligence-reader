@@ -232,27 +232,42 @@ def as_written(value: str, document: str) -> str:
     return match.group(0) if match else value
 
 
-def table(seen: dict[str, set[tuple[str, str]]], ids: dict[str, str]) -> str:
-    """The README's table: one row per name and spelling, with the documents that wrote it."""
+def listed(
+    seen: dict[str, set[tuple[str, str]]], ids: dict[str, str]
+) -> dict[tuple[str, str], list[str]]:
+    """The document ids each name and spelling was written into, name by name in the order of
+    SPELLINGS, spelling by spelling in the order of its tuple.
+
+    A name the room writes in fewer than MIN_SPELLINGS spellings is left out, so the README
+    lists no name the room does not spell several ways.
+    """
     documents: dict[tuple[str, str], list[str]] = {}
     for doc in sorted(seen, key=lambda path: ids[path]):
         for pair in seen[doc]:
             documents.setdefault(pair, []).append(ids[doc])
 
-    rows = ["| name | spelling | documents |", "|---|---|---|"]
+    kept: dict[tuple[str, str], list[str]] = {}
     for name, spellings in SPELLINGS:
         written = [one for one in spellings if (name, one) in documents]
         if len(written) < MIN_SPELLINGS:
             continue
         for one in written:
-            rows.append(f"| `{name}` | `{one}` | {', '.join(documents[(name, one)])} |")
-    return "\n".join(rows)
+            kept[(name, one)] = documents[(name, one)]
+    return kept
+
+
+def table(rows: dict[tuple[str, str], list[str]]) -> str:
+    """The README's table: one row per name and spelling, with the documents that wrote it."""
+    lines = ["| name | spelling | documents |", "|---|---|---|"]
+    for (name, one), documents in rows.items():
+        lines.append(f"| `{name}` | `{one}` | {', '.join(documents)} |")
+    return "\n".join(lines)
 
 
 def notes(seen: dict[str, set[tuple[str, str]]], ids: dict[str, str]) -> str:
     """The section the knob adds to the variant's README."""
-    listed = table(seen, ids)
-    names = len({row.split("`")[1] for row in listed.splitlines()[2:]})
+    rows = listed(seen, ids)
+    names = len({name for name, _ in rows})
     said = wrap(
         f"The knob respells {names} names of people and organisations. A name carries a fixed "
         f"tuple of spellings and the spelling one document writes is drawn from seed 0, so the "
@@ -260,7 +275,7 @@ def notes(seen: dict[str, set[tuple[str, str]]], ids: dict[str, str]) -> str:
         f"a whole word only, never inside an email address, a web address, a file path or any "
         f"run of characters carrying a figure, so identifiers, numbers and dates are untouched."
     )
-    return f"## Names\n\n{said}\n\n{listed}\n"
+    return f"## Names\n\n{said}\n\n{table(rows)}\n"
 
 
 def build(source: Source) -> Variant:
