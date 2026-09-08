@@ -721,13 +721,11 @@ def covenant_rows(
 ) -> list[list[tuple[str, str, str]]]:
     """Covenant against incident: a termination right against what the seed document found.
 
-    A covenant is a flag quoted with a termination word. It is written against the flag of the
-    matter's seed document that shares the most words with the covenant's own flag and with the
-    worries of the covenant's document, the two counts added. The flag's own words are what
-    reach a board deck that says no change-of-control item is flagged: the clause it has to
-    meet is the one that terminates on a change of control, not whichever sentence of the
-    agreement the deck as a whole sounds most like. The document's worries are what keep a
-    termination-on-incident clause against the finding that the incident happened.
+    A covenant is a flag quoted with a termination word. It is written against the leading
+    finding of the matter's seed document, the first flag of its note, which is the finding the
+    room's other documents answer to. Picking the seed flag by shared words was measured on the
+    #106 notes and landed on the key-rotation flag, whose words the clause repeats, not on the
+    export the clause is a right to terminate over.
     """
     seeds = [doc for doc in matter["seed"] if doc in notes]
     rows = []
@@ -744,7 +742,7 @@ def covenant_rows(
                 if seed == doc:
                     continue
                 best = None
-                for other in notes[seed]["flags"]:
+                for other in notes[seed]["flags"][:1]:
                     written = content_words(
                         f"{other['flag']} {other['quote']} {other['consequence']}"
                     )
