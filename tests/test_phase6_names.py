@@ -220,7 +220,8 @@ def test_names_key_keeps_the_counts_the_ids_the_decoys_the_answer_and_the_rubric
 
 def test_names_key_facts_are_the_source_facts_except_quote_text():
     """Every fact keeps its id, kind, documents and phase; a fact that is not a quote keeps its
-    value; a quote fact's value stands in the fact's first document as written."""
+    value; a quote fact's value stands in the fact's first document, read with the whitespace
+    a markdown line wrap adds collapsed, as phase 1 and the grader read it."""
     needs_names()
     source = {fact.id: fact for fact in load_key(SOURCE_DIR).facts}
     key = load_key(NAMES_DIR)
@@ -232,7 +233,8 @@ def test_names_key_facts_are_the_source_facts_except_quote_text():
         assert fact.documents == was.documents, fact.id
         assert fact.phase == was.phase, fact.id
         if fact.kind == "quote":
-            assert fact.value in document_text(key, fact.documents[0]), fact.id
+            written = " ".join(document_text(key, fact.documents[0]).split())
+            assert " ".join(fact.value.split()) in written, fact.id
         else:
             assert fact.value == was.value, fact.id
 

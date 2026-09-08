@@ -8,8 +8,8 @@ way and the room spells it several.
 
 Nothing but letters moves. A name is replaced only on a whole word, never inside an email
 address, a web address, a file path or any run of characters carrying a figure, so identifiers,
-numbers and dates read back as sample 1 wrote them. Every quote fact of the key carries the
-text as it stands in the fact's first document; every other fact keeps its value.
+numbers and dates read back as sample 1 wrote them. A quote fact whose text carries a respelled
+name takes the spelling its first document writes; every other fact keeps its value.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import random
 import re
 from dataclasses import replace
 
-from rlm.widen import Source, Variant, document_markdown, identity, wrap
+from rlm.widen import Source, Variant, identity, wrap
 
 NAME = "names"
 
@@ -154,9 +154,6 @@ FOUND = re.compile(
 # and every identifier the phase 1 index reads are inside one of these.
 GUARDED = re.compile(r"\S*[@/\\]\S*|\S*\d\S*|\S*\.[A-Za-z]{2,6}(?![A-Za-z])\S*")
 
-# The whitespace a quote may be wrapped on where a document writes it over two lines.
-BREAK = r"\s+"
-
 
 def guarded(text: str) -> set[int]:
     """The character positions of one text that no name is respelled inside."""
@@ -222,16 +219,6 @@ def draw(sections: dict[str, tuple[str, ...]]) -> dict[str, dict[str, str]]:
     return drawn
 
 
-def as_written(value: str, document: str) -> str:
-    """A quote as the document writes it, taking the line break a document wraps it on.
-
-    Returns the value unchanged when the document does not carry it.
-    """
-    pattern = re.compile(BREAK.join(re.escape(word) for word in value.split()))
-    match = pattern.search(document)
-    return match.group(0) if match else value
-
-
 def listed(
     seen: dict[str, set[tuple[str, str]]], ids: dict[str, str]
 ) -> dict[tuple[str, str], list[str]]:
@@ -283,12 +270,11 @@ def build(source: Source) -> Variant:
     drawn = draw(source.sections)
     seen: dict[str, set[tuple[str, str]]] = {}
 
-    rewritten = {}
     for doc in sorted(source.sections):
         spelling = drawn.get(doc, {})
         written: set[tuple[str, str]] = set()
-        texts = tuple(rewrite(text, spelling, written) for text in source.sections[doc])
-        rewritten[doc] = document_markdown(texts)
+        for text in source.sections[doc]:
+            rewrite(text, spelling, written)
         if written:
             seen[doc] = written
 
@@ -300,7 +286,7 @@ def build(source: Source) -> Variant:
             return one
         doc = source.key["documents"][one["documents"][0]]
         value = rewrite(one["value"], drawn.get(doc, {}))
-        return {**one, "value": as_written(value, rewritten[doc])}
+        return one if value == one["value"] else {**one, "value": value}
 
     variant = identity(source, NAME, text=text, fact=fact)
     ids = {path: doc_id for doc_id, path in source.key["documents"].items()}

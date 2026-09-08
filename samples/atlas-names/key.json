@@ -444,7 +444,7 @@
     {
       "id": "reclassified",
       "kind": "quote",
-      "value": "RECLASSIFIED as a network-quality / performance\n  matter",
+      "value": "RECLASSIFIED as a network-quality / performance matter",
       "documents": [
         "DR-068"
       ],
@@ -453,7 +453,7 @@
     {
       "id": "final-softened",
       "kind": "quote",
-      "value": "does not\npermit a conclusive determination of what, if anything, was removed",
+      "value": "does not permit a conclusive determination of what, if anything, was removed",
       "documents": [
         "DR-070"
       ],
@@ -471,7 +471,7 @@
     {
       "id": "materiality-open",
       "kind": "quote",
-      "value": "materiality of the matter is not yet\ndeterminable",
+      "value": "materiality of the matter is not yet determinable",
       "documents": [
         "DR-013"
       ],
@@ -490,7 +490,7 @@
     {
       "id": "notice-late",
       "kind": "quote",
-      "value": "we are past the date that the more conservative reading of the 45-day\nclock would imply",
+      "value": "we are past the date that the more conservative reading of the 45-day clock would imply",
       "documents": [
         "DR-082"
       ],
@@ -517,7 +517,7 @@
     {
       "id": "covenant-termination",
       "kind": "quote",
-      "value": "terminate this Agreement, or any affected Insertion Order, with\nimmediate effect",
+      "value": "terminate this Agreement, or any affected Insertion Order, with immediate effect",
       "documents": [
         "DR-035"
       ],
