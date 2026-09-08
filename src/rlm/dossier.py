@@ -572,8 +572,11 @@ def deadline_rows(
     """Deadline against action: a window, the day it counts from and the action taken late.
 
     A window is a figure counted in days quoted beside `within`. Where one document states the
-    window and its note names no day at all, and another repeats the same window and its note
-    does name a day, the second is the document that acted. The row carries the window's quote,
+    window and its note names no day beside that window, and another repeats the same window and
+    its note does name a day beside it, the second is the document that acted. A day has to sit
+    in a quote that writes the window itself, because the cyber policy names its retroactive date
+    and its policy year and neither of those is the policy acting on its own 45 days.
+    The row carries the window's quote,
     the earliest place in the set where a ticket is opened on a day, and the acting document's
     own part: the first thing it says that shares a word with the window, and, where the
     document has a section that names a day and it is not that same place, the earliest such
@@ -585,10 +588,7 @@ def deadline_rows(
         note = notes.get(doc)
         if not note:
             continue
-        dated = any(
-            days_named(item["quote"])
-            for item in note["flags"] + note["figures"] + note["concealed"]
-        )
+        written = note["flags"] + note["figures"] + note["concealed"]
         for figure in note["figures"]:
             found = DURATION.search(figure["surface"])
             if not found or not found.group(2).lower().startswith("day"):
@@ -596,9 +596,15 @@ def deadline_rows(
             quote = one_line(figure["quote"])
             if not WINDOW_WORD.search(quote):
                 continue
-            windows.setdefault(found.group(1), []).append(
-                (doc, quote, figure["anchor"], dated)
+            number = found.group(1)
+            counted = re.compile(
+                r"\b" + re.escape(number) + r"[\s-]?days?\b", re.IGNORECASE
             )
+            dated = any(
+                days_named(item["quote"]) and counted.search(one_line(item["quote"]))
+                for item in written
+            )
+            windows.setdefault(number, []).append((doc, quote, figure["anchor"], dated))
 
     opened = None
     for section in sections:
