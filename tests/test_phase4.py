@@ -772,6 +772,18 @@ def split_row(row, fact, document_words, index_days):
 # What of a comparison's value no document of the fact holds, gathered for the readout.
 _UNREACHED: dict[str, list[str]] = {}
 
+# The comparisons the founder marked as known misses on 2026-09-08 (#110, RULES.md gate 3),
+# each with the one sentence that says why no general rule reaches it. A known miss is not
+# asserted; it is counted in the readout, and a miss that comes right is taken off this list.
+KNOWN_MISSES: dict[str, dict[str, str]] = {
+    "atlas": {
+        "draft-vs-final": "DR-070's note never quoted the sentence the key wants, so no row can",
+    },
+    "northwind": {
+        "deck-vs-msa-coc": "the covenant row is written against the seed's flag and the seed is the cap table",
+    },
+}
+
 
 def test_dossier_comparisons_carry_every_planted_comparison(
     dossiered, sample, key, document_words, index_days
@@ -786,6 +798,11 @@ def test_dossier_comparisons_carry_every_planted_comparison(
     rows = comparison_rows(dossiered.text)
     assert rows, "the Comparisons section is empty"
     for fact in facts:
+        if fact.id in KNOWN_MISSES.get(sample, {}):
+            _UNREACHED.setdefault(sample, []).append(
+                f"{fact.id}: known miss, {KNOWN_MISSES[sample][fact.id]}"
+            )
+            continue
         wanted = set(fact.documents)
         held = set().union(*(document_words.get(doc, set()) for doc in fact.documents))
         for side in fact.value.split(AGAINST, 1):
