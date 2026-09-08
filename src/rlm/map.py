@@ -766,7 +766,10 @@ def model_links(
     """Every model written after the matter, linked to the set documents that hold its figure.
 
     The figure is the number the model still assumes and the broken series left behind, and the
-    documents behind the model are the ones whose notes carry that same number.
+    documents behind the model are the ones whose notes carry that same number. The number is
+    the one model_after wrote on the row, not the first figure at the row's anchor: thirteen
+    figures of DR-021 share one anchor of its finance pack and the first of them is carried by
+    no other document of the set.
     """
     carried: dict[str, list[str]] = {}
     for doc in sorted(inside):
@@ -776,13 +779,7 @@ def model_links(
                 carried.setdefault(number, []).append(doc)
     found: dict[str, dict] = {}
     for row in modelled:
-        number = None
-        for figure in notes.get(row["doc"], {}).get("figures", []):
-            if figure["anchor"] == row["anchor"]:
-                number = figure_number(figure["surface"])
-                break
-        if number is None:
-            continue
+        number = row["figure"]
         holders = sorted(set(carried.get(number, [])) - {row["doc"]})
         if not holders:
             continue
@@ -1068,8 +1065,9 @@ def model_after(
     A model is a document whose file name, whose folder or whose note's own words say model,
     forecast, plan or synergy. It is a consequence of the matter where its first date is after
     the matter, where one of its note's figures is a number the broken series carried before it
-    turned, and where another document of the set carries that figure as well. The anchor is
-    the figure's place in the model, and the first such figure of the note stands for the model.
+    turned, and where another document of the set carries that figure as well. The anchor is the
+    figure's place in the model and figure is its number, since one anchor can carry many
+    figures; the first such figure of the note stands for the model.
     A number that outlived the matter in two models is two models to correct, so every model is
     kept and not only the earliest. The models come back sorted by document.
     """
@@ -1102,6 +1100,7 @@ def model_after(
                     "anchor": figure["anchor"],
                     "date": node["date"],
                     "doc": doc,
+                    "figure": number,
                     "kind": "model-after",
                 }
             )

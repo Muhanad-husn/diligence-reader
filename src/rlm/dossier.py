@@ -428,12 +428,7 @@ def blind_rows(matter: dict, notes: dict[str, dict], held: list[str]) -> list[st
             what = f"series-break {found['series']}"
         else:
             when = found["date"]
-            surface = EMPTY
-            for figure in notes.get(doc, {}).get("figures", []):
-                if figure["anchor"] == found["anchor"]:
-                    surface = figure_number(figure["surface"]) or figure["surface"]
-                    break
-            what = f"model-after {surface}"
+            what = f"model-after {found['figure']}"
         lines.append(row(when, doc, what, found["anchor"]))
     return lines
 
@@ -649,13 +644,15 @@ def model_rows(
         note = notes.get(model["doc"])
         if not note:
             continue
-        figures = [item for item in note["figures"] if item["anchor"] == model["anchor"]]
+        number = model["figure"]
+        figures = [
+            item
+            for item in note["figures"]
+            if item["anchor"] == model["anchor"] and figure_number(item["surface"]) == number
+        ]
         if not figures:
             continue
         figure = figures[0]
-        number = figure_number(figure["surface"])
-        if number is None:
-            continue
         held = content_words(figure["quote"])
         side = [part(model["doc"], figure["quote"], figure["anchor"])]
         for flag in note["flags"]:
