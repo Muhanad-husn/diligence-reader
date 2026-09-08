@@ -109,6 +109,9 @@ UNDATED = "9999-99-99"
 # What joins the parts of a comparison row.
 JOIN = " || "
 
+# How ingest joins the cells of a table row into the row's text.
+CELL_JOIN = " | "
+
 _DAY = re.compile(r"\b([0-9]{1,2} [A-Z][a-z]+ [0-9]{4}|[0-9]{4}-[0-9]{2}-[0-9]{2})\b")
 
 # What a clause says where it takes a right away.
@@ -216,8 +219,14 @@ def statements(note: dict) -> list[tuple[str, str, str]]:
 
 
 def verbs_in(words: list[str]) -> set[str]:
-    """The words a text uses as verbs: the ones it writes straight after `to` or a modal."""
-    return {words[at] for at in range(1, len(words)) if words[at - 1] in VERB_MARKERS}
+    """The words a text uses as verbs: the ones it writes straight after `to` or a modal.
+
+    A word too common to say anything is left out. `to` in `likely to give rise to a claim` is a
+    preposition the second time, so `a` is not a verb the clause turns on, and reading it as one
+    took DR-081 out of sample 1's set.
+    """
+    spoken = {words[at] for at in range(1, len(words)) if words[at - 1] in VERB_MARKERS}
+    return spoken - COMMON_WORDS
 
 
 def negated_before(words: list[str], verb: str) -> bool:
@@ -228,6 +237,11 @@ def negated_before(words: list[str], verb: str) -> bool:
         if NEGATION_WORDS & set(words[max(0, at - CLAUSE_SPAN) : at]):
             return True
     return False
+
+
+def is_table_row(quote: str) -> bool:
+    """Whether a quote is one row of a table, which ingest writes as its cells joined by pipes."""
+    return CELL_JOIN in quote
 
 
 def unique_title_words(nodes: dict[str, dict]) -> dict[str, set[str]]:
@@ -247,7 +261,10 @@ def worried_about(cluster: list[str], nodes: dict[str, dict], notes: dict[str, d
     """The documents another document of the cluster worries about by name.
 
     A flag that writes `Harbor Foods refund liability ... is unreserved` names the Harbor MSA,
-    and that is the room saying the document belongs to what it is worried about.
+    and that is the room saying the document belongs to what it is worried about. A flag whose
+    quote is a table row names nobody: the customer schedule writes one row per customer, so the
+    row that carries Granite Manufacturing names it the way it names every other party in the
+    list, and the room is not worried about any of them by writing the list down.
     """
     titled = unique_title_words(nodes)
     found = set()
@@ -256,7 +273,11 @@ def worried_about(cluster: list[str], nodes: dict[str, dict], notes: dict[str, d
         if not note:
             continue
         written = content_words(
-            " ".join(f"{flag['flag']} {flag['quote']}" for flag in note["flags"])
+            " ".join(
+                f"{flag['flag']} {flag['quote']}"
+                for flag in note["flags"]
+                if not is_table_row(flag["quote"])
+            )
         )
         for other in cluster:
             if other != doc and titled.get(other, set()) & written:
@@ -268,24 +289,29 @@ def matter_set(matter: dict, nodes: dict[str, dict], notes: dict[str, dict]) -> 
     """The matter's document set: the map's cluster, less the documents that deny the matter.
 
     A cluster document is out when one of its flag quotes carries the matter's subject and
-    negates the seed's operative verb, and no other document of the cluster worries about it by
-    name. The subject is the longest run of words that flag and a seed flag both write, holding
-    two words that say something; the operative verb is a word both of them use as a verb, right
-    after `to` or a modal; the negation is a negation word within ten words in front of that verb
-    in the cluster document's flag and in front of nothing in the seed's. A master service
-    agreement whose change-of-control clause says a change of control shall not give either party
-    any right to terminate is arguing the opposite of the matter, and the map, which links
-    documents by the values they share, cannot tell it from the agreement that does terminate:
-    the two share their template. A document the room's own worries name by title stays, however
-    its own clause reads, because something else put it in the matter.
+    negates the operative verb another document of the cluster writes, and no other document of
+    the cluster worries about it by name. The words it is read against are the set's own, not the
+    seed's alone: northwind's seed is its cap table and the change-of-control clause the Granite
+    MSA argues against is written by the Meridian MSA. The subject is the longest run of words
+    the two flags both write, holding two words that say something; the operative verb is a word
+    both of them use as a verb, right after `to` or a modal; the negation is a negation word
+    within ten words in front of that verb in the cluster document's flag and in front of nothing
+    in the other's. A master service agreement whose change-of-control clause says a change of
+    control shall not give either party any right to terminate is arguing the opposite of the
+    matter, and the map, which links documents by the values they share, cannot tell it from the
+    agreement that does terminate: the two share their template. A document the room's own
+    worries name by title stays, however its own clause reads, because something else put it in
+    the matter.
     """
     cluster = sorted(set(matter["cluster"]))
     seeds = [doc for doc in matter["seed"] if doc in notes]
     if not seeds:
         return cluster
-    seed_flags = [
-        folded_words(flag["quote"]) for seed in seeds for flag in notes[seed]["flags"]
-    ]
+    spoken_by = {
+        doc: [folded_words(flag["quote"]) for flag in notes[doc]["flags"]]
+        for doc in cluster
+        if doc in notes
+    }
     named = worried_about(cluster, nodes, notes)
     held = []
     for doc in cluster:
@@ -293,11 +319,12 @@ def matter_set(matter: dict, nodes: dict[str, dict], notes: dict[str, dict]) -> 
         if doc in seeds or not note or doc in named:
             held.append(doc)
             continue
+        others = [said for other, flags in spoken_by.items() if other != doc for said in flags]
         denies = False
         for flag in note["flags"]:
             written = folded_words(flag["quote"])
             spoken = verbs_in(written)
-            for said in seed_flags:
+            for said in others:
                 for verb in sorted(spoken & verbs_in(said)):
                     if not negated_before(written, verb) or negated_before(said, verb):
                         continue
