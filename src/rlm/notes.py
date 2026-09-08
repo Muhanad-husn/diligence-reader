@@ -7,7 +7,7 @@ flags, its figures, its cross references and what it conceals, quoting the docum
 Code then verifies every item against the document's own sections. An item must carry every
 required key of its field as a string: a flag has flag, quote and consequence, a figure has
 surface and quote, a cross reference has kind, value and quote, and a concealed item has claim
-and quote. A flag also carries about, the identifiers, codes and figures its own quote names:
+and quote. A flag also carries about, the names, identifiers, codes and figures its own quote names:
 code keeps every element of that list that is a string and reads verbatim inside the quote,
 drops the rest without a log line and without a re-ask, and writes an empty list where the model
 gave none. An item that answers with the model's own key names instead fails. A quote passes
@@ -127,12 +127,12 @@ Answer with one JSON object and nothing else, with exactly these keys:
  "flags": [{"flag": "what is wrong or risky",
             "quote": "the document's own words, verbatim",
             "consequence": "why it matters to the deal",
-            "about": ["each identifier, code or figure the quote carries, verbatim"]}],
+            "about": ["each name, identifier, code or figure the quote carries, verbatim"]}],
  "figures": [{"surface": "the number exactly as the document writes it",
               "quote": "the words around that number, verbatim"}],
  "cross_references": [{"kind": "code|name|person|document|regulator|ticket",
                        "value": "the thing it names",
-                       "quote": "the words carrying it, verbatim"}],
+                       "quote": "the words naming it, verbatim"}],
  "concealed": [{"claim": "what the document hedges, omits or softens",
                 "quote": "the document's own words, verbatim"}]
 }
@@ -140,8 +140,8 @@ Answer with one JSON object and nothing else, with exactly these keys:
 Use exactly these key names; another name drops the item.
 
 Rules for every quote:
-- Copy the document's characters exactly: never a paraphrase, correction, shortening or
-  description. A quote that is not verbatim is dropped.
+- Copy the document's characters exactly: never a paraphrase, correction or shortening.
+  A quote that is not verbatim is dropped.
 - Start a quote at the first word of its sentence, a leading Notwithstanding, Subject to or
   For the avoidance of doubt included, and carry its verb.
 - In a table, a row is written with its cells separated by " | ". Quote one cell's text
@@ -150,9 +150,10 @@ Rules for every quote:
   change of control, assignment or exclusivity paragraph of two or three sentences is one
   quote from its first word to its last full stop, as one flag. Never split it or start it
   after its first word.
-- Do not invent a quote; if you cannot quote it, leave it out.
+- Never invent a quote; if you cannot quote it, leave it out.
 - A figure's surface is copied from its own quote, verbatim, from nowhere else.
-- A flag's about lists every identifier, code and figure its own quote carries, verbatim.
+- A flag's about lists every party, customer, vendor, product or system name, identifier,
+  code and figure its own quote carries, verbatim.
 - Do not add an anchor, page, line or section number; those come later.
 
 A diligence reader is buying this business; quote every one that the document carries:
@@ -174,8 +175,9 @@ A diligence reader is buying this business; quote every one that the document ca
   expects it
 - in a document under a page, every prose line, including a note under its own heading: a
   dependency, single point of failure or system of record above all
-- every code, ticket, file or object name, key id, workstream or programme name, firm name
-  or headline figure the document carries, in the sentence that introduces it
+- every party, customer, vendor, firm, product or system name, code, ticket, file or
+  object name, key id, workstream or programme name and headline figure the document
+  carries, in the sentence that introduces it
 
 Which sentence to quote:
 - When your flag, claim or what restates a sentence, quote that one, not a neighbor.
