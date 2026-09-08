@@ -972,6 +972,20 @@ def atlas_sections() -> list[dict]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
 
 
+def atlas_run_without_index(tmp_path: Path) -> str:
+    """A run directory holding runs/atlas's sections and no index.jsonl.
+
+    A document with no named values and no cross reference outside its flags is not asked a
+    second time, so a pass over this directory makes one call per document. The tests that count
+    calls, tokens and ledger rows read it, and the value re-ask is tested on its own.
+    """
+    atlas_sections()
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy(ROOT / "runs" / "atlas" / "sections.jsonl", run_dir / "sections.jsonl")
+    return str(run_dir)
+
+
 CANNED_NOTE = {
     "what": "Draft forensic findings on the October 2025 legacy backup exposure.",
     "flags": [
@@ -1192,7 +1206,7 @@ def test_all_documents_main_notes_every_document_of_the_key(tmp_path, capsys):
     out = tmp_path / "out"
 
     code = main(
-        [str(ROOT / "samples" / "atlas"), str(ROOT / "runs" / "atlas"), "--model", MODEL, "--out", str(out)],
+        [str(ROOT / "samples" / "atlas"), atlas_run_without_index(tmp_path), "--model", MODEL, "--out", str(out)],
         gateway=gateway,
         ledger=Ledger(ledger_path),
     )
@@ -1248,11 +1262,12 @@ def test_all_documents_only_merges_its_counts_into_the_existing_summary(tmp_path
     write_ledger(ledger_path, [("2026-09-05", "", "", "", 0, 0, 0.0, 50.0)])
     out = tmp_path / "out"
 
+    run_dir = atlas_run_without_index(tmp_path)
     full_transport = FakeTransport(
         [reply(json.dumps(MINIMAL_NOTE), tokens_in=2500, tokens_out=400) for _ in key.documents]
     )
     code = main(
-        [str(ROOT / "samples" / "atlas"), str(ROOT / "runs" / "atlas"), "--model", MODEL, "--out", str(out)],
+        [str(ROOT / "samples" / "atlas"), run_dir, "--model", MODEL, "--out", str(out)],
         gateway=Gateway(api_key="k", transport=full_transport),
         ledger=Ledger(ledger_path),
     )
@@ -1265,7 +1280,7 @@ def test_all_documents_only_merges_its_counts_into_the_existing_summary(tmp_path
     code = main(
         [
             str(ROOT / "samples" / "atlas"),
-            str(ROOT / "runs" / "atlas"),
+            run_dir,
             "--model",
             MODEL,
             "--only",
@@ -1312,7 +1327,7 @@ def test_all_documents_only_into_an_empty_out_dir_counts_the_key_from_disk(tmp_p
     code = main(
         [
             str(ROOT / "samples" / "atlas"),
-            str(ROOT / "runs" / "atlas"),
+            atlas_run_without_index(tmp_path),
             "--model",
             MODEL,
             "--only",
@@ -1569,7 +1584,7 @@ def test_all_documents_a_call_that_raises_drops_the_note_and_the_pass_goes_on(tm
     out = tmp_path / "out"
 
     code = main(
-        [str(ROOT / "samples" / "atlas"), str(ROOT / "runs" / "atlas"), "--model", MODEL, "--out", str(out)],
+        [str(ROOT / "samples" / "atlas"), atlas_run_without_index(tmp_path), "--model", MODEL, "--out", str(out)],
         gateway=gateway,
         ledger=Ledger(ledger_path),
     )
@@ -1907,7 +1922,7 @@ def test_one_document_main_harvests_the_figures_a_reply_left_out(tmp_path, capsy
     code = main(
         [
             str(ROOT / "samples" / "atlas"),
-            str(ROOT / "runs" / "atlas"),
+            atlas_run_without_index(tmp_path),
             "--model",
             MODEL,
             "--only",
@@ -1958,7 +1973,7 @@ def test_one_document_main_keeps_a_harvested_figure_the_model_already_quoted_onc
     code = main(
         [
             str(ROOT / "samples" / "atlas"),
-            str(ROOT / "runs" / "atlas"),
+            atlas_run_without_index(tmp_path),
             "--model",
             MODEL,
             "--only",
@@ -3044,7 +3059,7 @@ def test_bakeoff_notes_only_is_repeatable(tmp_path, capsys):
     code = main(
         [
             str(ROOT / "samples" / "atlas"),
-            str(ROOT / "runs" / "atlas"),
+            atlas_run_without_index(tmp_path),
             "--model",
             MODEL,
             "--only",
