@@ -1108,7 +1108,12 @@ def test_index_amount_in_a_line_row_takes_its_unit_and_scale_from_the_header_lin
     indexed = build_index(sections)
 
     assert (3600000.0, "USD") in amounts_at(indexed, f"{LINE_DOC}#l3")
-    assert (4100000.0, "USD") in amounts_at(indexed, f"{LINE_DOC}#l5")
+    # 4.1 times a million is 4099999.9999999995 in a double, the value the workbook path
+    # has always written for the same cell.
+    assert any(
+        unit == "USD" and value == pytest.approx(4100000.0)
+        for value, unit in amounts_at(indexed, f"{LINE_DOC}#l5")
+    )
     assert (3.6, None) not in amounts_at(indexed, f"{LINE_DOC}#l3")
 
 

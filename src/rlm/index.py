@@ -13,10 +13,19 @@ header block is read with the body it heads. A table row is read cell by cell, s
 matched across the join between two cells; a numeric workbook cell is read as a number rather
 than as text.
 
+A line table is a maximal run of consecutive text sections of one document that each hold one
+line, either of fields joined by ` | ` or of a single number, and of which at least one names
+its columns with ` | `. That is how a markdown rendition of a sheet or a CSV file writes its
+rows, a grid of one live column included. Its fields are read as the cells of a table: a field
+whose whole text is a number is a numeric cell, every other field is a text cell, and its
+header row is the last row of text-only fields above the run's first row holding a number. A
+markdown table written as one block of several lines is not a line table and stays text.
+
 Where an amount's unit comes from, in order: the surface itself (`$12m`, `30.1%`, `45-day`);
-the words right after the number (`912.8m historical profile records`); for a workbook cell,
-the sheet's own header for that column (`Record count`); and where none of those says a unit, a
-whole number is a count and a fractional number carries null.
+the words right after the number (`912.8m historical profile records`); for a workbook cell or
+a numeric line-table field, that table's own header for the column the cell sits in
+(`Record count`, `Revenue ($M)`), which also carries the scale the header names; and where none
+of those says a unit, a whole number is a count and a fractional number carries null.
 
 Nothing here reads a key, opens a socket or calls a model.
 """
@@ -269,6 +278,88 @@ def _sheet_headers(sections: list[dict]) -> dict[tuple[str, str], dict[str, str]
     return headers
 
 
+# What joins the fields of a line-table row, and what a numeric field looks like: an optional
+# sign, digits with thousands commas allowed, and an optional decimal part.
+_LINE_JOIN = " | "
+_LINE_NUMBER = re.compile(r"[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?")
+
+
+def _is_line_row(section: dict) -> bool:
+    """Says whether one section is a row of a line table.
+
+    A row is one line of fields joined by ` | `, or one line holding a number and nothing else,
+    which is what a row of one column renders as: the sensitivity grids of sample 1 write their
+    header as a line of fields and every row under it as its one live figure.
+    """
+    if section["kind"] != "text" or section.get("cells") is not None:
+        return False
+    text = section["text"]
+    if "\n" in text:
+        return False
+    return _LINE_JOIN in text or _LINE_NUMBER.fullmatch(text.strip()) is not None
+
+
+def _line_cells(text: str) -> list[dict]:
+    """Splits one line into its fields, each a cell of column c1 onward.
+
+    A field whose whole text is a number carries that number as its value, the way a workbook
+    cell does; every other field carries its own text. Every cell keeps its text as well, which
+    is the surface a record made from it shows.
+    """
+    cells = []
+    for at, field in enumerate(text.split(_LINE_JOIN), start=1):
+        surface = field.strip()
+        numeric = _LINE_NUMBER.fullmatch(surface)
+        value = float(surface.replace(",", "")) if numeric else surface
+        cells.append({"ref": f"c{at}", "value": value, "text": surface})
+    return cells
+
+
+def _line_runs(sections: list[dict]) -> list[list[dict]]:
+    """The maximal runs of consecutive line rows, each run of one document.
+
+    A run of numbers alone is not a table: a line table names its columns, so a run is kept
+    only where one of its rows holds fields joined by ` | `.
+    """
+    runs: list[list[dict]] = []
+    current: list[dict] = []
+    for section in sections:
+        if _is_line_row(section) and (not current or section["doc"] == current[-1]["doc"]):
+            current.append(section)
+            continue
+        if current:
+            runs.append(current)
+        current = [section] if _is_line_row(section) else []
+    if current:
+        runs.append(current)
+    return [run for run in runs if any(_LINE_JOIN in section["text"] for section in run)]
+
+
+def _line_tables(sections: list[dict]) -> dict[str, dict]:
+    """Maps each line row's anchor to its table, its cells and its header text by column.
+
+    The header mirrors a sheet's: the last row of text-only fields above the run's first row
+    holding a number. A run whose first row already holds a number has no header.
+    """
+    found: dict[str, dict] = {}
+    for at, run in enumerate(_line_runs(sections), start=1):
+        rows = [(section, _line_cells(section["text"])) for section in run]
+        numeric = [
+            any(_is_number(cell["value"]) for cell in cells) for _section, cells in rows
+        ]
+        first_data = next((index for index, holds in enumerate(numeric) if holds), None)
+        header: dict[str, str] = {}
+        if first_data is not None:
+            above = [index for index in range(first_data) if not numeric[index]]
+            if above:
+                header = {
+                    _column_of(cell["ref"]): cell["text"] for cell in rows[above[-1]][1]
+                }
+        for section, cells in rows:
+            found[section["anchor"]] = {"table": f"lines{at}", "cells": cells, "header": header}
+    return found
+
+
 def _dates(sections: list[dict]) -> list[dict]:
     """Reads every date out of the sections."""
     occurrences = []
@@ -290,11 +381,26 @@ def _dates(sections: list[dict]) -> list[dict]:
 
 
 def _amounts(sections: list[dict]) -> list[dict]:
-    """Reads every amount out of the sections, in text and in workbook cells."""
+    """Reads every amount out of the sections, in text, in workbook cells and in line rows.
+
+    A line row's numeric fields are read as cells and its text fields as text, each field its
+    own piece anchored to the row, so a number the row's header gives a unit and a scale is not
+    read a second time as a bare number.
+    """
     headers = _sheet_headers(sections)
+    lines = _line_tables(sections)
     occurrences = []
     for section in sections:
-        for piece, anchor in _text_pieces(section):
+        line = lines.get(section["anchor"])
+        if line is None:
+            pieces = _text_pieces(section)
+        else:
+            pieces = [
+                (cell["text"], section["anchor"])
+                for cell in line["cells"]
+                if not _is_number(cell["value"])
+            ]
+        for piece, anchor in pieces:
             masked = _mask_dates(piece)
             for match in AMOUNT.finditer(masked):
                 if _joined_to_a_token(piece, match.start()):
@@ -316,17 +422,20 @@ def _amounts(sections: list[dict]) -> list[dict]:
                         _context(section),
                     )
                 )
-        if section.get("cells") is None:
-            continue
-        anchor = parse_anchor(section["anchor"])
-        if anchor.kind != "sheet-cell":
-            continue
-        header = headers.get((section["doc"], anchor.sheet), {})
-        for cell in section["cells"]:
+        if line is not None:
+            cells, header, row_anchor = line["cells"], line["header"], section["anchor"]
+        else:
+            if section.get("cells") is None:
+                continue
+            anchor = parse_anchor(section["anchor"])
+            if anchor.kind != "sheet-cell":
+                continue
+            cells, row_anchor = section["cells"], None
+            header = headers.get((section["doc"], anchor.sheet), {})
+        for cell in cells:
             if not _is_number(cell["value"]):
                 continue
-            match = _CELL_REF.match(cell["ref"])
-            column_header = header.get(match.group(1), "") if match else ""
+            column_header = header.get(_column_of(cell["ref"]), "")
             unit = _header_unit(column_header)
             value = float(cell["value"]) * _header_scale(column_header)
             if unit is None and value.is_integer():
@@ -336,9 +445,9 @@ def _amounts(sections: list[dict]) -> list[dict]:
                     "amount",
                     value,
                     unit,
-                    str(cell["value"]),
+                    cell.get("text", str(cell["value"])),
                     section["doc"],
-                    _cell_anchor(section, cell["ref"]),
+                    row_anchor or _cell_anchor(section, cell["ref"]),
                     _context(section),
                 )
             )
@@ -812,10 +921,14 @@ def _document_series(sections: list[dict]) -> list[dict]:
 _SHEET_CELL = re.compile(r"^([A-Z]+)(\d+)$")
 _CSV_CELL = re.compile(r"^r\d+c(\d+)$")
 _TABLE_CELL = re.compile(r"^t\d+r\d+c(\d+)$")
+_LINE_CELL = re.compile(r"^c(\d+)$")
 
 
-def _table_of(section: dict) -> str | None:
-    """The table a row section belongs to: a sheet, a CSV file or one table on one PDF page."""
+def _table_of(section: dict, lines: dict[str, dict] | None = None) -> str | None:
+    """The table a row belongs to: a sheet, a CSV file, a table on a PDF page or a line table."""
+    line = (lines or {}).get(section["anchor"])
+    if line is not None:
+        return line["table"]
     anchor = parse_anchor(section["anchor"])
     if anchor.kind == "sheet-cell":
         return anchor.sheet
@@ -827,11 +940,11 @@ def _table_of(section: dict) -> str | None:
 
 
 def _column_of(ref: str) -> str | None:
-    """The column a cell sits in: its letters in a workbook, its number in a CSV or a table."""
+    """The column a cell sits in: its letters in a workbook, its number everywhere else."""
     match = _SHEET_CELL.match(ref)
     if match:
         return match.group(1)
-    match = _CSV_CELL.match(ref) or _TABLE_CELL.match(ref)
+    match = _CSV_CELL.match(ref) or _TABLE_CELL.match(ref) or _LINE_CELL.match(ref)
     return f"c{match.group(1)}" if match else None
 
 
@@ -850,15 +963,19 @@ def _row_series(sections: list[dict]) -> list[dict]:
     """One record per table column whose cells run through consecutive periods.
 
     The record is anchored to the row above the first member, which is the column's header
-    where the table has one, and its members are the anchors of the rows themselves.
+    where the table has one, and its members are the anchors of the rows themselves. A line
+    table is a table here too: its rows are its sections and its cells are its fields.
     """
+    lines = _line_tables(sections)
     tables: dict[tuple[str, str], list[dict]] = {}
     for section in sections:
-        if section["kind"] != "row":
+        line = lines.get(section["anchor"])
+        if line is None and section["kind"] != "row":
             continue
-        table = _table_of(section)
+        table = _table_of(section, lines)
         if table is not None:
-            tables.setdefault((section["doc"], table), []).append(section)
+            row = {**section, "cells": line["cells"]} if line else section
+            tables.setdefault((section["doc"], table), []).append(row)
 
     records = []
     for (doc, _table), rows in sorted(tables.items()):
