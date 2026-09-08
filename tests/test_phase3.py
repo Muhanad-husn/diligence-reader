@@ -219,13 +219,14 @@ TWO_DOCS = {"a.md": "DR-001", "b.md": "DR-002"}
 SHARED_TEXT = "The AURORA workstream was paused on the day of the incident."
 INDEX_RECORDS = [
     {
-        "kind": "identifier",
-        "surface": "AURORA",
-        "value": "AURORA",
+        "kind": kind,
+        "surface": surface,
+        "value": surface,
         "unit": None,
         "docs": sorted(TWO_DOCS),
         "anchors": ["a.md#p1l1", "b.md#p1l1"],
     }
+    for kind, surface in (("identifier", "AURORA"), ("identifier", "24 months"), ("identifier", "2019"))
 ]
 
 
@@ -297,6 +298,12 @@ def test_shared_rule_reads_a_value_whole_and_never_inside_another():
     assert edges_of(["AURORA"], ["AURORA"])
     assert not edges_of(["AURORA"], ["AURORA-2"])
     assert not edges_of(["AURORA workstream"], ["AURORA"])
+
+
+def test_shared_rule_reads_a_figure_inside_a_longer_element_on_word_boundaries():
+    """24 months sits inside twenty-four (24) months; 2019 does not sit inside 12019."""
+    assert edges_of(["24 months"], ["twenty-four (24) months"])
+    assert not edges_of(["2019"], ["12019"])
 
 
 def test_map_parses_with_sorted_keys_and_one_trailing_newline(mapped):

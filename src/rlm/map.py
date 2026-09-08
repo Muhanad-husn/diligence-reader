@@ -212,11 +212,22 @@ def named_values(note: dict) -> tuple[set[str], str]:
 
 
 def is_about(named: tuple[set[str], str] | None, folded: str) -> bool:
-    """Whether a folded value is one a note's flags are about, or sits in its concealed items."""
+    """Whether a folded value is one a note's flags are about, or sits in its concealed items.
+
+    A value with a digit in it also counts when it sits whole, on word boundaries, inside one
+    element: 24 months is inside twenty-four (24) months and vpauth-legacy-2019 is inside
+    kid=vpauth-legacy-2019. A value without a digit has to be the element: legacy_uap is not
+    legacy_uap_backup_2021.tar.gz.
+    """
     if not named or not folded:
         return False
     values, concealed = named
-    return folded in values or folded in concealed
+    if folded in values or folded in concealed:
+        return True
+    if not any(char.isdigit() for char in folded):
+        return False
+    inside = re.compile(r"(?<!\S)" + re.escape(folded) + r"(?!\S)")
+    return any(inside.search(value) for value in values)
 
 
 def person_values(notes: dict[str, dict]) -> set[str]:
