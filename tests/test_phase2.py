@@ -798,7 +798,8 @@ class Replies:
 
 
 def test_one_document_named_values_are_the_surfaces_the_map_can_link_through(tmp_path):
-    """An identifier, an amount and a one-word capitalised name that a second document carries."""
+    """An identifier, a money or unit amount and a one-word capitalised name a second document
+    carries; a percentage, a bare decimal, a count, a person and a lower-case word are not."""
     write_index(
         tmp_path,
         [
@@ -809,11 +810,17 @@ def test_one_document_named_values_are_the_surfaces_the_map_can_link_through(tmp
             index_record("name", "backup", [DR_069, OTHER_DOC]),
             index_record("amount", "286m", [DR_069]),
             index_record("amount", "1,840", [DR_069, OTHER_DOC]),
+            index_record("amount", "0.2%", [DR_069, OTHER_DOC]),
+            index_record("amount", "0.80", [DR_069, OTHER_DOC]),
+            index_record("amount", "$12m", [DR_069, OTHER_DOC]),
+            index_record("amount", "24 months", [DR_069, OTHER_DOC]),
             index_record("date", "14 October 2025", [DR_069, OTHER_DOC]),
             index_record("identifier", "NQ-17", [OTHER_DOC, THIRD_DOC]),
         ],
     )
     assert named_values(read_index(tmp_path), DR_069) == [
+        "$12m",
+        "24 months",
         "912.8m",
         "AURORA",
         "legacy_uap_backup_2021.tar.gz",

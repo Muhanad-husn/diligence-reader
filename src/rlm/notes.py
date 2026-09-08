@@ -130,6 +130,8 @@ _CURLY = {"“": '"', "”": '"', "‘": "'", "’": "'"}
 _EMPHASIS_STAR = re.compile(r"(?<!\s)\*|\*(?!\s)")
 _EMPHASIS_UNDERSCORE = re.compile(r"(?<!\w)_|_(?!\w)")
 # The end of a sentence: a full stop, question mark or exclamation mark, then whitespace.
+# An amount worth asking a note about: one with a currency sign or a unit word in it.
+_MONEY_OR_UNIT = re.compile(r"[$£€]|[A-Za-z]")
 _SENTENCE_END = re.compile(r"(?<=[.?!])\s+")
 # How ingest joins the cells of a table row into the row's text.
 _CELL_JOIN = " | "
@@ -461,8 +463,11 @@ def read_index(run_dir: Path) -> list[dict]:
 def named_values(records: list[dict], doc: str, skipped: frozenset[str] = frozenset()) -> list[str]:
     """The surfaces of one document that the map can join another document through.
 
-    A surface counts when the index calls it an identifier or an amount, or calls it a name and
-    writes it as one word in upper case, which is the rule map.shared_values links on. A bare
+    A surface counts when the index calls it an identifier, or an amount written with a currency
+    sign or a unit word (912.8m, $12m, 24 months) and not a percentage, since 0.2% and 0.80 are
+    carried by a few documents each and asking every note to flag them floods the map, or calls
+    it a name and writes it as one word in upper case, which is the rule map.shared_values links
+    on. A bare
     count is left out, so is a surface in skipped, which main fills with the room's ordinary
     words (map.ordinary_words: THE, COUNSEL, DRAFT) and the key's document ids, so is a
     surface only this document
@@ -477,8 +482,10 @@ def named_values(records: list[dict], doc: str, skipped: frozenset[str] = frozen
     for record in records:
         kind = record["kind"]
         surface = str(record["surface"])
-        linkable = kind in ("identifier", "amount") or (
-            kind == "name" and " " not in surface and surface.isupper()
+        linkable = (
+            kind == "identifier"
+            or (kind == "amount" and _MONEY_OR_UNIT.search(surface) and not surface.endswith("%"))
+            or (kind == "name" and " " not in surface and surface.isupper())
         )
         if not linkable or is_count(surface) or surface in skipped:
             continue
