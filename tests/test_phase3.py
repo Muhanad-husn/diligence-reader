@@ -292,6 +292,13 @@ def test_shared_rule_ignores_a_value_only_a_flags_consequence_writes():
 # ---------------------------------------------------------------- the artefact
 
 
+def test_shared_rule_reads_a_value_whole_and_never_inside_another():
+    """legacy_uap named by one flag is not legacy_uap_backup_2021.tar.gz named by another."""
+    assert edges_of(["AURORA"], ["AURORA"])
+    assert not edges_of(["AURORA"], ["AURORA-2"])
+    assert not edges_of(["AURORA workstream"], ["AURORA"])
+
+
 def test_map_parses_with_sorted_keys_and_one_trailing_newline(mapped):
     raw = mapped.first.read_text(encoding="utf-8")
     assert raw == json.dumps(mapped.document, indent=1, sort_keys=True, ensure_ascii=False) + "\n"

@@ -191,21 +191,32 @@ def read_notes(run_dir: Path, ids_by_path: dict[str, str]) -> dict[str, dict]:
     return notes
 
 
-def named_text(note: dict) -> str:
-    """The folded values a note's flags are about, with its concealed items, as one string.
+def named_values(note: dict) -> tuple[set[str], str]:
+    """The folded values a note's flags are about, and its concealed items as one folded string.
 
     This is where a value has to appear for the map to count it as a link: what a flag names as
-    the thing it is about, and what the note wrote down as concealed. A flag's own words, its
-    quote and its consequence are not looked inside, because a flag that mentions a code in
-    passing is not a flag about that code. A note written before flags carried about reads as
-    its concealed items alone.
+    the thing it is about, whole, or what the note wrote down as concealed. A flag's own words,
+    its quote and its consequence are not looked inside, because a flag that mentions a code in
+    passing is not a flag about that code, and a value is not read inside another value, because
+    legacy_uap is not legacy_uap_backup_2021.tar.gz. A note written before flags carried about
+    reads as its concealed items alone.
     """
-    parts = []
-    for flag in note["flags"]:
-        parts += [value for value in flag.get("about", []) if isinstance(value, str)]
-    for item in note["concealed"]:
-        parts += [item["claim"], item["quote"]]
-    return fold(" ".join(parts))
+    values = {
+        fold(value)
+        for flag in note["flags"]
+        for value in flag.get("about", [])
+        if isinstance(value, str) and fold(value)
+    }
+    concealed = fold(" ".join(part for item in note["concealed"] for part in (item["claim"], item["quote"])))
+    return values, concealed
+
+
+def is_about(named: tuple[set[str], str] | None, folded: str) -> bool:
+    """Whether a folded value is one a note's flags are about, or sits in its concealed items."""
+    if not named or not folded:
+        return False
+    values, concealed = named
+    return folded in values or folded in concealed
 
 
 def person_values(notes: dict[str, dict]) -> set[str]:
@@ -461,7 +472,7 @@ def build_edges(
     """Every edge of the map, sorted by its two documents, its kind and its value."""
     breadth = max(2, int(len(order) * BREADTH_SHARE))
     skipped = person_values(notes) | ordinary_words(sections)
-    named = {doc_id: named_text(note) for doc_id, note in notes.items()}
+    named = {doc_id: named_values(note) for doc_id, note in notes.items()}
 
     edges: dict[tuple, dict] = {}
     for kind, value, carriers in shared_values(
@@ -473,8 +484,7 @@ def build_edges(
         folded = fold(value)
         for a, b in itertools.combinations(sorted(carriers), 2):
             if kind != "version":
-                both_about = folded and folded in named.get(a, "") and folded in named.get(b, "")
-                if not both_about:
+                if not (is_about(named.get(a), folded) and is_about(named.get(b), folded)):
                     continue
             marker = (a, b, kind, str(value))
             if marker in edges and edges[marker]["weight"] >= weight:
