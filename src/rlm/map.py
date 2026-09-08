@@ -69,6 +69,7 @@ import sys
 import time
 from pathlib import Path
 
+from rlm.index import line_cells
 from rlm.key import load_key
 from rlm.words import (
     COMPARE_WORDS,
@@ -873,7 +874,9 @@ def row_series(
         rows = [sections.get(anchor) for anchor in members]
         if doc is None or not rows or any(row is None for row in rows):
             continue
-        cells = [row.get("cells") or [] for row in rows]
+        # A row of a markdown rendition carries its fields as one line and no cells, and the
+        # index's own line-cell rule reads them back the way the sheet gave them.
+        cells = [row.get("cells") or line_cells(row["text"]) for row in rows]
         if not all(cells):
             continue
         days = [as_day(row[0]["value"]) for row in cells]
