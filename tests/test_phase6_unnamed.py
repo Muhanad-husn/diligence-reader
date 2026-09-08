@@ -139,23 +139,11 @@ def needs_unnamed() -> None:
 def hits(text: str) -> list[str]:
     """Every removed name the text writes, read case insensitively.
 
-    A hit on the workstream's name that is part of the publisher schedule's organisation is not
-    a hit: that organisation is not the matter and the knob leaves it alone.
+    The publisher schedule's streaming organisation is taken out of the text before it is read,
+    because its name is the workstream's codename in ordinary case and it is not the matter.
     """
-    found = []
-    lowered = text.lower()
-    for names in REMOVED.values():
-        for name in names:
-            wanted = name.lower()
-            at = lowered.find(wanted)
-            while at >= 0:
-                start = lowered.rfind(OTHER_ORGANISATION.lower(), 0, at + 1)
-                allowed = start >= 0 and start + len(OTHER_ORGANISATION) > at
-                if not allowed:
-                    found.append(name)
-                    break
-                at = lowered.find(wanted, at + 1)
-    return found
+    lowered = text.lower().replace(OTHER_ORGANISATION.lower(), " ")
+    return [name for names in REMOVED.values() for name in names if name.lower() in lowered]
 
 
 def variant_files() -> list[Path]:
@@ -198,6 +186,42 @@ def carried() -> dict[str, list[str]]:
                     found[name].append(doc_id)
                     break
     return found
+
+
+def written_beside_another_name() -> dict[str, set[str]]:
+    """The documents in which every occurrence of an identifier's names stands beside another
+    removed name, with nothing but whitespace, a bracket, a quote mark or a slash between them.
+
+    Two names beside each other name one thing, so the room writes one phrase for the pair.
+    """
+    source = load_key(SOURCE_DIR)
+    texts = test_phase6.source_texts()
+    beside: dict[str, set[str]] = {name: set() for name in REMOVED}
+    for doc_id, path in source.documents.items():
+        text = "\n".join(texts.get(path, ()))
+        spans = [match.span() for match in GONE.finditer(text)]
+        touching: set[str] = set()
+        alone: set[str] = set()
+        for number, (start, end) in enumerate(spans):
+            name = identifier_written(text[start:end])
+            gaps = []
+            if number:
+                gaps.append(text[spans[number - 1][1] : start])
+            if number + 1 < len(spans):
+                gaps.append(text[end : spans[number + 1][0]])
+            side = touching if any(not re.search(r"[A-Za-z0-9]", gap) for gap in gaps) else alone
+            side.add(name)
+        for name in touching - alone:
+            beside[name].add(doc_id)
+    return beside
+
+
+def identifier_written(name: str) -> str:
+    """The identifier id one written name belongs to."""
+    for key, names in REMOVED.items():
+        if any(one.lower() == name.lower() for one in names):
+            return key
+    raise AssertionError(name)
 
 
 # ---------------------------------------------------------------- the knob
@@ -281,10 +305,16 @@ def test_the_organisation_that_is_not_the_matter_is_untouched():
 
 def test_every_phrase_is_written_in_every_document_that_carried_its_identifier():
     """Each identifier's phrase stands in every document sample 1 wrote that identifier in, and
-    the README's table lists those documents."""
+    the README's table lists those documents.
+
+    One document is not asked for a phrase: where the room wrote a name beside another name,
+    the two name one thing and one phrase is written for both, so the document reads the other
+    identifier's phrase there and never the name.
+    """
     needs_unnamed()
     key = load_key(UNNAMED_DIR)
     rooms = carried()
+    beside = written_beside_another_name()
     rows = dict(readme_rows())
     assert set(rows) == set(PHRASES.values()), sorted(rows)
 
@@ -292,7 +322,11 @@ def test_every_phrase_is_written_in_every_document_that_carried_its_identifier()
         documents = rooms[name]
         assert documents, name
         assert list(rows[phrase]) == documents, name
-        missing = [doc for doc in documents if phrase not in document_text(key, doc).lower()]
+        missing = [
+            doc
+            for doc in documents
+            if phrase not in document_text(key, doc).lower() and doc not in beside[name]
+        ]
         assert not missing, (name, missing)
 
 

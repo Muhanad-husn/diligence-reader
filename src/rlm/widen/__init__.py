@@ -31,7 +31,7 @@ import shutil
 import sys
 import textwrap
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 
 # The room every variant writes its documents under, whatever the source sample calls its own.
@@ -80,7 +80,11 @@ class Drop:
 @dataclass(frozen=True)
 class Variant:
     """What a knob returns: the documents, the facts, the facts it dropped, the brief and the
-    section the knob writes about itself in the variant's README."""
+    section the knob writes about itself in the variant's README.
+
+    `key_fields` are the key's own fields a knob rewrites, merged into the key after the
+    documents and the facts, so that a knob that renames the matter can rewrite the rubric.
+    """
 
     knob: str
     documents: tuple[Document, ...]
@@ -88,6 +92,7 @@ class Variant:
     drops: tuple[Drop, ...]
     brief: str
     notes: str = ""
+    key_fields: dict = field(default_factory=dict)
 
 
 def render(text: str) -> str:
@@ -164,19 +169,23 @@ def identity(
     text: Callable[[str, str], str] | None = None,
     fact: Callable[[dict], dict | Drop] | None = None,
     brief_paragraph: str = "",
+    path: Callable[[str], str] | None = None,
 ) -> Variant:
     """The variant a knob builds when it changes nothing but the rendition.
 
     `text` rewrites one section, taking the source document's path and the section text. `fact`
     returns the fact to keep or a Drop, and every Drop is listed in the variant's README.
     `brief_paragraph` is added to the brief, and a knob adds one only where it adds documents.
+    `path` is where a document is written, and a knob passes one only where the source's file
+    name carries what the knob removes; the default is markdown_path.
     """
+    place = markdown_path if path is None else path
     documents = []
     for doc_id, doc in sorted(source.key["documents"].items()):
         texts = source.sections.get(doc, ())
         if text is not None:
             texts = tuple(text(doc, one) for one in texts)
-        documents.append(Document(id=doc_id, path=markdown_path(doc), texts=tuple(texts)))
+        documents.append(Document(id=doc_id, path=place(doc), texts=tuple(texts)))
 
     facts = []
     drops = []
@@ -201,11 +210,13 @@ def identity(
 
 
 def variant_key(source: Source, variant: Variant, name: str) -> dict:
-    """The variant's key: the source's key with the new name, the new paths and the facts."""
+    """The variant's key: the source's key with the new name, the new paths, the facts, and the
+    fields the knob rewrote."""
     key = dict(source.key)
     key["sample"] = name
     key["documents"] = {document.id: document.path for document in variant.documents}
     key["facts"] = list(variant.facts)
+    key.update(variant.key_fields)
     return key
 
 
@@ -218,9 +229,9 @@ def readme(source: Source, variant: Variant, name: str) -> str:
     """The variant's README: the knob, what it was written from, the facts it dropped, and the
     section the knob wrote about itself where it wrote one."""
     dropped = (
-        "\n".join(f"- `{drop.id}`: {drop.why}" for drop in variant.drops)
+        "\n\n" + "\n".join(f"- `{drop.id}`: {drop.why}" for drop in variant.drops)
         if variant.drops
-        else "none"
+        else " none"
     )
     written = wrap(
         f"Written by `python -m rlm.widen {variant.knob} samples/{source.name} "
@@ -236,7 +247,7 @@ def readme(source: Source, variant: Variant, name: str) -> str:
     return (
         f"# {name}\n\n{written}\n\n{room}\n\n"
         f"Facts: {len(variant.facts)}.\n\n"
-        f"Facts dropped: {dropped}\n{said}"
+        f"Facts dropped:{dropped}\n{said}"
     )
 
 
