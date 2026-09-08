@@ -48,7 +48,7 @@ import pytest
 
 from rlm.amounts import date_matches, normalise_amount
 from rlm.carry import cut_days, days_of, numbers_of, stem, words_of
-from rlm.dossier import main
+from rlm.dossier import is_table_row, main, matter_set, verbs_in, worried_about
 from rlm.key import load_key
 from rlm.map import read_notes
 from rlm.notes import straighten
@@ -87,6 +87,73 @@ AGAINST = " against "
 # What an empty field is written as, in the dossier and here.
 EMPTY = "-"
 
+
+
+def test_a_flag_quoting_a_table_row_worries_about_nobody():
+    """The customer schedule writes one row per customer, so a row that carries a name is the
+    room writing its list down and not the room worrying about that name."""
+    nodes = {
+        "schedule": {"path": "arr_schedule.xlsx.md"},
+        "granite": {"path": "msa_granite_manufacturing.pdf.md"},
+        "harbor": {"path": "msa_harbor_foods.pdf.md"},
+    }
+    notes = {
+        "schedule": {
+            "flags": [
+                {"flag": "billed quarterly", "quote": "| 4 | Granite Manufacturing Co. | $4,500,000 |"},
+                {"flag": "refund liability", "quote": "Harbor Foods refund liability is not reserved."},
+            ]
+        }
+    }
+    assert is_table_row("| 4 | Granite Manufacturing Co. |")
+    assert not is_table_row("Harbor Foods refund liability is not reserved.")
+    assert worried_about(["schedule", "granite", "harbor"], nodes, notes) == {"harbor"}
+
+
+def test_a_word_too_common_to_say_anything_is_not_an_operative_verb():
+    """`to` in `give rise to a claim` is a preposition, so `a` is not a verb the clause turns on."""
+    assert verbs_in(["likely", "to", "give", "rise", "to", "a", "claim"]) == {"give"}
+
+
+def test_the_clause_rule_reads_the_denial_against_the_sets_own_words():
+    """The clause a decoy denies is written by the document the matter is about, which is not
+    always the seed: northwind's seed is its cap table and the change-of-control clause the
+    Granite MSA argues against is Meridian's."""
+    matter = {
+        "cluster": ["cap", "granite", "meridian"],
+        "seed": ["cap"],
+    }
+    nodes = {
+        "cap": {"path": "cap_table_summary.pdf.md"},
+        "granite": {"path": "msa_granite_manufacturing.pdf.md"},
+        "meridian": {"path": "msa_meridian_freight.pdf.md"},
+    }
+    notes = {
+        "cap": {"flags": [{"flag": "options", "quote": "The option pool is fully allocated."}]},
+        "granite": {
+            "flags": [
+                {
+                    "flag": "change of control gives no exit",
+                    "quote": (
+                        "In the event of a change of control of a Party, such change shall not "
+                        "give either Party any right to terminate this Agreement."
+                    ),
+                }
+            ]
+        },
+        "meridian": {
+            "flags": [
+                {
+                    "flag": "change of control terminates",
+                    "quote": (
+                        "In the event of a change of control of Provider, Customer may "
+                        "terminate this Agreement, effective immediately."
+                    ),
+                }
+            ]
+        },
+    }
+    assert matter_set(matter, nodes, notes) == ["cap", "meridian"]
 
 @dataclass(frozen=True)
 class Row:
