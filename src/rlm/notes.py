@@ -57,7 +57,7 @@ import time
 from pathlib import Path
 
 from rlm.amounts import AMOUNT
-from rlm.gateway import Batch, Completion, Gateway, Ledger, estimate_tokens, price
+from rlm.gateway import PHASE_CAPS, Batch, Completion, Gateway, Ledger, estimate_tokens, price
 from rlm.key import load_key
 
 PHASE = 2
@@ -724,6 +724,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "is noted",
     )
     parser.add_argument("--pass", dest="pass_name", default="a", choices=["a", "b"])
+    parser.add_argument(
+        "--phase",
+        type=int,
+        default=PHASE,
+        help="the phase the ledger books this run to, so that a phase 6 variant pays out "
+        "of phase 6's cap",
+    )
     parser.add_argument("--out", default=None)
     return parser.parse_args(argv)
 
@@ -737,6 +744,9 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
     minus the usage the replaced documents carried before.
     """
     args = parse_args(argv)
+    if args.phase not in PHASE_CAPS:
+        print(f"no such phase in the caps: {args.phase}")
+        return 2
     sample_dir = Path(args.sample_dir)
     run_dir = Path(args.run_dir)
     out_dir = Path(args.out) if args.out else run_dir
@@ -793,7 +803,7 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
 
     started = time.monotonic()
     with ledger.batch(
-        sample_dir.name, PHASE, args.model, tokens_in=estimated_in, tokens_out=estimated_out
+        sample_dir.name, args.phase, args.model, tokens_in=estimated_in, tokens_out=estimated_out
     ) as batch:
         with concurrent.futures.ThreadPoolExecutor(max_workers=WORKERS) as pool:
             futures = [

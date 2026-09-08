@@ -1,0 +1,3 @@
+# The generated variants are compared byte for byte against a fresh run of the generator,
+# which writes them with carriage returns, so they check out that way on any platform.
+samples/atlas-*/** text eol=crlf

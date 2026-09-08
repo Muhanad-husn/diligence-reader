@@ -1,0 +1,57 @@
+alert_id | timestamp | severity | source_system | rule | src_ip_asn | description | status
+
+SIEM-2025-118420 | 2025-10-18T02:14:07Z | High | Kestrel-ObjStore | objstore.bulk_read.anomaly | 203.0.113.44 / AS64500 | Unusual access to legacy_uap backup object; bulk GET volume far above baseline for principal | Flagged
+
+SIEM-2025-118437 | 2025-10-18T02:51:33Z | High | Kestrel-ObjStore | objstore.egress.spike | 203.0.113.44 / AS64500 | Data-egress spike on legacy backup storage prefix; ~640 GB read in 40 min window | Flagged
+
+SIEM-2025-118455 | 2025-10-18T03:39:11Z | Medium | VPAuth | vpauth.token_validation.abnormal | 198.51.100.23 / AS65021 | Abnormal VPAuth token validation pattern; legacy session-signing key id observed | Flagged
+
+SIEM-2025-118612 | 2025-10-19T01:07:52Z | High | Kestrel-ObjStore | objstore.bulk_read.anomaly | 198.51.100.77 / AS65021 | High-volume reads on legacy_uap backup object from foreign-ASN source IP | Flagged
+
+SIEM-2025-118644 | 2025-10-19T01:48:20Z | High | Kestrel-ObjStore | objstore.egress.spike | 198.51.100.77 / AS65021 | Continued data-egress spike on legacy backup prefix; cumulative egress exceeds threshold | Flagged
+
+SIEM-2025-118661 | 2025-10-19T02:33:44Z | Medium | VPAuth | vpauth.token_validation.abnormal | 192.0.2.155 / AS65133 | Repeated validation of sessions signed by legacy key; geo/ASN anomaly | Flagged
+
+SIEM-2025-118802 | 2025-10-20T00:52:09Z | High | Kestrel-ObjStore | objstore.bulk_read.anomaly | 192.0.2.155 / AS65133 | Final-day bulk reads on legacy_uap backup object; principal not in restore schedule | Flagged
+
+SIEM-2025-118819 | 2025-10-20T01:20:41Z | Medium | VPAuth | vpauth.session.replay.suspected | 192.0.2.155 / AS65133 | Suspected session-cookie replay/forging using legacy signing key id | Flagged
+
+SIEM-2025-118850 | 2025-10-23T16:10:00Z | Info | SOC-Triage | case.reclassification | internal / — | Alerts SIEM-2025-118420, SIEM-2025-118437, SIEM-2025-118455, SIEM-2025-118612 reviewed and reclassified to NQ-17 (network-quality/performance); see ticket NQ-17 | Reclassified — closed-NQ17
+
+SIEM-2025-118851 | 2025-10-23T16:12:00Z | Info | SOC-Triage | case.reclassification | internal / — | Alerts SIEM-2025-118644, SIEM-2025-118661, SIEM-2025-118802, SIEM-2025-118819 grouped under NQ-17; bulk-access language removed from triage summary per management direction | Reclassified — closed-NQ17
+
+SIEM-2025-119000 | 2025-10-24T14:29:45Z | Low | Email-Gateway | phishing.url.blocked | 203.0.113.201 / AS15169 (corp) | Inbound phishing campaign quarantined; 12 messages blocked at gateway | Closed — benign
+
+SIEM-2025-119017 | 2025-10-25T18:29:58Z | Low | Email-Gateway | malware.attachment.blocked | 10.4.3.100 / internal / — | Malicious attachment blocked (known signature) | Closed — benign
+
+SIEM-2025-119034 | 2025-10-26T21:37:42Z | Medium | VPAuth | auth.bruteforce.blocked | 203.0.113.202 / AS13335 (cdn) | Credential-stuffing burst auto-blocked by rate limiter; no successful logins | Closed — benign
+
+SIEM-2025-119051 | 2025-10-27T20:08:45Z | Low | Corporate-IDP | impossible_travel | 10.4.3.239 / AS13335 (cdn) | Impossible-travel flag for a corporate user; confirmed VPN, false positive | Closed — benign
+
+SIEM-2025-119068 | 2025-10-28T08:28:44Z | Medium | Email-Gateway | bec.impersonation.flagged | 203.0.113.111 / internal / — | BEC/CEO-impersonation attempt flagged and quarantined | Closed — benign
+
+SIEM-2025-119085 | 2025-10-29T07:39:33Z | Low | EDR | edr.suspicious_process | 172.16.4.103 / AS13335 (cdn) | Suspicious script execution on a laptop; remediated by IT Ops | Closed — benign
+
+SIEM-2025-119102 | 2025-11-01T13:49:04Z | Low | WAF | waf.sql_injection.blocked | 203.0.113.10 / AS7922 (isp) | SQL-injection probe blocked at WAF | Closed — benign
+
+SIEM-2025-119119 | 2025-11-04T15:40:36Z | Info | Kestrel-ObjStore | objstore.read.normal | 172.16.5.28 / AS13335 (cdn) | Scheduled backup-verification read within baseline | Closed — benign
+
+SIEM-2025-119136 | 2025-11-07T12:06:17Z | Low | VistaMail | spam.outbound.flagged | 10.4.5.29 / AS3356 (transit) | Outbound spam heuristics flagged a compromised consumer mailbox; auto-suspended | Closed — benign
+
+SIEM-2025-119153 | 2025-11-10T06:45:18Z | Medium | Corporate-IDP | mfa.fatigue.detected | 203.0.113.163 / AS15169 (corp) | MFA push-fatigue pattern detected; user reset and educated | Closed — benign
+
+SIEM-2025-119170 | 2025-11-13T17:54:06Z | Low | WAF | waf.path_traversal.blocked | 203.0.113.78 / AS13335 (cdn) | Path-traversal attempt blocked at WAF | Closed — benign
+
+SIEM-2025-119187 | 2025-11-16T08:26:52Z | Info | SOC-Triage | alert.tuning | 10.4.0.106 / AS3356 (transit) | Detection threshold retuned on storage egress rule | Closed — benign
+
+SIEM-2025-119204 | 2025-11-19T13:14:35Z | Low | EDR | edr.usb.blocked | 10.4.4.94 / AS15169 (corp) | Unapproved USB mass-storage device blocked | Closed — benign
+
+SIEM-2025-119221 | 2025-11-22T16:01:05Z | Medium | Email-Gateway | phishing.credential.blocked | 172.16.0.99 / AS3356 (transit) | Credential-harvesting page blocked; 3 clicks intercepted | Closed — benign
+
+SIEM-2025-119238 | 2025-11-25T10:56:56Z | Low | Corporate-IDP | login.geo_velocity | 10.4.9.150 / AS7922 (isp) | Geo-velocity warning; legitimate travel confirmed | Closed — benign
+
+SIEM-2025-119255 | 2025-11-28T06:06:07Z | Info | Kestrel-ObjStore | objstore.read.normal | 172.16.4.111 / AS15169 (corp) | Routine analytics export read within baseline | Closed — benign
+
+SIEM-2025-119272 | 2025-11-31T16:36:29Z | Low | WAF | waf.xss.blocked | 203.0.113.60 / AS3356 (transit) | Reflected-XSS probe blocked at WAF | Closed — benign
+
+SIEM-2025-119289 | 2025-11-34T06:51:54Z | Medium | VPAuth | auth.bruteforce.blocked | 203.0.113.164 / AS13335 (cdn) | Distributed login-failure burst rate-limited | Closed — benign
