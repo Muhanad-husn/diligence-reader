@@ -214,3 +214,7 @@ Ceiling $50. Written by the code that makes gateway calls; a line added by hand 
 | 2026-09-08 | northstar-dental | 5 | z-ai/glm-5.3 | 20751 | 5302 | 0.0524 | 39.3748 |
 | 2026-09-08 | atlas-names | 6 | z-ai/glm-5.3 | 45590 | 13512 | 0.1233 | 39.2515 |
 | 2026-09-08 | atlas-names | 6 | z-ai/glm-5.3 | 44649 | 11272 | 0.1121 | 39.1394 |
+| 2026-09-08 | atlas-unnamed | 6 | z-ai/glm-5.3-flash | 517808 | 380325 | 0.1339 | 39.0055 |
+| 2026-09-08 | atlas-unnamed | 6 | z-ai/glm-5.3-flash | 523802 | 381304 | 0.1346 | 38.8709 |
+| 2026-09-08 | atlas-unnamed | 6 | z-ai/glm-5.3 | 43007 | 18078 | 0.1398 | 38.7311 |
+| 2026-09-08 | atlas-unnamed | 6 | z-ai/glm-5.3 | 37843 | 8125 | 0.0887 | 38.6424 |
