@@ -206,10 +206,8 @@ def test_the_earlier_variants_are_unchanged(tmp_path):
         directory = ROOT / "samples" / name
         if not directory.exists():
             continue
-        assert (
-            widen.main([knob, str(SOURCE_DIR), str(tmp_path / name), "--runs", str(ROOT / "runs")])
-            == 0
-        ), name
+        argv = [knob, str(SOURCE_DIR), str(tmp_path / name), "--runs", str(ROOT / "runs")]
+        assert widen.main(argv) == 0, name
         assert test_phase6.tree(tmp_path / name) == test_phase6.tree(directory), name
 
 
