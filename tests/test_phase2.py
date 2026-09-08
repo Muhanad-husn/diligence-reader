@@ -820,6 +820,18 @@ def test_one_document_named_values_are_the_surfaces_the_map_can_link_through(tmp
     ]
 
 
+def test_one_document_named_values_leave_the_rooms_ordinary_words_out(tmp_path):
+    """A capitalised word the room also writes in lower case, passed as skipped, is not a value."""
+    write_index(
+        tmp_path,
+        [
+            index_record("name", "COUNSEL", [DR_069, OTHER_DOC]),
+            index_record("name", "AURORA", [DR_069, OTHER_DOC]),
+        ],
+    )
+    assert named_values(read_index(tmp_path), DR_069, frozenset({"COUNSEL"})) == ["AURORA"]
+
+
 def test_one_document_named_values_put_the_rarest_carried_value_first(tmp_path):
     write_index(
         tmp_path,

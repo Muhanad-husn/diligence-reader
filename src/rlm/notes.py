@@ -70,7 +70,7 @@ from pathlib import Path
 from rlm.amounts import AMOUNT
 from rlm.gateway import PHASE_CAPS, Batch, Completion, Gateway, Ledger, estimate_tokens, price
 from rlm.key import load_key
-from rlm.map import is_count
+from rlm.map import is_count, ordinary_words
 from rlm.words import fold
 
 PHASE = 2
@@ -459,14 +459,16 @@ def read_index(run_dir: Path) -> list[dict]:
     return [json.loads(line) for line in lines if line.strip()]
 
 
-def named_values(records: list[dict], doc: str) -> list[str]:
+def named_values(records: list[dict], doc: str, skipped: frozenset[str] = frozenset()) -> list[str]:
     """The surfaces of one document that the map can join another document through.
 
     A surface counts when the index calls it an identifier or an amount, or calls it a name and
     writes it as one word in upper case, which is the rule map.shared_values links on. A bare
-    count is left out, and so is a surface only this document carries, since it joins nothing.
-    The document of an anchor is the part before its #. The rarest carried surface comes first,
-    ties in alphabetical order, and the list stops at NAMED_VALUE_LIMIT.
+    count is left out, so is a surface in skipped, which main fills with the room's ordinary
+    words (map.ordinary_words: THE, COUNSEL, DRAFT), and so is a surface only this document
+    carries, since it joins nothing. The document of an anchor is the part before its #. The
+    rarest carried surface comes first, ties in alphabetical order, and the list stops at
+    NAMED_VALUE_LIMIT.
     """
     carriers: dict[str, int] = {}
     for record in records:
@@ -475,7 +477,7 @@ def named_values(records: list[dict], doc: str) -> list[str]:
         linkable = kind in ("identifier", "amount") or (
             kind == "name" and " " not in surface and surface.isupper()
         )
-        if not linkable or is_count(surface):
+        if not linkable or is_count(surface) or surface in skipped:
             continue
         documents = {anchor.rsplit("#", 1)[0] for anchor in record["anchors"]}
         if doc not in documents or len(documents) < 2:
@@ -974,7 +976,10 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
     # The phase 1 index is read once for the whole pass; without it every document's named
     # values are empty and the pass runs the way it did before.
     index = read_index(run_dir)
-    named_by_doc = {doc: named_values(index, doc) for _, doc in prompts}
+    skipped = frozenset(
+        ordinary_words([section for sections in sections_by_doc.values() for section in sections])
+    )
+    named_by_doc = {doc: named_values(index, doc, skipped) for _, doc in prompts}
 
     if gateway is None:
         gateway = Gateway()
