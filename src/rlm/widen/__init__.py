@@ -79,13 +79,15 @@ class Drop:
 
 @dataclass(frozen=True)
 class Variant:
-    """What a knob returns: the documents, the facts, the facts it dropped and the brief."""
+    """What a knob returns: the documents, the facts, the facts it dropped, the brief and the
+    section the knob writes about itself in the variant's README."""
 
     knob: str
     documents: tuple[Document, ...]
     facts: tuple[dict, ...]
     drops: tuple[Drop, ...]
     brief: str
+    notes: str = ""
 
 
 def render(text: str) -> str:
@@ -213,7 +215,8 @@ def wrap(text: str) -> str:
 
 
 def readme(source: Source, variant: Variant, name: str) -> str:
-    """The variant's README: the knob, what it was written from, and the facts it dropped."""
+    """The variant's README: the knob, what it was written from, the facts it dropped, and the
+    section the knob wrote about itself where it wrote one."""
     dropped = (
         "\n".join(f"- `{drop.id}`: {drop.why}" for drop in variant.drops)
         if variant.drops
@@ -229,10 +232,11 @@ def readme(source: Source, variant: Variant, name: str) -> str:
         f"source's ids, required documents, decoys, answer, rubric and bar, and points its "
         f"`documents` map at the new paths."
     )
+    said = f"\n{variant.notes.strip()}\n" if variant.notes.strip() else ""
     return (
         f"# {name}\n\n{written}\n\n{room}\n\n"
         f"Facts: {len(variant.facts)}.\n\n"
-        f"Facts dropped: {dropped}\n"
+        f"Facts dropped: {dropped}\n{said}"
     )
 
 

@@ -1,0 +1,743 @@
+{
+  "sample": "atlas-names",
+  "brief": "brief.md",
+  "documents": {
+    "DR-001": "data_room/00_Index_and_Process/Data_Room_Index.xlsx.md",
+    "DR-002": "data_room/00_Index_and_Process/Project_Atlas_Process_Letter.pdf.md",
+    "DR-003": "data_room/00_Index_and_Process/NDA_and_Clean_Team_Protocol.pdf.md",
+    "DR-004": "data_room/00_Index_and_Process/Diligence_QA_Log.xlsx.md",
+    "DR-005": "data_room/00_Index_and_Process/Management_Presentation_Project_Atlas.pdf.md",
+    "DR-006": "data_room/01_Corporate_and_Board/Corporate_Org_Chart.pdf.md",
+    "DR-007": "data_room/01_Corporate_and_Board/Subsidiaries_and_Jurisdictions_Schedule.xlsx.md",
+    "DR-008": "data_room/01_Corporate_and_Board/Board_Minutes_2024_Q4.pdf.md",
+    "DR-009": "data_room/01_Corporate_and_Board/Board_Minutes_2025_Q1.pdf.md",
+    "DR-010": "data_room/01_Corporate_and_Board/Board_Minutes_2025_Q2.pdf.md",
+    "DR-011": "data_room/01_Corporate_and_Board/Board_Minutes_2025_Q3.pdf.md",
+    "DR-012": "data_room/01_Corporate_and_Board/Board_Minutes_2025_Q4.pdf.md",
+    "DR-013": "data_room/01_Corporate_and_Board/Disclosure_Committee_Minutes_2025_10_29.pdf.md",
+    "DR-014": "data_room/01_Corporate_and_Board/Executive_Committee_Action_Items_2025_11_05.pdf.md",
+    "DR-015": "data_room/01_Corporate_and_Board/Strategic_Alternatives_Board_Deck_2026_01.pdf.md",
+    "DR-016": "data_room/02_Financials_and_Tax/Audited_Financials_FY2023.pdf.md",
+    "DR-017": "data_room/02_Financials_and_Tax/Audited_Financials_FY2024.pdf.md",
+    "DR-018": "data_room/02_Financials_and_Tax/Draft_Financials_FY2025.pdf.md",
+    "DR-019": "data_room/02_Financials_and_Tax/Monthly_Finance_Pack_2025_09.pdf.md",
+    "DR-020": "data_room/02_Financials_and_Tax/Monthly_Finance_Pack_2025_10.pdf.md",
+    "DR-021": "data_room/02_Financials_and_Tax/Monthly_Finance_Pack_2025_11.pdf.md",
+    "DR-022": "data_room/02_Financials_and_Tax/Monthly_Finance_Pack_2025_12.pdf.md",
+    "DR-023": "data_room/02_Financials_and_Tax/Seller_Quality_of_Earnings_Addendum.pdf.md",
+    "DR-024": "data_room/02_Financials_and_Tax/Revenue_By_Product_FY2023_FY2025.xlsx.md",
+    "DR-025": "data_room/02_Financials_and_Tax/EBITDA_Adjustments_Schedule.xlsx.md",
+    "DR-026": "data_room/02_Financials_and_Tax/Deferred_Revenue_Schedule.xlsx.md",
+    "DR-027": "data_room/02_Financials_and_Tax/Working_Capital_Peg_Model.xlsx.md",
+    "DR-028": "data_room/02_Financials_and_Tax/Capex_Backlog_and_IT_Modernisation.xlsx.md",
+    "DR-029": "data_room/02_Financials_and_Tax/Contingency_Reserve_Memo.pdf.md",
+    "DR-030": "data_room/02_Financials_and_Tax/Insurance_Claims_and_Recoveries_Schedule.xlsx.md",
+    "DR-031": "data_room/02_Financials_and_Tax/Tax_Structure_and_Nexus_Memo.pdf.md",
+    "DR-032": "data_room/03_Commercial_and_Advertising/Top_50_Advertisers_FY2025.xlsx.md",
+    "DR-033": "data_room/03_Commercial_and_Advertising/Advertiser_Retention_Report_2025_Q4.pdf.md",
+    "DR-034": "data_room/03_Commercial_and_Advertising/Search_Partnership_Agreement_Summary.pdf.md",
+    "DR-035": "data_room/03_Commercial_and_Advertising/Meridian_Media_Agency_MSA_Redacted.pdf.md",
+    "DR-036": "data_room/03_Commercial_and_Advertising/Helios_Retail_IOs_2025.xlsx.md",
+    "DR-037": "data_room/03_Commercial_and_Advertising/LumenX_Take_Rate_Analysis.pdf.md",
+    "DR-038": "data_room/03_Commercial_and_Advertising/Pipeline_Report_2026_Q1.xlsx.md",
+    "DR-039": "data_room/03_Commercial_and_Advertising/Advertiser_Churn_WinLoss_Notes.pdf.md",
+    "DR-040": "data_room/03_Commercial_and_Advertising/Strategic_Partnerships_Summary.pdf.md",
+    "DR-041": "data_room/03_Commercial_and_Advertising/Publisher_Supply_Agreements_Schedule.xlsx.md",
+    "DR-042": "data_room/03_Commercial_and_Advertising/Customer_Success_Weekly_Readout_2025_11_14.pdf.md",
+    "DR-043": "data_room/03_Commercial_and_Advertising/Brand_Safety_Client_Feedback_Q4.csv.md",
+    "DR-044": "data_room/03_Commercial_and_Advertising/Privacy_Sensitive_Verticals_List.xlsx.md",
+    "DR-045": "data_room/03_Commercial_and_Advertising/APAC_Sales_Update_2025_Q4.pdf.md",
+    "DR-046": "data_room/03_Commercial_and_Advertising/EU_Advertiser_DPA_Terms_Summary.pdf.md",
+    "DR-047": "data_room/04_Product_Data_and_Technology/Product_Roadmap_2026.pdf.md",
+    "DR-048": "data_room/04_Product_Data_and_Technology/User_Metrics_Dashboard_Q3_Q4_2025.xlsx.md",
+    "DR-049": "data_room/04_Product_Data_and_Technology/Mobile_App_Cohorts_2025.csv.md",
+    "DR-050": "data_room/04_Product_Data_and_Technology/VistaMail_KPI_Weekly_Q4_2025.csv.md",
+    "DR-051": "data_room/04_Product_Data_and_Technology/AtlasID_Data_Map.pdf.md",
+    "DR-052": "data_room/04_Product_Data_and_Technology/Data_Retention_Policy.pdf.md",
+    "DR-053": "data_room/04_Product_Data_and_Technology/Consent_Management_Overview.pdf.md",
+    "DR-054": "data_room/04_Product_Data_and_Technology/Ad_Targeting_Segments_Catalogue.xlsx.md",
+    "DR-055": "data_room/04_Product_Data_and_Technology/Personalisation_Model_Performance.pdf.md",
+    "DR-056": "data_room/04_Product_Data_and_Technology/Accounts_Service_Architecture.pdf.md",
+    "DR-057": "data_room/04_Product_Data_and_Technology/Legacy_Platform_Decommission_Plan.pdf.md",
+    "DR-058": "data_room/04_Product_Data_and_Technology/Notification_System_Runbook.pdf.md",
+    "DR-059": "data_room/04_Product_Data_and_Technology/Trust_Reset_Project_Brief.pdf.md",
+    "DR-060": "data_room/04_Product_Data_and_Technology/Product_Incident_Postmortem_Nov2025.pdf.md",
+    "DR-061": "data_room/04_Product_Data_and_Technology/Snowcap_Table_Catalogue.csv.md",
+    "DR-062": "data_room/05_Security_IT_and_Infrastructure/Security_Programme_Overview.pdf.md",
+    "DR-063": "data_room/05_Security_IT_and_Infrastructure/Penetration_Test_2025_Executive_Summary.pdf.md",
+    "DR-064": "data_room/05_Security_IT_and_Infrastructure/SOC2_TypeII_Report_2025.pdf.md",
+    "DR-065": "data_room/05_Security_IT_and_Infrastructure/Vulnerability_Register_Q4_2025.xlsx.md",
+    "DR-066": "data_room/05_Security_IT_and_Infrastructure/IAM_Privileged_Access_Review_Q4_2025.xlsx.md",
+    "DR-067": "data_room/05_Security_IT_and_Infrastructure/SIEM_Alert_Exports_Oct_Nov_2025.csv.md",
+    "DR-068": "data_room/05_Security_IT_and_Infrastructure/Network_Quality_Ticket_NQ17_Redacted.txt.md",
+    "DR-069": "data_room/05_Security_IT_and_Infrastructure/Aurora_Phase1_Technical_Findings_Draft.pdf.md",
+    "DR-070": "data_room/05_Security_IT_and_Infrastructure/Aurora_Executive_Summary_Final.pdf.md",
+    "DR-071": "data_room/05_Security_IT_and_Infrastructure/Kestrel_Object_Access_Log_Extract.csv.md",
+    "DR-072": "data_room/05_Security_IT_and_Infrastructure/Vendor_Security_Assessments.xlsx.md",
+    "DR-073": "data_room/05_Security_IT_and_Infrastructure/Backup_Retention_Inventory.xlsx.md",
+    "DR-074": "data_room/05_Security_IT_and_Infrastructure/Key_Rotation_Exception_Log.xlsx.md",
+    "DR-075": "data_room/05_Security_IT_and_Infrastructure/Security_Steering_Committee_Minutes_2025_12.pdf.md",
+    "DR-076": "data_room/05_Security_IT_and_Infrastructure/Email_Gateway_Alert_Summary.pdf.md",
+    "DR-077": "data_room/05_Security_IT_and_Infrastructure/Business_Continuity_Test_Report.pdf.md",
+    "DR-078": "data_room/06_Legal_Regulatory_and_Compliance/Litigation_Schedule.xlsx.md",
+    "DR-079": "data_room/06_Legal_Regulatory_and_Compliance/Regulatory_Correspondence_Log.xlsx.md",
+    "DR-080": "data_room/06_Legal_Regulatory_and_Compliance/Draft_Response_to_Irish_DPC.pdf.md",
+    "DR-081": "data_room/06_Legal_Regulatory_and_Compliance/Cyber_Insurance_Policy_2025.pdf.md",
+    "DR-082": "data_room/06_Legal_Regulatory_and_Compliance/Cyber_Insurance_Notice_Draft_Email.eml.md",
+    "DR-083": "data_room/06_Legal_Regulatory_and_Compliance/Privacy_Policy_Version_History.pdf.md",
+    "DR-084": "data_room/06_Legal_Regulatory_and_Compliance/Data_Processing_Agreements_Schedule.xlsx.md",
+    "DR-085": "data_room/06_Legal_Regulatory_and_Compliance/Material_Contracts_Change_of_Control_Summary.xlsx.md",
+    "DR-086": "data_room/06_Legal_Regulatory_and_Compliance/Disclosure_Controls_Procedures_Memo.pdf.md",
+    "DR-087": "data_room/06_Legal_Regulatory_and_Compliance/Seller_Representation_Schedule.pdf.md",
+    "DR-088": "data_room/06_Legal_Regulatory_and_Compliance/Outside_Counsel_Privacy_Risk_Memo_Redacted.pdf.md",
+    "DR-089": "data_room/06_Legal_Regulatory_and_Compliance/Class_Action_Monitoring_Memo.pdf.md",
+    "DR-090": "data_room/06_Legal_Regulatory_and_Compliance/Open_Source_Licence_Review.pdf.md",
+    "DR-091": "data_room/06_Legal_Regulatory_and_Compliance/Employment_Law_Matters.pdf.md",
+    "DR-092": "data_room/06_Legal_Regulatory_and_Compliance/IP_Portfolio_Schedule.xlsx.md",
+    "DR-093": "data_room/07_HR_Operations_and_Integration/Headcount_by_Function.xlsx.md",
+    "DR-094": "data_room/07_HR_Operations_and_Integration/Key_Employee_Retention_Plan.pdf.md",
+    "DR-095": "data_room/07_HR_Operations_and_Integration/Security_Team_Attrition_Memo.pdf.md",
+    "DR-096": "data_room/07_HR_Operations_and_Integration/Integration_Synergy_Model.xlsx.md",
+    "DR-097": "data_room/07_HR_Operations_and_Integration/Day_1_Readiness_Plan.pdf.md",
+    "DR-098": "data_room/07_HR_Operations_and_Integration/Vendor_Master_List.xlsx.md",
+    "DR-099": "data_room/07_HR_Operations_and_Integration/Customer_Support_Ticket_Taxonomy_Q4_2025.csv.md",
+    "DR-100": "data_room/07_HR_Operations_and_Integration/Admin_Mailbox_Export_Sample.mbox.md"
+  },
+  "required_documents": [
+    "DR-069",
+    "DR-073",
+    "DR-074",
+    "DR-068",
+    "DR-013",
+    "DR-087",
+    "DR-088",
+    "DR-029",
+    "DR-081",
+    "DR-082",
+    "DR-096",
+    "DR-035",
+    "DR-050",
+    "DR-048"
+  ],
+  "decoys": [
+    {
+      "document": "DR-031",
+      "why": "Sales/use tax nexus, $6m to $9m, an order of magnitude smaller and fully estimable."
+    },
+    {
+      "document": "DR-034",
+      "why": "Search-partner concentration, about 22% of search revenue, a concentration risk and not a value-destroying contingency."
+    },
+    {
+      "document": "DR-076",
+      "why": "Email-gateway phishing and BEC noise, routine security operations unrelated to the account-data incident."
+    },
+    {
+      "document": "DR-090",
+      "why": "Open-source and GPL licence clean-up, a low-cost remediation."
+    },
+    {
+      "document": "DR-094",
+      "why": "Executive and security retention plan, ordinary deal retention that overlaps with attrition and is not the issue itself."
+    }
+  ],
+  "facts": [
+    {
+      "id": "incident-start",
+      "kind": "date",
+      "value": "2025-10-18",
+      "documents": [
+        "DR-069",
+        "DR-068",
+        "DR-067"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "ticket-reclassified",
+      "kind": "date",
+      "value": "2025-10-23",
+      "documents": [
+        "DR-068",
+        "DR-013"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "disclosure-committee",
+      "kind": "date",
+      "value": "2025-10-29",
+      "documents": [
+        "DR-013",
+        "DR-068"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "forensic-draft",
+      "kind": "date",
+      "value": "2025-11-12",
+      "documents": [
+        "DR-069"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "forensic-final",
+      "kind": "date",
+      "value": "2025-11-20",
+      "documents": [
+        "DR-070"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "broker-notice-drafted",
+      "kind": "date",
+      "value": "2025-12-11",
+      "documents": [
+        "DR-082"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "key-last-rotated",
+      "kind": "date",
+      "value": "2019-02-11",
+      "documents": [
+        "DR-074"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "backup-created",
+      "kind": "date",
+      "value": "2021-07-31",
+      "documents": [
+        "DR-073"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "records-total",
+      "kind": "number",
+      "value": "912.8m",
+      "documents": [
+        "DR-069",
+        "DR-073",
+        "DR-088"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "records-active",
+      "kind": "number",
+      "value": "286m",
+      "documents": [
+        "DR-069",
+        "DR-088"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "smb-accounts",
+      "kind": "number",
+      "value": "8.4m",
+      "documents": [
+        "DR-069"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "exposure-low",
+      "kind": "number",
+      "value": "$240m",
+      "documents": [
+        "DR-088"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "exposure-high",
+      "kind": "number",
+      "value": "$465m",
+      "documents": [
+        "DR-088"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "reserve-booked",
+      "kind": "number",
+      "value": "$12m",
+      "documents": [
+        "DR-029",
+        "DR-018"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "notice-window",
+      "kind": "number",
+      "value": "45-day",
+      "documents": [
+        "DR-081",
+        "DR-082"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "retention-limit",
+      "kind": "number",
+      "value": "36 months",
+      "documents": [
+        "DR-052",
+        "DR-073"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "rep-lookback",
+      "kind": "number",
+      "value": "twenty-four (24) months",
+      "documents": [
+        "DR-087"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "synergy-npv",
+      "kind": "number",
+      "value": "$410m",
+      "documents": [
+        "DR-096"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "mau-assumed",
+      "kind": "number",
+      "value": "615m",
+      "documents": [
+        "DR-096",
+        "DR-048"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "mobile-mau-assumed",
+      "kind": "number",
+      "value": "408m",
+      "documents": [
+        "DR-096",
+        "DR-048"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "trust-reset-addback",
+      "kind": "number",
+      "value": "$34m",
+      "documents": [
+        "DR-025"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "backup-object",
+      "kind": "identifier",
+      "value": "legacy_uap_backup_2021.tar.gz",
+      "documents": [
+        "DR-069",
+        "DR-068",
+        "DR-073",
+        "DR-071"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "signing-key",
+      "kind": "identifier",
+      "value": "vpauth-legacy-2019",
+      "documents": [
+        "DR-069",
+        "DR-074",
+        "DR-065"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "ticket",
+      "kind": "identifier",
+      "value": "NQ-17",
+      "documents": [
+        "DR-068",
+        "DR-013",
+        "DR-030"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "workstream",
+      "kind": "identifier",
+      "value": "AURORA",
+      "documents": [
+        "DR-069",
+        "DR-070",
+        "DR-068",
+        "DR-013",
+        "DR-082"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "programme",
+      "kind": "identifier",
+      "value": "Trust Reset",
+      "documents": [
+        "DR-059",
+        "DR-029",
+        "DR-048",
+        "DR-096",
+        "DR-082"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "forensics-firm",
+      "kind": "identifier",
+      "value": "IronLake",
+      "documents": [
+        "DR-069",
+        "DR-013"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "outside-counsel",
+      "kind": "identifier",
+      "value": "Juniper & Rowe",
+      "documents": [
+        "DR-088"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "object-store",
+      "kind": "identifier",
+      "value": "Kestrel",
+      "documents": [
+        "DR-069",
+        "DR-067"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "bulk-export-probable",
+      "kind": "quote",
+      "value": "bulk export is probable",
+      "documents": [
+        "DR-069"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "reclassified",
+      "kind": "quote",
+      "value": "RECLASSIFIED as a network-quality / performance matter",
+      "documents": [
+        "DR-068"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "final-softened",
+      "kind": "quote",
+      "value": "does not permit a conclusive determination of what, if anything, was removed",
+      "documents": [
+        "DR-070"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "rep-no-incident",
+      "kind": "quote",
+      "value": "has not suffered any material cybersecurity incident",
+      "documents": [
+        "DR-087"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "materiality-open",
+      "kind": "quote",
+      "value": "materiality of the matter is not yet determinable",
+      "documents": [
+        "DR-013"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "prior-known-events",
+      "kind": "quote",
+      "value": "prior-known-events exclusion",
+      "documents": [
+        "DR-081",
+        "DR-082"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "notice-late",
+      "kind": "quote",
+      "value": "we are past the date that the more conservative reading of the 45-day clock would imply",
+      "documents": [
+        "DR-082"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "rotation-blocked",
+      "kind": "quote",
+      "value": "Rotation blocked by legacy session compatibility",
+      "documents": [
+        "DR-074"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "backup-over-retained",
+      "kind": "quote",
+      "value": "exceeds 36-month policy",
+      "documents": [
+        "DR-073"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "covenant-termination",
+      "kind": "quote",
+      "value": "terminate this Agreement, or any affected Insertion Order, with immediate effect",
+      "documents": [
+        "DR-035"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "no-lasting-friction",
+      "kind": "quote",
+      "value": "Base case assumes NO lasting trust friction",
+      "documents": [
+        "DR-096"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "step-down",
+      "kind": "quote",
+      "value": "Visible step-down begins the week commencing 20 October 2025",
+      "documents": [
+        "DR-048"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "reset-wave",
+      "kind": "quote",
+      "value": "Trust Reset wave 1",
+      "documents": [
+        "DR-050"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "reserve-recommended",
+      "kind": "quote",
+      "value": "management recommends a reserve of $12m at this time",
+      "documents": [
+        "DR-029"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "exposure-range",
+      "kind": "quote",
+      "value": "approximately $240m to $465m",
+      "documents": [
+        "DR-088"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "matter-documents",
+      "kind": "document",
+      "value": "the fourteen required documents of the AURORA matter",
+      "documents": [
+        "DR-069",
+        "DR-073",
+        "DR-074",
+        "DR-068",
+        "DR-013",
+        "DR-087",
+        "DR-088",
+        "DR-029",
+        "DR-081",
+        "DR-082",
+        "DR-096",
+        "DR-035",
+        "DR-050",
+        "DR-048"
+      ],
+      "phase": 3
+    },
+    {
+      "id": "reserve-vs-exposure",
+      "kind": "comparison",
+      "value": "$12m against $240m to $465m",
+      "documents": [
+        "DR-029",
+        "DR-088"
+      ],
+      "phase": 4
+    },
+    {
+      "id": "draft-vs-final",
+      "kind": "comparison",
+      "value": "bulk export is probable against no conclusive determination of what was removed",
+      "documents": [
+        "DR-069",
+        "DR-070"
+      ],
+      "phase": 4
+    },
+    {
+      "id": "rep-vs-committee",
+      "kind": "comparison",
+      "value": "no material cybersecurity incident in 24 months against materiality not yet determinable on 2025-10-29",
+      "documents": [
+        "DR-087",
+        "DR-013"
+      ],
+      "phase": 4
+    },
+    {
+      "id": "notice-vs-window",
+      "kind": "comparison",
+      "value": "notice drafted 2025-12-11 against 45 days from the ticket opened 2025-10-21",
+      "documents": [
+        "DR-082",
+        "DR-081",
+        "DR-068"
+      ],
+      "phase": 4
+    },
+    {
+      "id": "backup-vs-policy",
+      "kind": "comparison",
+      "value": "backup created 2021-07-31 and retained against a 36-month limit",
+      "documents": [
+        "DR-073",
+        "DR-052"
+      ],
+      "phase": 4
+    },
+    {
+      "id": "model-vs-metrics",
+      "kind": "comparison",
+      "value": "615m MAU assumed flat against 594m in the week of 2025-11-10",
+      "documents": [
+        "DR-096",
+        "DR-048"
+      ],
+      "phase": 4
+    },
+    {
+      "id": "covenant-vs-incident",
+      "kind": "comparison",
+      "value": "termination for a Security Incident against a probable bulk export",
+      "documents": [
+        "DR-035",
+        "DR-069"
+      ],
+      "phase": 4
+    },
+    {
+      "id": "price-reduction",
+      "kind": "number",
+      "value": "$400m",
+      "documents": [
+        "DR-088",
+        "DR-029",
+        "DR-096"
+      ],
+      "phase": 5
+    }
+  ],
+  "answer": {
+    "action": "reprice or escrow",
+    "number": 400,
+    "low": 375,
+    "high": 525,
+    "unit": "USD millions"
+  },
+  "rubric": [
+    {
+      "id": 1,
+      "criterion": "Identifies the undisclosed account-data / security incident",
+      "points": 20,
+      "earns": "Names the incident (AURORA / NQ-17 / \"Trust Reset\"), the 18-20 October 2025 window, the `legacy_uap_backup_2021.tar.gz` backup, and that ~286m active / ~912.8m total records were probably accessed/exfiltrated."
+    },
+    {
+      "id": 2,
+      "criterion": "Connects technical evidence",
+      "points": 15,
+      "earns": "Ties together SIEM/object-store logs, the over-retained backup inventory, the unrotated VPAuth signing key (cookie forging), and the IronLake draft-vs-final delta."
+    },
+    {
+      "id": 3,
+      "criterion": "Connects legal/regulatory & seller-rep contradiction",
+      "points": 15,
+      "earns": "Shows management knew (disclosure committee / disclosure-controls memo) yet the seller reps deny a material incident; notes the regulator inquiries."
+    },
+    {
+      "id": 4,
+      "criterion": "Identifies insurance coverage weakness",
+      "points": 10,
+      "earns": "Late notice past the 45-day condition + prior-known-events exclusion ⇒ little/no recovery."
+    },
+    {
+      "id": 5,
+      "criterion": "Identifies advertiser/customer contract consequences",
+      "points": 10,
+      "earns": "User-trust/security/notification covenants ⇒ credits, renegotiation or termination leverage; cites early churn signals."
+    },
+    {
+      "id": 6,
+      "criterion": "Quantifies financial impact",
+      "points": 10,
+      "earns": "Uses the $240m-$465m exposure vs the $12m reserve, and the metric/synergy degradation."
+    },
+    {
+      "id": 7,
+      "criterion": "Recommends price reduction / escrow (not vague concern)",
+      "points": 10,
+      "earns": "A concrete ~$400m chip (range $375m-$525m) **or** equivalent special indemnity/escrow; not \"walk away\", not \"ask in Q&A\"."
+    },
+    {
+      "id": 8,
+      "criterion": "Distinguishes decoy issues",
+      "points": 5,
+      "earns": "Correctly treats tax nexus, OSS, search concentration, email-gateway noise and ordinary attrition as smaller."
+    },
+    {
+      "id": 9,
+      "criterion": "Cites specific document IDs accurately",
+      "points": 5,
+      "earns": "References correct DR-### documents for its key claims."
+    }
+  ],
+  "bar": {
+    "perfect": 100,
+    "wrong_under": 40
+  }
+}

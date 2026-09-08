@@ -1,0 +1,37 @@
+week_start | email_wau_m | password_reset_volume_k | login_failure_pct | support_contacts | notes
+
+2025-09-01 | 168 | 905 | 0.80 | 2501 | baseline
+
+2025-09-08 | 167 | 890 | 0.79 | 2290 | baseline
+
+2025-09-15 | 169 | 912 | 0.81 | 2909 | baseline
+
+2025-09-22 | 168 | 899 | 0.80 | 2848 | baseline
+
+2025-09-29 | 170 | 916 | 0.78 | 2368 | baseline
+
+2025-10-06 | 169 | 903 | 0.82 | 2805 | baseline
+
+2025-10-13 | 168 | 908 | 0.80 | 2498 | baseline
+
+2025-10-20 | 165 | 1240 | 1.10 | 3851 | early reset ramp; login friction rising
+
+2025-10-27 | 161 | 3600 | 1.90 | 8713 | early reset ramp; login friction rising
+
+2025-11-03 | 154 | 22800 | 4.60 | 46727 | Trust Reset wave 1 — password-reset volume and login failures spike
+
+2025-11-10 | 149 | 31200 | 5.10 | 62452 | Trust Reset wave 2 — reset volume and support contacts at peak
+
+2025-11-17 | 151 | 18400 | 3.40 | 37115 | reset volume normalising; WAU recovering slowly
+
+2025-11-24 | 155 | 9100 | 2.10 | 18994 | reset volume normalising; WAU recovering slowly
+
+2025-12-01 | 158 | 4200 | 1.50 | 9130 | reset volume normalising; WAU recovering slowly
+
+2025-12-08 | 160 | 2300 | 1.20 | 5517 | reset volume normalising; WAU recovering slowly
+
+2025-12-15 | 161 | 1500 | 1.00 | 3745 | reset volume normalising; WAU recovering slowly
+
+2025-12-22 | 159 | 1180 | 0.95 | 3139 | reset volume normalising; WAU recovering slowly
+
+2025-12-29 | 162 | 1020 | 0.88 | 2822 | reset volume normalising; WAU recovering slowly
