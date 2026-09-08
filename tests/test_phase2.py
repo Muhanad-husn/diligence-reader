@@ -32,13 +32,18 @@ from rlm.gateway import (
     price,
 )
 from rlm.key import load_key
+from rlm.map import ordinary_words
 from rlm.notes import (
     CROSS_REFERENCE_KINDS,
     DEFAULT_MODEL,
     LOG_KEYS,
     MAX_OUTPUT_TOKENS,
+    NAMED_VALUE_LIMIT,
     NOTE_KEYS,
     QUOTED_FIELDS,
+    REASK_ITEMS,
+    REASK_JSON,
+    REASK_VALUES,
     SYSTEM_PROMPT,
     build_messages,
     document_text,
@@ -46,13 +51,17 @@ from rlm.notes import (
     item_detail,
     locate_quote,
     main,
+    model_note,
+    named_values,
     note_name,
+    read_index,
     read_sections,
     straighten,
     verify_items,
     well_shaped,
 )
 from rlm.sections import parse_anchor
+from rlm.words import fold as fold_value
 
 ROOT = Path(__file__).resolve().parents[1]
 SKIP_REASON = "notes not run for this sample yet"
@@ -646,6 +655,72 @@ def test_one_document_verify_items_keeps_two_items_that_share_a_quote_and_differ
     assert dropped == []
 
 
+def test_one_document_verify_items_keeps_the_about_values_inside_the_flags_quote():
+    """A flag names the identifiers and figures its own quote carries."""
+    quote = "Management recommends a reserve of $12m at this time"
+    items = [{"flag": "The reserve is soft", "quote": quote, "consequence": "c", "about": ["$12m"]}]
+    kept, dropped = verify_items(DR_069, "flags", items, DRIFT_SECTIONS)
+    assert dropped == []
+    assert kept[0]["about"] == ["$12m"]
+
+
+def test_one_document_verify_items_drops_an_about_value_outside_the_quote():
+    """An about value that is not in the flag's quote is dropped and the flag is kept."""
+    quote = "Management recommends a reserve of $12m at this time"
+    items = [
+        {
+            "flag": "The reserve is soft",
+            "quote": quote,
+            "consequence": "c",
+            "about": ["$12m", "AURORA", 12, "counsel's view"],
+        }
+    ]
+    kept, dropped = verify_items(DR_069, "flags", items, DRIFT_SECTIONS)
+    assert dropped == []
+    assert len(kept) == 1
+    assert kept[0]["about"] == ["$12m"]
+
+
+def test_one_document_verify_items_reads_a_flag_without_about_as_an_empty_list():
+    """An older reply that writes no about, or writes something that is not a list, keeps the
+    flag with an empty about."""
+    quote = "Management recommends a reserve of $12m at this time"
+    items = [
+        {"flag": "The reserve is soft", "quote": quote, "consequence": "c"},
+        {"flag": "The reserve is late", "quote": quote, "consequence": "c", "about": "$12m"},
+    ]
+    kept, dropped = verify_items(DR_069, "flags", items, DRIFT_SECTIONS)
+    assert dropped == []
+    assert [flag["about"] for flag in kept] == [[], []]
+
+
+def test_one_document_verify_items_keeps_a_repeated_about_value_once():
+    quote = "Management recommends a reserve of $12m at this time"
+    items = [
+        {
+            "flag": "The reserve is soft",
+            "quote": quote,
+            "consequence": "c",
+            "about": ["$12m", "reserve", "$12m"],
+        }
+    ]
+    kept, _ = verify_items(DR_069, "flags", items, DRIFT_SECTIONS)
+    assert kept[0]["about"] == ["$12m", "reserve"]
+
+
+def test_one_document_two_flags_that_differ_only_in_about_are_kept_once():
+    """The dedup signature of a flag is its flag, quote and consequence, as it was."""
+    quote = "Management recommends a reserve of $12m at this time"
+    items = [
+        {"flag": "f", "quote": quote, "consequence": "c", "about": ["$12m"]},
+        {"flag": "f", "quote": quote, "consequence": "c", "about": ["reserve"]},
+    ]
+    kept, dropped = verify_items(DR_069, "flags", items, DRIFT_SECTIONS)
+    assert len(kept) == 1
+    assert kept[0]["about"] == ["$12m"]
+    assert dropped == []
+
+
 def test_one_document_well_shaped_wants_what_and_at_least_one_list_key():
     assert well_shaped({"what": "x", "flags": [], "figures": [], "cross_references": [], "concealed": []})
     assert well_shaped({"what": "x", "flags": []})
@@ -656,10 +731,285 @@ def test_one_document_well_shaped_wants_what_and_at_least_one_list_key():
     assert not well_shaped({"what": 3, "flags": []})
 
 
+def test_one_document_the_prompt_asks_each_flag_for_what_it_is_about():
+    """The schema and the rules both name about, so a flag comes back with its own values."""
+    assert '"about"' in SYSTEM_PROMPT
+    assert "about lists" in SYSTEM_PROMPT
+    assert "verbatim" in SYSTEM_PROMPT
+    assert "flag, quote, consequence and about" in REASK_ITEMS
+    assert "flag, quote, consequence and about" in REASK_JSON
+
+
 def test_one_document_the_prompt_stays_inside_its_budget():
-    """The system prompt is under 3800 characters and one note is capped at 6000 output tokens."""
-    assert len(SYSTEM_PROMPT) < 3800
+    """The system prompt is under 4200 characters and one note is capped at 6000 output tokens.
+
+    The budget was 3800 until #106, which added the about key to the flag schema, the rule that
+    lists what a flag is about, and the rule that every code, name and headline figure sits
+    inside the quote of a flag. The schema labels were shortened to pay part of that; the rest
+    of the prompt is the wording the phase 2 bake-off was measured on and was left alone.
+    """
+    assert len(SYSTEM_PROMPT) < 4200
     assert MAX_OUTPUT_TOKENS == 6000
+
+
+# ---------------------------------------------------------------- notes: the values of a document
+
+
+OTHER_DOC = "data_room/05_Security_IT_and_Infrastructure/Backup_Retention_Inventory.xlsx"
+THIRD_DOC = "data_room/06_Legal_Regulatory_and_Compliance/Outside_Counsel_Privacy_Risk_Memo_Redacted.pdf"
+
+# A second section of the drift memo, carrying a code, a magnitude and a person's name.
+EGRESS = "Peak egress on the AURORA prefix reached 286m rows, per Renata Castellano."
+VALUE_SECTIONS = [section(1, SENTENCE), section(2, EGRESS)]
+
+
+def index_record(kind: str, surface: str, docs: list[str], unit: str | None = None) -> dict:
+    """One record of the phase 1 index, anchored once inside each document that carries it."""
+    return {
+        "kind": kind,
+        "surface": surface,
+        "value": surface,
+        "unit": unit,
+        "anchors": [f"{doc}#p1l1" for doc in docs],
+        "context": surface,
+        "docs": list(docs),
+    }
+
+
+def write_index(run_dir: Path, records: list[dict]) -> Path:
+    """Writes a small index.jsonl under run_dir, one record per line."""
+    run_dir.mkdir(parents=True, exist_ok=True)
+    path = run_dir / "index.jsonl"
+    path.write_text(
+        "".join(json.dumps(record, sort_keys=True) + "\n" for record in records), encoding="utf-8"
+    )
+    return path
+
+
+class Replies:
+    """Stands in for the gateway call model_note makes, answering with each canned text in turn."""
+
+    def __init__(self, texts: list[str]):
+        self.texts = list(texts)
+        self.messages: list[list[dict]] = []
+
+    def __call__(self, messages: list[dict]) -> Completion:
+        self.messages.append(messages)
+        return Completion(text=self.texts.pop(0), tokens_in=1000, tokens_out=200, seconds=0.1, model=MODEL)
+
+
+def test_one_document_named_values_are_the_surfaces_the_map_can_link_through(tmp_path):
+    """An identifier, a money or unit amount and a one-word capitalised name a second document
+    carries; a percentage, a bare decimal, a count, a person and a lower-case word are not."""
+    write_index(
+        tmp_path,
+        [
+            index_record("identifier", "legacy_uap_backup_2021.tar.gz", [DR_069, OTHER_DOC]),
+            index_record("amount", "912.8m", [DR_069, OTHER_DOC]),
+            index_record("name", "AURORA", [DR_069, THIRD_DOC]),
+            index_record("name", "Renata Castellano", [DR_069, OTHER_DOC]),
+            index_record("name", "backup", [DR_069, OTHER_DOC]),
+            index_record("amount", "286m", [DR_069]),
+            index_record("amount", "1,840", [DR_069, OTHER_DOC]),
+            index_record("amount", "0.2%", [DR_069, OTHER_DOC]),
+            index_record("amount", "0.80", [DR_069, OTHER_DOC]),
+            index_record("amount", "$12m", [DR_069, OTHER_DOC]),
+            index_record("amount", "24 months", [DR_069, OTHER_DOC]),
+            index_record("date", "14 October 2025", [DR_069, OTHER_DOC]),
+            index_record("identifier", "NQ-17", [OTHER_DOC, THIRD_DOC]),
+        ],
+    )
+    assert named_values(read_index(tmp_path), DR_069) == [
+        "$12m",
+        "24 months",
+        "912.8m",
+        "AURORA",
+        "legacy_uap_backup_2021.tar.gz",
+    ]
+
+
+def test_one_document_named_values_leave_the_rooms_ordinary_words_out(tmp_path):
+    """A capitalised word the room also writes in lower case, passed as skipped, is not a value."""
+    write_index(
+        tmp_path,
+        [
+            index_record("name", "COUNSEL", [DR_069, OTHER_DOC]),
+            index_record("name", "AURORA", [DR_069, OTHER_DOC]),
+        ],
+    )
+    assert named_values(read_index(tmp_path), DR_069, frozenset({"COUNSEL"})) == ["AURORA"]
+
+
+def test_all_documents_main_never_asks_for_a_document_id(tmp_path, capsys):
+    """DR-013 is a document of the room, not a value of a matter: the room's index names every
+    document, and asking the index's note to quote every row seeded the map at the index."""
+    run_dir = Path(atlas_run_without_index(tmp_path))
+    write_index(
+        run_dir,
+        [
+            index_record("identifier", "DR-013", [DR_069, OTHER_DOC]),
+            index_record("identifier", "NQ-17", [DR_069, OTHER_DOC]),
+        ],
+    )
+    transport = FakeTransport([reply(json.dumps(MINIMAL_NOTE)), reply(json.dumps(MINIMAL_NOTE))])
+    ledger_path = tmp_path / "LEDGER.md"
+    write_ledger(ledger_path, [])
+    code = main(
+        [str(ROOT / "samples" / "atlas"), str(run_dir), "--only", "DR-069", "--model", MODEL],
+        gateway=Gateway(api_key="k", transport=transport),
+        ledger=Ledger(ledger_path),
+    )
+    assert code == 0
+    asked = json.loads(transport.requests[1].content)["messages"][-1]["content"]
+    assert "NQ-17" in asked
+    assert "DR-013" not in asked
+
+
+def test_one_document_named_values_put_the_rarest_carried_value_first(tmp_path):
+    write_index(
+        tmp_path,
+        [
+            index_record("identifier", "AAA-1", [DR_069, OTHER_DOC, THIRD_DOC, "d4"]),
+            index_record("identifier", "BBB-2", [DR_069, OTHER_DOC]),
+            index_record("identifier", "CCC-3", [DR_069, OTHER_DOC, THIRD_DOC]),
+            index_record("date", "2025-10-18", [f"d{n}" for n in range(4, 12)]),
+        ],
+    )
+    assert named_values(read_index(tmp_path), DR_069) == ["BBB-2", "CCC-3", "AAA-1"]
+
+
+def test_one_document_named_values_stop_at_the_limit(tmp_path):
+    write_index(
+        tmp_path,
+        [index_record("identifier", f"ID-{number:03d}", [DR_069, OTHER_DOC]) for number in range(60)],
+    )
+    values = named_values(read_index(tmp_path), DR_069)
+    assert NAMED_VALUE_LIMIT == 40
+    assert len(values) == NAMED_VALUE_LIMIT
+    assert values[0] == "ID-000"
+
+
+def test_one_document_named_values_are_empty_without_an_index(tmp_path):
+    """A run directory phase 1 never indexed gives no named values and nothing raises."""
+    assert read_index(tmp_path) == []
+    assert named_values(read_index(tmp_path), DR_069) == []
+
+
+def test_one_document_about_is_the_models_values_then_the_index_values_in_the_quote():
+    """Code fills what the model left out: a named value inside the quote joins the flag's about."""
+    items = [{"flag": "The reserve is soft", "quote": SENTENCE, "consequence": "c", "about": ["counsel"]}]
+    kept, dropped = verify_items(
+        DR_069, "flags", items, DRIFT_SECTIONS, named=["$12m", "reserve", "286m"]
+    )
+    assert dropped == []
+    assert kept[0]["about"] == ["counsel", "$12m", "reserve"]
+
+
+def test_one_document_about_does_not_write_a_value_the_model_already_named():
+    items = [{"flag": "The reserve is soft", "quote": SENTENCE, "consequence": "c", "about": ["$12m"]}]
+    kept, _ = verify_items(DR_069, "flags", items, DRIFT_SECTIONS, named=["$12m", "reserve"])
+    assert kept[0]["about"] == ["$12m", "reserve"]
+
+
+def test_one_document_about_is_the_models_list_alone_without_an_index():
+    items = [{"flag": "The reserve is soft", "quote": SENTENCE, "consequence": "c", "about": ["$12m"]}]
+    kept, _ = verify_items(DR_069, "flags", items, DRIFT_SECTIONS)
+    assert kept[0]["about"] == ["$12m"]
+
+
+def test_one_document_every_value_inside_a_flag_quote_makes_one_call():
+    """Nothing failed and nothing is uncovered, so there is no second call."""
+    answer = {
+        "what": "x",
+        "flags": [{"flag": "f", "quote": SENTENCE, "consequence": "c", "about": ["$12m"]}],
+        "figures": [],
+        "cross_references": [],
+        "concealed": [],
+    }
+    calls = Replies([json.dumps(answer)])
+    note, records = model_note(DR_069, MODEL, "a", DRIFT_SECTIONS, calls, named=["$12m", "reserve"])
+    assert len(calls.messages) == 1
+    assert records == []
+    assert note["flags"][0]["about"] == ["$12m", "reserve"]
+
+
+def test_one_document_a_value_inside_no_flag_quote_is_asked_for_once():
+    """The second call names the value and asks for the sentence that introduces it."""
+    first = {
+        "what": "x",
+        "flags": [{"flag": "f", "quote": SENTENCE, "consequence": "c", "about": ["$12m"]}],
+        "figures": [],
+        "cross_references": [],
+        "concealed": [],
+    }
+    second = json.loads(json.dumps(first))
+    second["flags"].append({"flag": "g", "quote": EGRESS, "consequence": "c", "about": ["286m"]})
+    calls = Replies([json.dumps(first), json.dumps(second)])
+    note, records = model_note(DR_069, MODEL, "a", VALUE_SECTIONS, calls, named=["$12m", "286m"])
+
+    assert len(calls.messages) == 2
+    asked = calls.messages[1][-1]["content"]
+    assert "These values of the document are inside no flag's quote:" in asked
+    assert "286m" in asked
+    assert "These items of your reply did not verify" not in asked
+    assert "add one flag that quotes verbatim the sentence or table row that introduces it" in asked
+    assert "Keep every existing item exactly as it was." in asked
+    # Nothing about the uncovered list reaches the verify log.
+    assert records == []
+    assert [flag["flag"] for flag in note["flags"]] == ["f", "g"]
+    assert note["flags"][1]["about"] == ["286m"]
+
+
+def test_one_document_a_cross_reference_in_no_flag_quote_is_not_asked_for():
+    """Only the index's named values are asked for; a code the note itself wrote is not."""
+    first = {
+        "what": "x",
+        "flags": [{"flag": "f", "quote": SENTENCE, "consequence": "c", "about": []}],
+        "figures": [],
+        "cross_references": [{"kind": "code", "value": "AURORA", "quote": EGRESS}],
+        "concealed": [],
+    }
+    calls = Replies([json.dumps(first)])
+    model_note(DR_069, MODEL, "a", VALUE_SECTIONS, calls, named=[])
+
+    assert len(calls.messages) == 1
+
+
+def test_one_document_named_values_leave_out_a_value_more_than_half_the_room_carries(tmp_path):
+    """A surface every document writes, a footer word, is not a value the map can link on."""
+    room = [f"data_room/doc{n}.pdf" for n in range(6)]
+    write_index(
+        tmp_path,
+        [
+            index_record("name", "CONFIDENTIAL", [DR_069] + room),
+            index_record("name", "AURORA", [DR_069, room[0]]),
+        ],
+    )
+    assert named_values(read_index(tmp_path), DR_069) == ["AURORA"]
+
+
+def test_one_document_the_reask_lists_the_failed_items_then_the_uncovered_values():
+    """A document with both gets one message carrying the failed items block, then the values."""
+    first = {
+        "what": "x",
+        "flags": [
+            {"flag": "f", "quote": SENTENCE, "consequence": "c", "about": []},
+            {"flag": "made up", "quote": "the attacker was a state actor", "consequence": "c"},
+        ],
+        "figures": [],
+        "cross_references": [],
+        "concealed": [],
+    }
+    calls = Replies([json.dumps(first), json.dumps(first)])
+    model_note(DR_069, MODEL, "a", VALUE_SECTIONS, calls, named=["286m"])
+
+    asked = calls.messages[1][-1]["content"]
+    opening = REASK_VALUES.split("{")[0].strip()
+    assert "These items of your reply did not verify" in asked
+    assert "the attacker was a state actor" in asked
+    assert asked.index("These items of your reply") < asked.index(opening)
+    assert "286m" in asked
+
 
 
 # ---------------------------------------------------------------- notes: main with a fake gateway
@@ -670,6 +1020,20 @@ def atlas_sections() -> list[dict]:
     if not path.exists():
         pytest.skip("runs/atlas/sections.jsonl absent; run phase 1 ingest first")
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+
+
+def atlas_run_without_index(tmp_path: Path) -> str:
+    """A run directory holding runs/atlas's sections and no index.jsonl.
+
+    A document with no named values and no cross reference outside its flags is not asked a
+    second time, so a pass over this directory makes one call per document. The tests that count
+    calls, tokens and ledger rows read it, and the value re-ask is tested on its own.
+    """
+    atlas_sections()
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy(ROOT / "runs" / "atlas" / "sections.jsonl", run_dir / "sections.jsonl")
+    return str(run_dir)
 
 
 CANNED_NOTE = {
@@ -892,7 +1256,7 @@ def test_all_documents_main_notes_every_document_of_the_key(tmp_path, capsys):
     out = tmp_path / "out"
 
     code = main(
-        [str(ROOT / "samples" / "atlas"), str(ROOT / "runs" / "atlas"), "--model", MODEL, "--out", str(out)],
+        [str(ROOT / "samples" / "atlas"), atlas_run_without_index(tmp_path), "--model", MODEL, "--out", str(out)],
         gateway=gateway,
         ledger=Ledger(ledger_path),
     )
@@ -948,11 +1312,12 @@ def test_all_documents_only_merges_its_counts_into_the_existing_summary(tmp_path
     write_ledger(ledger_path, [("2026-09-05", "", "", "", 0, 0, 0.0, 50.0)])
     out = tmp_path / "out"
 
+    run_dir = atlas_run_without_index(tmp_path)
     full_transport = FakeTransport(
         [reply(json.dumps(MINIMAL_NOTE), tokens_in=2500, tokens_out=400) for _ in key.documents]
     )
     code = main(
-        [str(ROOT / "samples" / "atlas"), str(ROOT / "runs" / "atlas"), "--model", MODEL, "--out", str(out)],
+        [str(ROOT / "samples" / "atlas"), run_dir, "--model", MODEL, "--out", str(out)],
         gateway=Gateway(api_key="k", transport=full_transport),
         ledger=Ledger(ledger_path),
     )
@@ -965,7 +1330,7 @@ def test_all_documents_only_merges_its_counts_into_the_existing_summary(tmp_path
     code = main(
         [
             str(ROOT / "samples" / "atlas"),
-            str(ROOT / "runs" / "atlas"),
+            run_dir,
             "--model",
             MODEL,
             "--only",
@@ -1012,7 +1377,7 @@ def test_all_documents_only_into_an_empty_out_dir_counts_the_key_from_disk(tmp_p
     code = main(
         [
             str(ROOT / "samples" / "atlas"),
-            str(ROOT / "runs" / "atlas"),
+            atlas_run_without_index(tmp_path),
             "--model",
             MODEL,
             "--only",
@@ -1269,7 +1634,7 @@ def test_all_documents_a_call_that_raises_drops_the_note_and_the_pass_goes_on(tm
     out = tmp_path / "out"
 
     code = main(
-        [str(ROOT / "samples" / "atlas"), str(ROOT / "runs" / "atlas"), "--model", MODEL, "--out", str(out)],
+        [str(ROOT / "samples" / "atlas"), atlas_run_without_index(tmp_path), "--model", MODEL, "--out", str(out)],
         gateway=gateway,
         ledger=Ledger(ledger_path),
     )
@@ -1607,7 +1972,7 @@ def test_one_document_main_harvests_the_figures_a_reply_left_out(tmp_path, capsy
     code = main(
         [
             str(ROOT / "samples" / "atlas"),
-            str(ROOT / "runs" / "atlas"),
+            atlas_run_without_index(tmp_path),
             "--model",
             MODEL,
             "--only",
@@ -1658,7 +2023,7 @@ def test_one_document_main_keeps_a_harvested_figure_the_model_already_quoted_onc
     code = main(
         [
             str(ROOT / "samples" / "atlas"),
-            str(ROOT / "runs" / "atlas"),
+            atlas_run_without_index(tmp_path),
             "--model",
             MODEL,
             "--only",
@@ -1779,7 +2144,12 @@ def assert_notes_well_shaped(notes, key):
         for field in QUOTED_FIELDS:
             assert isinstance(note[field], list), (name, field)
         for flag in note["flags"]:
-            assert set(flag) == {"flag", "quote", "anchor", "consequence"}, name
+            assert set(flag) == {"flag", "quote", "anchor", "consequence", "about"}, name
+            assert isinstance(flag["about"], list), name
+            inside = straighten(flag["quote"])
+            for value in flag["about"]:
+                assert isinstance(value, str), name
+                assert straighten(value) in inside, (name, value)
         for figure in note["figures"]:
             assert set(figure) == {"surface", "quote", "anchor"}, name
         for ref in note["cross_references"]:
@@ -1991,6 +2361,46 @@ def test_all_documents_carry_every_planted_quote(notes, key):
         ]
         quotes = [item["quote"] for note in noted for _, _, item in quoted_items(note)]
         assert hits, f"{fact.id}: {fact.value!r} not inside any verified quote of {paths}; the notes quote {quotes}"
+
+
+def test_seed_document_flags_name_every_planted_identifier(notes, key, run_dir, sample):
+    """Every planted identifier and figure of a seed document that the index can ask for is
+    named by one of its flags.
+
+    The map joins a document to the matter where the shared value is one a flag of both notes
+    says it is about, so a seed whose flags name none of its own planted values cannot pull the
+    documents that carry them into the set. The values held to this are the seed's named values
+    (rlm.notes.named_values, what the coverage re-ask can put in front of the model): a planted
+    value the index does not carry as an identifier, a money or unit amount or a one-word code,
+    or that more than half the room carries, is left to the model's own draw and not asserted.
+    The check reads the seed off map.json and is skipped where the map has not been run.
+    """
+    map_path = run_dir / "map.json"
+    if not map_path.exists():
+        pytest.skip("map not run for this sample yet")
+    document = json.loads(map_path.read_text(encoding="utf-8"))
+    seeds = document["matters"][0]["seed"]
+    by_path = {note["doc"]: note for _, note in notes.values()}
+    index = read_index(run_dir)
+    sections = [json.loads(line) for line in (run_dir / "sections.jsonl").read_text(encoding="utf-8").splitlines()]
+    skipped = frozenset(ordinary_words(sections)) | frozenset(key.documents)
+    for seed in seeds:
+        note = by_path.get(key.documents[seed])
+        assert note is not None, f"{seed} is the seed of {sample} and has no note"
+        askable = [fold_value(value) for value in named_values(index, key.documents[seed], skipped)]
+        about = [value for flag in note["flags"] for value in flag.get("about", [])]
+        for fact in key.facts:
+            if fact.kind not in ("identifier", "number") or fact.phase not in (1, 2):
+                continue
+            if seed not in fact.documents:
+                continue
+            wanted = fold_value(fact.value)
+            if not any(wanted in value for value in askable):
+                continue
+            assert any(wanted in fold_value(value) for value in about), (
+                f"{fact.id}: {fact.value!r} of the seed {seed} is in no flag of its note; "
+                f"its flags are about {about}"
+            )
 
 
 def readout(terminalreporter):
@@ -2709,7 +3119,7 @@ def test_bakeoff_notes_only_is_repeatable(tmp_path, capsys):
     code = main(
         [
             str(ROOT / "samples" / "atlas"),
-            str(ROOT / "runs" / "atlas"),
+            atlas_run_without_index(tmp_path),
             "--model",
             MODEL,
             "--only",

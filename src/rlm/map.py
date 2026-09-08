@@ -7,9 +7,11 @@ note wrote, a `version` pair of a draft and its final, and a `date` where two do
 dated section within seven days of each other. A shared value weighs less the more documents
 carry it, so AURORA in sixteen documents weighs a quarter of `vpauth-legacy-2019` in four.
 
-An `identifier` or `cross-reference` edge is kept only where the value is inside a flag or a
-concealed item of both documents. A value only the index saw joins two documents by coincidence
-about as often as by matter; a value both notes wrote down as a worry is the matter itself.
+An `identifier` or `cross-reference` edge is kept only where a flag of both notes says it is
+about that value, or the value is inside a concealed item of both. A value only the index saw
+joins two documents by coincidence about as often as by matter; a value both notes named as the
+thing a worry is about is the matter itself. A flag's own words, its quote and its consequence
+are not looked inside: a flag that mentions a code in passing is not a flag about that code.
 Date and version edges are kept as they are, because neither is a coincidence of vocabulary.
 
 The matter is seeded at the document whose three strongest links are the strongest in the room.
@@ -19,7 +21,8 @@ seed. Only non-date edges are followed, and never an edge whose value is a bare 
 a room shares `5` and `2025` the way it shares the alphabet. Each rule below runs once, on the
 set the rules before it built, and is not repeated.
 
-A document joins as `shared` where it has such an edge to the seed. It joins as `version` where
+A document joins as `shared` where it has such an edge to the seed, which is to say where a flag
+of its note and a flag of the seed's note are about the same value. It joins as `version` where
 it is the draft or the final of a pair the set already touches. It joins as `consequence` where
 the matter broke a series it holds, or where it is a model written after the matter that still
 carries a figure the broken series left behind. It joins as `reach` where two different
@@ -188,18 +191,43 @@ def read_notes(run_dir: Path, ids_by_path: dict[str, str]) -> dict[str, dict]:
     return notes
 
 
-def worry_text(note: dict) -> str:
-    """The folded words of a note's flags and concealed items, joined into one string.
+def named_values(note: dict) -> tuple[set[str], str]:
+    """The folded values a note's flags are about, and its concealed items as one folded string.
 
-    This is where a value has to appear for the map to count it as a link: what the note wrote
-    down as a worry, not what the document happens to mention.
+    This is where a value has to appear for the map to count it as a link: what a flag names as
+    the thing it is about, whole, or what the note wrote down as concealed. A flag's own words,
+    its quote and its consequence are not looked inside, because a flag that mentions a code in
+    passing is not a flag about that code, and a value is not read inside another value, because
+    legacy_uap is not legacy_uap_backup_2021.tar.gz. A note written before flags carried about
+    reads as its concealed items alone.
     """
-    parts = []
-    for flag in note["flags"]:
-        parts += [flag["flag"], flag["quote"], flag["consequence"]]
-    for item in note["concealed"]:
-        parts += [item["claim"], item["quote"]]
-    return fold(" ".join(parts))
+    values = {
+        fold(value)
+        for flag in note["flags"]
+        for value in flag.get("about", [])
+        if isinstance(value, str) and fold(value)
+    }
+    concealed = fold(" ".join(part for item in note["concealed"] for part in (item["claim"], item["quote"])))
+    return values, concealed
+
+
+def is_about(named: tuple[set[str], str] | None, folded: str) -> bool:
+    """Whether a folded value is one a note's flags are about, or sits in its concealed items.
+
+    A value with a digit in it also counts when it sits whole, on word boundaries, inside one
+    element: 24 months is inside twenty-four (24) months and vpauth-legacy-2019 is inside
+    kid=vpauth-legacy-2019. A value without a digit has to be the element: legacy_uap is not
+    legacy_uap_backup_2021.tar.gz.
+    """
+    if not named or not folded:
+        return False
+    values, concealed = named
+    if folded in values or folded in concealed:
+        return True
+    if not any(char.isdigit() for char in folded):
+        return False
+    inside = re.compile(r"(?<!\S)" + re.escape(folded) + r"(?!\S)")
+    return any(inside.search(value) for value in values)
 
 
 def person_values(notes: dict[str, dict]) -> set[str]:
@@ -455,7 +483,7 @@ def build_edges(
     """Every edge of the map, sorted by its two documents, its kind and its value."""
     breadth = max(2, int(len(order) * BREADTH_SHARE))
     skipped = person_values(notes) | ordinary_words(sections)
-    worries = {doc_id: worry_text(note) for doc_id, note in notes.items()}
+    named = {doc_id: named_values(note) for doc_id, note in notes.items()}
 
     edges: dict[tuple, dict] = {}
     for kind, value, carriers in shared_values(
@@ -467,8 +495,7 @@ def build_edges(
         folded = fold(value)
         for a, b in itertools.combinations(sorted(carriers), 2):
             if kind != "version":
-                worried = folded and folded in worries.get(a, "") and folded in worries.get(b, "")
-                if not worried:
+                if not (is_about(named.get(a), folded) and is_about(named.get(b), folded)):
                     continue
             marker = (a, b, kind, str(value))
             if marker in edges and edges[marker]["weight"] >= weight:

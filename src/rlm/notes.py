@@ -7,7 +7,12 @@ flags, its figures, its cross references and what it conceals, quoting the docum
 Code then verifies every item against the document's own sections. An item must carry every
 required key of its field as a string: a flag has flag, quote and consequence, a figure has
 surface and quote, a cross reference has kind, value and quote, and a concealed item has claim
-and quote. An item that answers with the model's own key names instead fails. A quote passes
+and quote. A flag also carries about, the names, identifiers, codes and figures its own quote names:
+code keeps every element of that list that is a string and reads verbatim inside the quote,
+drops the rest without a log line and without a re-ask, and then adds the document's own named
+values that read inside the quote and the model left out. A named value is a surface the phase 1
+index gives the document and at least one other document, of the kinds the map joins documents
+on. An item that answers with the model's own key names instead fails. A quote passes
 when its text, with whitespace collapsed, curly quotes and apostrophes straightened, and
 markdown emphasis marks dropped, is a substring of one section's text treated the same way, or
 of two adjacent sections joined by one space. Case is not folded. The anchor written into the
@@ -25,9 +30,14 @@ the anchor of the section they were read from, and one that matches a model figu
 is kept once. The model's items lead the field and the harvested ones follow in document order.
 
 A document whose items fail is asked again once, with its first reply and, for each failed
-item, its field, its quote and the reason it failed. The note is then the union, field by
-field, of what verified on the first reply and what verifies on the second, so a second reply
-that answers with fewer items loses nothing; an item both replies write is kept once. What
+item, its field, its quote and the reason it failed. That one message also asks for the values
+of the document no flag quotes: every named value, and every value the note's own cross
+references wrote as a code, a name, a document or a ticket, that reads inside no verified flag's
+quote. Each of them is asked for as one flag quoting the sentence or row that introduces it. A
+document with nothing failed but a value uncovered is asked again as well; a document with
+neither is not asked again at all, and there is never a third call. The note is then the union,
+field by field, of what verified on the first reply and what verifies on the second, so a second
+reply that answers with fewer items loses nothing; an item both replies write is kept once. What
 fails on the second reply is dropped and written to notes-verify.jsonl. A reply that is not one
 JSON object, or that has no what or none of the four lists, is asked again with the exact key
 names, and a second reply that fails the same way drops the note whole. There is no third call.
@@ -54,11 +64,14 @@ import json
 import re
 import sys
 import time
+from collections.abc import Sequence
 from pathlib import Path
 
 from rlm.amounts import AMOUNT
 from rlm.gateway import PHASE_CAPS, Batch, Completion, Gateway, Ledger, estimate_tokens, price
 from rlm.key import load_key
+from rlm.map import BREADTH_SHARE, is_count, ordinary_words
+from rlm.words import fold
 
 PHASE = 2
 
@@ -77,6 +90,12 @@ NOTE_KEYS = frozenset(
 QUOTED_FIELDS = ("flags", "figures", "cross_references", "concealed")
 
 CROSS_REFERENCE_KINDS = frozenset({"code", "name", "person", "document", "regulator", "ticket"})
+
+# The cross reference kinds whose value names something the map can join two documents through.
+# A person is not one of them: the same general counsel signs the tax memo and the forensic memo.
+
+# How many of a document's named values are read, rarest carried first.
+NAMED_VALUE_LIMIT = 40
 
 # The keys code keeps from each item of a quoted field, beside the anchor it writes. Every one
 # of them must be a string in the reply or the item does not verify.
@@ -111,6 +130,8 @@ _CURLY = {"“": '"', "”": '"', "‘": "'", "’": "'"}
 _EMPHASIS_STAR = re.compile(r"(?<!\s)\*|\*(?!\s)")
 _EMPHASIS_UNDERSCORE = re.compile(r"(?<!\w)_|_(?!\w)")
 # The end of a sentence: a full stop, question mark or exclamation mark, then whitespace.
+# An amount worth asking a note about: one with a currency sign or a unit word in it.
+_MONEY_OR_UNIT = re.compile(r"[$£€]|[A-Za-z]")
 _SENTENCE_END = re.compile(r"(?<=[.?!])\s+")
 # How ingest joins the cells of a table row into the row's text.
 _CELL_JOIN = " | "
@@ -123,12 +144,13 @@ Answer with one JSON object and nothing else, with exactly these keys:
  "what": "one sentence saying what this document is",
  "flags": [{"flag": "what is wrong or risky",
             "quote": "the document's own words, verbatim",
-            "consequence": "why it matters to the deal"}],
+            "consequence": "why it matters to the deal",
+            "about": ["each name, identifier, code or figure the quote carries, verbatim"]}],
  "figures": [{"surface": "the number exactly as the document writes it",
-              "quote": "the document's own words around that number, verbatim"}],
+              "quote": "the words around that number, verbatim"}],
  "cross_references": [{"kind": "code|name|person|document|regulator|ticket",
                        "value": "the thing it names",
-                       "quote": "the document's own words carrying it, verbatim"}],
+                       "quote": "the words naming it, verbatim"}],
  "concealed": [{"claim": "what the document hedges, omits or softens",
                 "quote": "the document's own words, verbatim"}]
 }
@@ -136,8 +158,8 @@ Answer with one JSON object and nothing else, with exactly these keys:
 Use exactly these key names; another name drops the item.
 
 Rules for every quote:
-- Copy the document's characters exactly: never a paraphrase, correction, shortening or
-  description. A quote that is not verbatim is dropped.
+- Copy the document's characters exactly: never a paraphrase, correction or shortening.
+  A quote that is not verbatim is dropped.
 - Start a quote at the first word of its sentence, a leading Notwithstanding, Subject to or
   For the avoidance of doubt included, and carry its verb.
 - In a table, a row is written with its cells separated by " | ". Quote one cell's text
@@ -146,8 +168,10 @@ Rules for every quote:
   change of control, assignment or exclusivity paragraph of two or three sentences is one
   quote from its first word to its last full stop, as one flag. Never split it or start it
   after its first word.
-- Do not invent a quote; if you cannot quote it, leave it out.
+- Never invent a quote; if you cannot quote it, leave it out.
 - A figure's surface is copied from its own quote, verbatim, from nowhere else.
+- A flag's about lists every party, customer, vendor, product or system name, identifier,
+  code and figure its own quote carries, verbatim.
 - Do not add an anchor, page, line or section number; those come later.
 
 A diligence reader is buying this business; quote every one that the document carries:
@@ -169,6 +193,9 @@ A diligence reader is buying this business; quote every one that the document ca
   expects it
 - in a document under a page, every prose line, including a note under its own heading: a
   dependency, single point of failure or system of record above all
+- every party, customer, vendor, firm, product or system name, code, ticket, file or
+  object name, key id, workstream or programme name and headline figure the document
+  carries, in the sentence that introduces it
 
 Which sentence to quote:
 - When your flag, claim or what restates a sentence, quote that one, not a neighbor.
@@ -190,16 +217,23 @@ then the quote as you wrote it:
 {items}
 
 Return the whole JSON object again, with exactly these keys: what, flags, figures,
-cross_references, concealed. Each flag has flag, quote and consequence; each figure has surface
-and quote; each cross reference has kind, value and quote; each concealed item has claim and
-quote. Fix every item listed above or leave it out, and keep every other item as it was."""
+cross_references, concealed. Each flag has flag, quote, consequence and about; each figure has
+surface and quote; each cross reference has kind, value and quote; each concealed item has claim
+and quote. Fix every item listed above or leave it out, and keep every other item as it was."""
+
+REASK_VALUES = """These values of the document are inside no flag's quote:
+
+{values}
+
+For each one, add one flag that quotes verbatim the sentence or table row that introduces it and
+lists it in that flag's about. Keep every existing item exactly as it was."""
 
 REASK_JSON = (
     "Your reply was not one JSON object with the keys asked for. Answer again with one JSON "
     "object and nothing else, no prose and no code fence, using exactly these key names: what, "
-    "flags, figures, cross_references, concealed. Each flag has flag, quote and consequence; "
-    "each figure has surface and quote; each cross reference has kind, value and quote; each "
-    "concealed item has claim and quote. Do not rename a key."
+    "flags, figures, cross_references, concealed. Each flag has flag, quote, consequence and "
+    "about; each figure has surface and quote; each cross reference has kind, value and quote; "
+    "each concealed item has claim and quote. Do not rename a key."
 )
 
 
@@ -374,8 +408,145 @@ def _item_reason(field: str, item: object, sections: list[dict]) -> str | None:
     return None
 
 
+def verified_about(about: object, quote: str) -> list[str]:
+    """The values one flag says it is about that are strings and sit inside its own quote.
+
+    An element passes on the rule a figure's surface passes on: its straightened form is a
+    substring of the straightened quote, case exact. The order is the model's own and an element
+    written twice is kept once. An element that fails is dropped silently, and about that is
+    missing or is not a list reads as no values at all.
+    """
+    if not isinstance(about, list):
+        return []
+    inside = straighten(quote)
+    kept: list[str] = []
+    for element in about:
+        if not isinstance(element, str) or straighten(element) not in inside:
+            continue
+        if element not in kept:
+            kept.append(element)
+    return kept
+
+
+def about_values(about: object, quote: str, named: Sequence[str]) -> list[str]:
+    """What one flag is about: the values it verified, then the document's own named values.
+
+    verified_about gives the model's list. Every named value of the document whose straightened
+    form reads inside the straightened quote follows it, in the order named_values listed them.
+    A value the model already wrote, compared after straighten(), is not written twice.
+    """
+    kept = verified_about(about, quote)
+    inside = straighten(quote)
+    seen = {straighten(value) for value in kept}
+    for value in named:
+        straightened = straighten(value)
+        if not straightened or straightened not in inside or straightened in seen:
+            continue
+        seen.add(straightened)
+        kept.append(value)
+    return kept
+
+
+def read_index(run_dir: Path) -> list[dict]:
+    """Every record of run_dir/index.jsonl in file order, and none where there is no such file.
+
+    A run directory phase 1 never indexed gives an empty list, so a note pass over it behaves
+    the way it did before a note read the index at all.
+    """
+    path = run_dir / "index.jsonl"
+    if not path.exists():
+        return []
+    lines = path.read_text(encoding="utf-8").splitlines()
+    return [json.loads(line) for line in lines if line.strip()]
+
+
+def named_values(records: list[dict], doc: str, skipped: frozenset[str] = frozenset()) -> list[str]:
+    """The surfaces of one document that the map can join another document through.
+
+    A surface counts when the index calls it an identifier, or an amount written with a currency
+    sign or a unit word (912.8m, $12m, 24 months) and not a percentage, since 0.2% and 0.80 are
+    carried by a few documents each and asking every note to flag them floods the map, or calls
+    it a name and writes it as one word in upper case, which is the rule map.shared_values links
+    on. A bare
+    count is left out, so is a surface in skipped, which main fills with the room's ordinary
+    words (map.ordinary_words: THE, COUNSEL, DRAFT) and the key's document ids, so is a
+    surface only this document
+    carries, since it joins nothing, and so is one more than BREADTH_SHARE of the room's
+    documents carry, which the map does not link on either. The document of an anchor is the part before its #. The
+    rarest carried surface comes first, ties in alphabetical order, and the list stops at
+    NAMED_VALUE_LIMIT.
+    """
+    room = {anchor.rsplit("#", 1)[0] for record in records for anchor in record["anchors"]}
+    breadth = max(2, int(len(room) * BREADTH_SHARE))
+    carriers: dict[str, int] = {}
+    for record in records:
+        kind = record["kind"]
+        surface = str(record["surface"])
+        linkable = (
+            kind == "identifier"
+            or (kind == "amount" and _MONEY_OR_UNIT.search(surface) and not surface.endswith("%"))
+            or (kind == "name" and " " not in surface and surface.isupper())
+        )
+        if not linkable or is_count(surface) or surface in skipped:
+            continue
+        documents = {anchor.rsplit("#", 1)[0] for anchor in record["anchors"]}
+        if doc not in documents or len(documents) < 2 or len(documents) > breadth:
+            continue
+        held = carriers.get(surface)
+        if held is None or len(documents) < held:
+            carriers[surface] = len(documents)
+    ranked = sorted(carriers.items(), key=lambda pair: (pair[1], pair[0]))
+    return [surface for surface, _ in ranked[:NAMED_VALUE_LIMIT]]
+
+
+def uncovered_values(note: dict, named: Sequence[str]) -> list[str]:
+    """The named values of one document that read inside no verified flag's quote.
+
+    A value is covered when its folded form sits inside the folded quote of one flag, so the
+    punctuation either side wrote does not matter. A value that appears twice is listed once, in
+    the order the named values came. The values the note's own cross references wrote are not
+    asked for: on the control they pulled every title and firm of the room into the flags and
+    the map's set grew from 34 documents to 83.
+    """
+    quotes = [fold(flag["quote"]) for flag in note["flags"]]
+    missing: list[str] = []
+    seen: set[str] = set()
+    for value in named:
+        folded = fold(value)
+        if not folded or folded in seen:
+            continue
+        seen.add(folded)
+        if not any(folded in quote for quote in quotes):
+            missing.append(value)
+    return missing
+
+
+def value_lines(values: list[str]) -> str:
+    """The values inside no flag's quote, one per line."""
+    return "\n".join(f"- {value}" for value in values)
+
+
+def reask_asking(failures: list[dict], uncovered: list[str]) -> str:
+    """What the one re-ask asks for: the items that failed, then the values no flag quotes.
+
+    A document with only one of the two gets that block alone; the two blocks are separated by
+    a blank line, the failed items first.
+    """
+    blocks = []
+    if failures:
+        blocks.append(REASK_ITEMS.format(items=failed_items(failures)))
+    if uncovered:
+        blocks.append(REASK_VALUES.format(values=value_lines(uncovered)))
+    return "\n\n".join(blocks)
+
+
 def verify_items(
-    doc: str, field: str, items: object, sections: list[dict], keep_anchor: bool = False
+    doc: str,
+    field: str,
+    items: object,
+    sections: list[dict],
+    keep_anchor: bool = False,
+    named: Sequence[str] = (),
 ) -> tuple[list[dict], list[dict]]:
     """Verifies one quoted field, returning the items that pass and one record per drop.
 
@@ -383,8 +554,13 @@ def verify_items(
     quote does not locate in the document, when a figure's surface is not inside its quote, or
     when a cross reference's kind is not one of the six. Each failure record carries the item's
     detail and the reason it failed; the reason is for the re-ask and is not logged. Two items
-    that match on every key are kept once. The item index in a record is the model's own 0-based
+    that match on every required key are kept once, so two flags that differ only in what they
+    say they are about are one flag. The item index in a record is the model's own 0-based
     position.
+
+    A flag's about is built apart, by about_values: a value the model wrote that does not read
+    verbatim inside the flag's quote is dropped and the flag is kept, since the flag itself
+    verified, and every one of named that reads inside the quote is added after the model's own.
 
     With keep_anchor the item's own anchor is kept instead of the one code locates. The harvest
     passes it, because a unit already names the section it was read from, while a short cell such
@@ -408,14 +584,27 @@ def verify_items(
         if signature in seen:
             continue
         seen.add(signature)
+        if field == "flags":
+            built["about"] = about_values(item.get("about"), built["quote"], named)
         own = item.get("anchor") if keep_anchor else None
         built["anchor"] = own if isinstance(own, str) else locate_quote(built["quote"], sections)
         kept.append(built)
     return kept, dropped
 
 
-def build_note(doc: str, model: str, pass_name: str, reply: dict, sections: list[dict], usage: dict) -> tuple[dict, list[dict]]:
-    """Builds one verified note from a parsed reply, with one log record per dropped item."""
+def build_note(
+    doc: str,
+    model: str,
+    pass_name: str,
+    reply: dict,
+    sections: list[dict],
+    usage: dict,
+    named: Sequence[str] = (),
+) -> tuple[dict, list[dict]]:
+    """Builds one verified note from a parsed reply, with one log record per dropped item.
+
+    named is the document's named values, which fill out each flag's about.
+    """
     what = reply.get("what")
     note = {
         "doc": doc,
@@ -426,7 +615,7 @@ def build_note(doc: str, model: str, pass_name: str, reply: dict, sections: list
     }
     dropped: list[dict] = []
     for field in QUOTED_FIELDS:
-        kept, failures = verify_items(doc, field, reply.get(field), sections)
+        kept, failures = verify_items(doc, field, reply.get(field), sections, named=named)
         note[field] = kept
         dropped.extend(failures)
     return note, dropped
@@ -529,15 +718,22 @@ def call_usage(model: str, completions: list[Completion]) -> dict:
     }
 
 
+def _signature(item: dict) -> str:
+    """One item as JSON with its keys sorted, which is how two items are told apart."""
+    return json.dumps(item, sort_keys=True, ensure_ascii=False)
+
+
 def merge_items(first: list[dict], second: list[dict]) -> list[dict]:
     """The union of one field's verified items from two attempts, the first attempt's in front.
 
     An item of the second attempt that matches an item already kept on every key is left out.
+    The signature is the item written as JSON with its keys sorted, so a flag's about, which is
+    a list, is compared the way every other value is.
     """
     merged = list(first)
-    seen = {tuple(sorted(item.items())) for item in merged}
+    seen = {_signature(item) for item in merged}
     for item in second:
-        signature = tuple(sorted(item.items()))
+        signature = _signature(item)
         if signature in seen:
             continue
         seen.add(signature)
@@ -558,19 +754,24 @@ def add_harvest(doc: str, note: dict, sections: list[dict]) -> list[dict]:
     return [log_record(record) for record in dropped]
 
 
-def note_document(doc: str, model: str, pass_name: str, sections: list[dict], call) -> tuple[dict | None, list[dict]]:
+def note_document(
+    doc: str, model: str, pass_name: str, sections: list[dict], call, named: Sequence[str] = ()
+) -> tuple[dict | None, list[dict]]:
     """Notes one document from the model, then harvests the figures the model did not write."""
-    note, records = model_note(doc, model, pass_name, sections, call)
+    note, records = model_note(doc, model, pass_name, sections, call, named)
     if note is None:
         return None, records
     return note, records + add_harvest(doc, note, sections)
 
 
-def model_note(doc: str, model: str, pass_name: str, sections: list[dict], call) -> tuple[dict | None, list[dict]]:
+def model_note(
+    doc: str, model: str, pass_name: str, sections: list[dict], call, named: Sequence[str] = ()
+) -> tuple[dict | None, list[dict]]:
     """Notes one document from the model alone, asking again once when the reply or an item fails.
 
-    call sends one list of messages and returns its Completion. The note is None when it is
-    dropped whole. usage is left to the caller.
+    call sends one list of messages and returns its Completion. named is the document's named
+    values, which fill out each flag's about and say which values the re-ask asks for. The note
+    is None when it is dropped whole. usage is left to the caller.
 
     The note's items are the union, per field, of the items that verify on the first reply and
     the items that verify on the second: the first reply's in the order it wrote them, then the
@@ -578,6 +779,11 @@ def model_note(doc: str, model: str, pass_name: str, sections: list[dict], call)
     every key left out. A second reply that answers with fewer items than the first therefore
     loses nothing. The note's what is the first reply's. When the second reply does not parse or
     is not well shaped the note is the first reply's verified items alone.
+
+    The one re-ask also asks for the values of the document that read inside no verified flag's
+    quote, so a document with nothing failed is still asked again when a value is uncovered, and
+    a document with neither is not asked again at all. Nothing about the uncovered values is
+    written to the verify log.
 
     The records are this document's lines of the verify log: an item that failed on the first
     call is re-asked; an item of the second reply that fails is dropped at attempt 2, and when
@@ -593,21 +799,22 @@ def model_note(doc: str, model: str, pass_name: str, sections: list[dict], call)
         parsed = parse_reply(second.text)
         if parsed is None or not well_shaped(parsed):
             return None, [_log_record(doc, None, None, None, "note-dropped", 2)]
-        note, failures = build_note(doc, model, pass_name, parsed, sections, {})
+        note, failures = build_note(doc, model, pass_name, parsed, sections, {}, named)
         return note, [log_record(dict(record, outcome="dropped", attempt=2)) for record in failures]
 
-    note, failures = build_note(doc, model, pass_name, parsed, sections, {})
-    if not failures:
+    note, failures = build_note(doc, model, pass_name, parsed, sections, {}, named)
+    uncovered = uncovered_values(note, named)
+    if not failures and not uncovered:
         return note, []
 
     records = [log_record(dict(record, outcome="re-asked", attempt=1)) for record in failures]
-    asking = REASK_ITEMS.format(items=failed_items(failures))
+    asking = reask_asking(failures, uncovered)
     second = call(reask_messages(messages, first.text, asking))
     answered = parse_reply(second.text)
     if answered is None or not well_shaped(answered):
         records.extend(log_record(dict(record, outcome="dropped", attempt=2)) for record in failures)
         return note, records
-    second_note, again = build_note(doc, model, pass_name, answered, sections, {})
+    second_note, again = build_note(doc, model, pass_name, answered, sections, {}, named)
     for field in QUOTED_FIELDS:
         note[field] = merge_items(note[field], second_note[field])
     records.extend(log_record(dict(record, outcome="dropped", attempt=2)) for record in again)
@@ -623,6 +830,7 @@ def note_and_write(
     out_dir: Path,
     gateway: Gateway,
     batch: Batch,
+    named: Sequence[str] = (),
 ) -> tuple[str, dict | None, list[dict]]:
     """Notes one document, prices its calls, keeps each reply and writes the note.
 
@@ -642,7 +850,7 @@ def note_and_write(
         return completion
 
     try:
-        note, records = note_document(doc, model, pass_name, sections, call)
+        note, records = note_document(doc, model, pass_name, sections, call, named)
     except Exception as exc:
         print(f"{doc_id}: note dropped, {type(exc).__name__}: {exc}")
         return doc_id, None, [_log_record(doc, None, None, None, "note-dropped", 1)]
@@ -771,6 +979,17 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
     prompts = [(doc_id, doc) for doc_id, doc in chosen if sections_by_doc.get(doc)]
     missing = [(doc_id, doc) for doc_id, doc in chosen if not sections_by_doc.get(doc)]
 
+    # The phase 1 index is read once for the whole pass; without it every document's named
+    # values are empty and the pass runs the way it did before.
+    index = read_index(run_dir)
+    # The room's ordinary words and its own document ids are not values of a matter: the data
+    # room index names every document, and a note that quoted every row of it seeded the map
+    # there, with 89 documents in the set.
+    skipped = frozenset(
+        ordinary_words([section for sections in sections_by_doc.values() for section in sections])
+    ) | frozenset(key.documents)
+    named_by_doc = {doc: named_values(index, doc, skipped) for _, doc in prompts}
+
     if gateway is None:
         gateway = Gateway()
     if ledger is None:
@@ -817,6 +1036,7 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
                     out_dir,
                     gateway,
                     batch,
+                    named_by_doc[doc],
                 )
                 for doc_id, doc in prompts
             ]
