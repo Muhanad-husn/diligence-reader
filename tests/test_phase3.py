@@ -384,6 +384,31 @@ def test_map_first_matter_cluster_holds_the_planted_documents(mapped, key):
     assert planted <= cluster, sorted(planted - cluster)
 
 
+# The most documents the first matter's set may hold, where a sample has been given a bound.
+# Sample 1's planted cluster is fourteen documents; a set of fifty is the room read as one matter.
+SET_CAP = {"atlas": 49}
+
+
+def test_map_first_matter_cluster_reaches_no_decoy(mapped, key):
+    """A decoy the map cannot tell from the matter shares a value with the seed itself; the
+    reach rule, which follows rare values from two places, never carries one in."""
+    matter = mapped.document["matters"][0]
+    via = {row["doc"]: row["via"] for row in matter["ranked"] if row["via"]}
+    reached = {
+        decoy.document
+        for decoy in key.decoys
+        if decoy.document in via and via[decoy.document]["kind"] == "reach"
+    }
+    assert not reached, sorted(reached)
+
+
+def test_map_first_matter_cluster_is_within_the_sample_cap(mapped, sample):
+    if sample not in SET_CAP:
+        pytest.skip(f"no set cap is given for {sample}")
+    cluster = mapped.document["matters"][0]["cluster"]
+    assert len(cluster) <= SET_CAP[sample], len(cluster)
+
+
 def test_map_ranked_covers_every_document_in_descending_score(mapped, key):
     matter = mapped.document["matters"][0]
     ranked = matter["ranked"]
