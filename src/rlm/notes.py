@@ -464,7 +464,8 @@ def named_values(records: list[dict], doc: str, skipped: frozenset[str] = frozen
     A surface counts when the index calls it an identifier or an amount, or calls it a name and
     writes it as one word in upper case, which is the rule map.shared_values links on. A bare
     count is left out, so is a surface in skipped, which main fills with the room's ordinary
-    words (map.ordinary_words: THE, COUNSEL, DRAFT), so is a surface only this document
+    words (map.ordinary_words: THE, COUNSEL, DRAFT) and the key's document ids, so is a
+    surface only this document
     carries, since it joins nothing, and so is one more than BREADTH_SHARE of the room's
     documents carry, which the map does not link on either. The document of an anchor is the part before its #. The
     rarest carried surface comes first, ties in alphabetical order, and the list stops at
@@ -974,9 +975,12 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
     # The phase 1 index is read once for the whole pass; without it every document's named
     # values are empty and the pass runs the way it did before.
     index = read_index(run_dir)
+    # The room's ordinary words and its own document ids are not values of a matter: the data
+    # room index names every document, and a note that quoted every row of it seeded the map
+    # there, with 89 documents in the set.
     skipped = frozenset(
         ordinary_words([section for sections in sections_by_doc.values() for section in sections])
-    )
+    ) | frozenset(key.documents)
     named_by_doc = {doc: named_values(index, doc, skipped) for _, doc in prompts}
 
     if gateway is None:

@@ -832,6 +832,31 @@ def test_one_document_named_values_leave_the_rooms_ordinary_words_out(tmp_path):
     assert named_values(read_index(tmp_path), DR_069, frozenset({"COUNSEL"})) == ["AURORA"]
 
 
+def test_all_documents_main_never_asks_for_a_document_id(tmp_path, capsys):
+    """DR-013 is a document of the room, not a value of a matter: the room's index names every
+    document, and asking the index's note to quote every row seeded the map at the index."""
+    run_dir = Path(atlas_run_without_index(tmp_path))
+    write_index(
+        run_dir,
+        [
+            index_record("identifier", "DR-013", [DR_069, OTHER_DOC]),
+            index_record("identifier", "NQ-17", [DR_069, OTHER_DOC]),
+        ],
+    )
+    transport = FakeTransport([reply(json.dumps(MINIMAL_NOTE)), reply(json.dumps(MINIMAL_NOTE))])
+    ledger_path = tmp_path / "LEDGER.md"
+    write_ledger(ledger_path, [])
+    code = main(
+        [str(ROOT / "samples" / "atlas"), str(run_dir), "--only", "DR-069", "--model", MODEL],
+        gateway=Gateway(api_key="k", transport=transport),
+        ledger=Ledger(ledger_path),
+    )
+    assert code == 0
+    asked = json.loads(transport.requests[1].content)["messages"][-1]["content"]
+    assert "NQ-17" in asked
+    assert "DR-013" not in asked
+
+
 def test_one_document_named_values_put_the_rarest_carried_value_first(tmp_path):
     write_index(
         tmp_path,
