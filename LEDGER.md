@@ -138,3 +138,8 @@ Ceiling $50. Written by the code that makes gateway calls; a line added by hand 
 | 2026-09-08 | northwind | 5 | z-ai/glm-5.3 | 40548 | 8260 | 0.0931 | 46.6257 |
 | 2026-09-08 | northwind | 5 | z-ai/glm-5.3 | 16614 | 3540 | 0.0388 | 46.5869 |
 | 2026-09-08 | northwind | 5 | z-ai/glm-5.3 | 37182 | 7649 | 0.0857 | 46.5012 |
+| 2026-09-08 | atlas-control | 6 | z-ai/glm-5.3-flash | 261721 | 194938 | 0.0684 | 46.4328 |
+| 2026-09-08 | atlas-control | 6 | z-ai/glm-5.3-flash | 8142 | 24000 | 0.0066 | 46.4262 |
+| 2026-09-08 | atlas-control | 6 | z-ai/glm-5.3 | 43465 | 13835 | 0.1217 | 46.3045 |
+| 2026-09-08 | atlas-control | 6 | z-ai/glm-5.3 | 42916 | 13447 | 0.1192 | 46.1853 |
+| 2026-09-08 | atlas-control | 6 | z-ai/glm-5.3-flash | 252835 | 208405 | 0.0711 | 46.1142 |

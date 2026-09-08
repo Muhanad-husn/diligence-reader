@@ -649,7 +649,7 @@ def readout(terminalreporter):
         recall = "not written"
         report_path = run_dir / "report.md"
         if report_path.exists() and (ROOT / "samples" / sample / "key.json").exists():
-            score, _, missed = measure_recall(
+            score, _, _ = measure_recall(
                 load_key(ROOT / "samples" / sample), report_path.read_text(encoding="utf-8")
             )
             recall = f"{score:.1f}"
