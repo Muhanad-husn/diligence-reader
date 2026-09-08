@@ -7,7 +7,10 @@ flags, its figures, its cross references and what it conceals, quoting the docum
 Code then verifies every item against the document's own sections. An item must carry every
 required key of its field as a string: a flag has flag, quote and consequence, a figure has
 surface and quote, a cross reference has kind, value and quote, and a concealed item has claim
-and quote. An item that answers with the model's own key names instead fails. A quote passes
+and quote. A flag also carries about, the identifiers, codes and figures its own quote names:
+code keeps every element of that list that is a string and reads verbatim inside the quote,
+drops the rest without a log line and without a re-ask, and writes an empty list where the model
+gave none. An item that answers with the model's own key names instead fails. A quote passes
 when its text, with whitespace collapsed, curly quotes and apostrophes straightened, and
 markdown emphasis marks dropped, is a substring of one section's text treated the same way, or
 of two adjacent sections joined by one space. Case is not folded. The anchor written into the
@@ -123,12 +126,13 @@ Answer with one JSON object and nothing else, with exactly these keys:
  "what": "one sentence saying what this document is",
  "flags": [{"flag": "what is wrong or risky",
             "quote": "the document's own words, verbatim",
-            "consequence": "why it matters to the deal"}],
+            "consequence": "why it matters to the deal",
+            "about": ["each identifier, code or figure the quote carries, verbatim"]}],
  "figures": [{"surface": "the number exactly as the document writes it",
-              "quote": "the document's own words around that number, verbatim"}],
+              "quote": "the words around that number, verbatim"}],
  "cross_references": [{"kind": "code|name|person|document|regulator|ticket",
                        "value": "the thing it names",
-                       "quote": "the document's own words carrying it, verbatim"}],
+                       "quote": "the words carrying it, verbatim"}],
  "concealed": [{"claim": "what the document hedges, omits or softens",
                 "quote": "the document's own words, verbatim"}]
 }
@@ -148,6 +152,7 @@ Rules for every quote:
   after its first word.
 - Do not invent a quote; if you cannot quote it, leave it out.
 - A figure's surface is copied from its own quote, verbatim, from nowhere else.
+- A flag's about lists every identifier, code and figure its own quote carries, verbatim.
 - Do not add an anchor, page, line or section number; those come later.
 
 A diligence reader is buying this business; quote every one that the document carries:
@@ -169,6 +174,8 @@ A diligence reader is buying this business; quote every one that the document ca
   expects it
 - in a document under a page, every prose line, including a note under its own heading: a
   dependency, single point of failure or system of record above all
+- every code, ticket, file or object name, key id, workstream or programme name, firm name
+  or headline figure the document carries, in the sentence that introduces it
 
 Which sentence to quote:
 - When your flag, claim or what restates a sentence, quote that one, not a neighbor.
@@ -190,16 +197,16 @@ then the quote as you wrote it:
 {items}
 
 Return the whole JSON object again, with exactly these keys: what, flags, figures,
-cross_references, concealed. Each flag has flag, quote and consequence; each figure has surface
-and quote; each cross reference has kind, value and quote; each concealed item has claim and
-quote. Fix every item listed above or leave it out, and keep every other item as it was."""
+cross_references, concealed. Each flag has flag, quote, consequence and about; each figure has
+surface and quote; each cross reference has kind, value and quote; each concealed item has claim
+and quote. Fix every item listed above or leave it out, and keep every other item as it was."""
 
 REASK_JSON = (
     "Your reply was not one JSON object with the keys asked for. Answer again with one JSON "
     "object and nothing else, no prose and no code fence, using exactly these key names: what, "
-    "flags, figures, cross_references, concealed. Each flag has flag, quote and consequence; "
-    "each figure has surface and quote; each cross reference has kind, value and quote; each "
-    "concealed item has claim and quote. Do not rename a key."
+    "flags, figures, cross_references, concealed. Each flag has flag, quote, consequence and "
+    "about; each figure has surface and quote; each cross reference has kind, value and quote; "
+    "each concealed item has claim and quote. Do not rename a key."
 )
 
 
@@ -374,6 +381,26 @@ def _item_reason(field: str, item: object, sections: list[dict]) -> str | None:
     return None
 
 
+def verified_about(about: object, quote: str) -> list[str]:
+    """The values one flag says it is about that are strings and sit inside its own quote.
+
+    An element passes on the rule a figure's surface passes on: its straightened form is a
+    substring of the straightened quote, case exact. The order is the model's own and an element
+    written twice is kept once. An element that fails is dropped silently, and about that is
+    missing or is not a list reads as no values at all.
+    """
+    if not isinstance(about, list):
+        return []
+    inside = straighten(quote)
+    kept: list[str] = []
+    for element in about:
+        if not isinstance(element, str) or straighten(element) not in inside:
+            continue
+        if element not in kept:
+            kept.append(element)
+    return kept
+
+
 def verify_items(
     doc: str, field: str, items: object, sections: list[dict], keep_anchor: bool = False
 ) -> tuple[list[dict], list[dict]]:
@@ -383,8 +410,12 @@ def verify_items(
     quote does not locate in the document, when a figure's surface is not inside its quote, or
     when a cross reference's kind is not one of the six. Each failure record carries the item's
     detail and the reason it failed; the reason is for the re-ask and is not logged. Two items
-    that match on every key are kept once. The item index in a record is the model's own 0-based
+    that match on every required key are kept once, so two flags that differ only in what they
+    say they are about are one flag. The item index in a record is the model's own 0-based
     position.
+
+    A flag's about is verified apart, by verified_about: a value that does not read verbatim
+    inside the flag's quote is dropped and the flag is kept, since the flag itself verified.
 
     With keep_anchor the item's own anchor is kept instead of the one code locates. The harvest
     passes it, because a unit already names the section it was read from, while a short cell such
@@ -408,6 +439,8 @@ def verify_items(
         if signature in seen:
             continue
         seen.add(signature)
+        if field == "flags":
+            built["about"] = verified_about(item.get("about"), built["quote"])
         own = item.get("anchor") if keep_anchor else None
         built["anchor"] = own if isinstance(own, str) else locate_quote(built["quote"], sections)
         kept.append(built)
@@ -529,15 +562,22 @@ def call_usage(model: str, completions: list[Completion]) -> dict:
     }
 
 
+def _signature(item: dict) -> str:
+    """One item as JSON with its keys sorted, which is how two items are told apart."""
+    return json.dumps(item, sort_keys=True, ensure_ascii=False)
+
+
 def merge_items(first: list[dict], second: list[dict]) -> list[dict]:
     """The union of one field's verified items from two attempts, the first attempt's in front.
 
     An item of the second attempt that matches an item already kept on every key is left out.
+    The signature is the item written as JSON with its keys sorted, so a flag's about, which is
+    a list, is compared the way every other value is.
     """
     merged = list(first)
-    seen = {tuple(sorted(item.items())) for item in merged}
+    seen = {_signature(item) for item in merged}
     for item in second:
-        signature = tuple(sorted(item.items()))
+        signature = _signature(item)
         if signature in seen:
             continue
         seen.add(signature)

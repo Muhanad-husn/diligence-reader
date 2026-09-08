@@ -735,8 +735,14 @@ def test_one_document_the_prompt_asks_each_flag_for_what_it_is_about():
 
 
 def test_one_document_the_prompt_stays_inside_its_budget():
-    """The system prompt is under 3800 characters and one note is capped at 6000 output tokens."""
-    assert len(SYSTEM_PROMPT) < 3800
+    """The system prompt is under 4200 characters and one note is capped at 6000 output tokens.
+
+    The budget was 3800 until #106, which added the about key to the flag schema, the rule that
+    lists what a flag is about, and the rule that every code, name and headline figure sits
+    inside the quote of a flag. The schema labels were shortened to pay part of that; the rest
+    of the prompt is the wording the phase 2 bake-off was measured on and was left alone.
+    """
+    assert len(SYSTEM_PROMPT) < 4200
     assert MAX_OUTPUT_TOKENS == 6000
 
 
@@ -2093,7 +2099,7 @@ def test_seed_document_flags_name_every_planted_identifier(notes, key, run_dir, 
     for seed in seeds:
         note = by_path.get(key.documents[seed])
         assert note is not None, f"{seed} is the seed of {sample} and has no note"
-        about = [value for flag in note["flags"] for value in flag["about"]]
+        about = [value for flag in note["flags"] for value in flag.get("about", [])]
         for fact in key.facts:
             if fact.kind not in ("identifier", "number") or fact.phase not in (1, 2):
                 continue
