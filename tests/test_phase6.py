@@ -28,6 +28,7 @@ import test_phase4
 import test_phase5
 from rlm import ingest as ingester
 from rlm import notes as noter
+from rlm import pin
 from rlm import widen
 from rlm import write as writer
 from rlm.gateway import PHASE_CAPS, Gateway, Ledger
@@ -478,22 +479,6 @@ def test_notes_books_its_row_to_the_phase_it_was_given(tmp_path):
     assert rows[-1]["sample"] == SOURCE
 
 
-def test_write_books_its_row_to_the_phase_it_was_given(tmp_path):
-    """One write run with --phase 6 leaves one phase 6 row."""
-    sample_dir, run_dir, ledger = _fake_write_sample(tmp_path)
-    transport = test_phase5.FakeTransport([test_phase5.reply(test_phase5.FAKE_REPORT)])
-    gateway = Gateway(api_key="test-key", transport=transport)
-
-    code = writer.main(
-        [str(sample_dir), str(run_dir), "--phase", "6"], gateway=gateway, ledger=ledger
-    )
-
-    assert code == 0
-    rows = ledger.rows()
-    assert len(rows) == 1
-    assert rows[0]["phase"] == "6"
-
-
 def _fake_write_sample(tmp_path):
     """A sample directory, a run directory holding the fake room, and an empty ledger.
 
@@ -516,6 +501,22 @@ def _fake_write_sample(tmp_path):
     return sample_dir, run_dir, Ledger(ledger_path)
 
 
+def test_write_books_its_row_to_the_phase_it_was_given(tmp_path):
+    """One write run with --phase 6 leaves one phase 6 row."""
+    sample_dir, run_dir, ledger = _fake_write_sample(tmp_path)
+    transport = test_phase5.FakeTransport([test_phase5.reply(test_phase5.FAKE_REPORT)])
+    gateway = Gateway(api_key="test-key", transport=transport)
+
+    code = writer.main(
+        [str(sample_dir), str(run_dir), "--phase", "6"], gateway=gateway, ledger=ledger
+    )
+
+    assert code == 0
+    rows = ledger.rows()
+    assert len(rows) == 1
+    assert rows[0]["phase"] == "6"
+
+
 # ---------------------------------------------------------------- phases 1 to 5 on a variant
 
 
@@ -536,10 +537,14 @@ def test_phase_1_holds_on_the_variant(sample, sample_dir, key, records, indexed)
     texts: dict[str, list[str]] = {}
     for record in records:
         texts.setdefault(record["doc"], []).append(test_phase1.flatten(record["text"]))
+    # Phase 1 owns the facts the key marks phase 1: a date, an amount or an identifier the
+    # room writes. A phase 3, 4 or 5 fact is a statement about the map, the dossier or the
+    # report and the phase that owns it is what resolves it.
     missed = [
         fact.id
         for fact in key.facts
-        if not test_phase1._fact_resolved(fact, key, sectioned, texts, indexed)
+        if fact.phase == 1
+        and not test_phase1._fact_resolved(fact, key, sectioned, texts, indexed)
     ]
     assert not missed, f"{sample}: phase 1 does not resolve {missed}"
     holds(sample, 1)
@@ -587,6 +592,45 @@ def test_phase_5_holds_on_the_variant(sample, key, report, verified, graded):
     assert graded["score"] >= RUBRIC_BAR, f"score {graded['score']}"
     assert "spread" in graded, "the second pass has not been graded"
     holds(sample, 5)
+
+
+# ---------------------------------------------------------------- the pinned digests
+
+
+DIGESTS_PATH = ROOT / "tests" / "phase6-control-digests.json"
+
+# The four pin modes that read nothing but the artefacts on disk, in phase order.
+PIN_MODES = ("--sections", "--from-notes", "--maps", "--dossiers")
+
+
+def pinned_digests(runs_root: Path, name: str, tmp_path: Path) -> dict[str, str]:
+    """Every digest the phase 1 to 5 digest files hold for one sample, in one dict.
+
+    pin writes one file per mode, so the four modes above are run into temporary files and
+    merged. The three files phase 5 pins are digested by pin's own report_digests: pin's
+    --reports mode copies a write bake-off winner into place, and a variant has no bake-off.
+    """
+    found: dict[str, str] = {}
+    for number, mode in enumerate(PIN_MODES):
+        out = tmp_path / f"{number}.json"
+        code = pin.main([str(runs_root), mode, "--samples", name, "--digests", str(out)])
+        assert code == 0, mode
+        found.update(json.loads(out.read_text(encoding="utf-8"))[name])
+    found.update(pin.report_digests(runs_root / name))
+    return found
+
+
+def test_control_digests_are_pinned(tmp_path, capsys):
+    """tests/phase6-control-digests.json holds what phases 1 to 5 pin for the control."""
+    if not (ROOT / "runs" / CONTROL / "grade.json").exists():
+        pytest.skip("the chain has not run on the control yet")
+    if not DIGESTS_PATH.exists():
+        pytest.skip("no control digests pinned yet")
+
+    wanted = pinned_digests(ROOT / "runs", CONTROL, tmp_path)
+    capsys.readouterr()
+
+    assert json.loads(DIGESTS_PATH.read_text(encoding="utf-8")) == {CONTROL: wanted}
 
 
 # ---------------------------------------------------------------- the readout

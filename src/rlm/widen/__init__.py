@@ -41,7 +41,8 @@ ROOM = "data_room"
 SECTIONS = "sections.jsonl"
 DIGESTS = "phase1-digests.json"
 
-# The lines of a document are joined by this, and two sections by a blank line between them.
+# The line ending every file of a variant is written with. A variant is committed and read
+# back byte for byte, and .gitattributes checks it out this way on any platform.
 NEWLINE = "\r\n"
 
 # The column the README's prose wraps at, the width the repository writes its prose in.
@@ -236,7 +237,7 @@ def readme(source: Source, variant: Variant, name: str) -> str:
 
 
 def write_text(path: Path, text: str) -> None:
-    """Writes one file of a variant, creating its folder, with the repository's line endings."""
+    """Writes one file of a variant, creating its folder, with the line ending NEWLINE names."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8", newline=NEWLINE)
 
