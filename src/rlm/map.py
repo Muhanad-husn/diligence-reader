@@ -1184,10 +1184,14 @@ def build_map(sample_dir: Path, run_dir: Path) -> dict:
     broken, before = series_break(row_series(records, by_anchor, ids_by_path), date, seed)
     hold(break_links(broken, seed))
     modelled = model_after(notes, nodes, set(inside), date, before)
-    hold(model_links(modelled, notes, set(inside)))
     consequences = sorted(broken + modelled, key=lambda row: (row["kind"], row["doc"]))
 
+    # The models are held after the reach rule has run. A model is in the set for the number it
+    # still repeats, not for owning it, and the reach rule reads ownership off the set as it
+    # stands: holding DR-005 first put its $1,480m in the set before reach judged it, and the
+    # figure then reached DR-034, which the matter does not own.
     hold(reach_links(shared, set(inside), order, written))
+    hold(model_links(modelled, notes, set(inside)))
     hold(compare_links(set(inside), nodes, notes, sections, ids_by_path))
     hold(covenant_links(core, notes, set(inside), order, written))
 

@@ -466,10 +466,9 @@ def test_map_first_matter_cluster_holds_the_planted_documents(mapped, key):
 
 # The most documents the first matter's set may hold, where a sample has been given a bound.
 # Sample 1's planted cluster is fourteen documents; a set of fifty is the room read as one matter.
-# The cap moved from 49 to 51 when model_links read the figure its model was found on: DR-021,
-# the finance pack that still models the old number, joins as a consequence and DR-019 follows it
-# by reach.
-SET_CAP = {"atlas": 51}
+# The cap moved from 49 to 50 when model_links read the figure its model was found on: DR-021,
+# the finance pack that still models the old number, joins as a consequence of the matter.
+SET_CAP = {"atlas": 50}
 
 
 def test_map_first_matter_cluster_reaches_no_decoy(mapped, key):
