@@ -12,7 +12,9 @@ One page. Read before any work in this repository.
    then. A gap found later is fixed in the phase that owns it, and every later phase reruns.
 3. **Two attempts per phase, then replace.** A phase that fails its gate twice is not fixed a
    third time. Its method is swapped for the simplest thing that can pass, or the phase is
-   dropped and the score says what that cost.
+   dropped and the score says what that cost. A defect found by a gate's readout is fixed
+   inside that gate's pull request or marked a known miss; no gate files an issue from its
+   own readout.
 4. **Money is a ceiling the code enforces.** $50 total. `LEDGER.md` is written by the code that
    makes the call. No call before its input tokens are counted and its price printed. Past the
    phase cap, the call refuses.
