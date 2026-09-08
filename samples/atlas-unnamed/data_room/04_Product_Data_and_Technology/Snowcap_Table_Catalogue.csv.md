@@ -6,7 +6,7 @@ identity | atlasid_linkage | AtlasID cross-property account linkage and match ke
 
 auth | auth_event_session | VPAuth authentication and session events (issue/validate/invalidate) | 4812400000 | 2025-12-05 | Nina Petrov | Y
 
-auth | trust_reset_audit | Audit log of the programme forced resets and session invalidations | 511300000 | 2025-12-05 | Nina Petrov | Y
+auth | programme_audit | Audit log of the programme forced resets and session invalidations | 511300000 | 2025-12-05 | Nina Petrov | Y
 
 engagement | mau_weekly | Weekly monthly-active-user aggregates by property | 18466 | 2025-12-04 | Raj Malhotra | N
 

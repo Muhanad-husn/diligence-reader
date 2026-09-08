@@ -5,15 +5,19 @@ the forensic workstream, the network-quality reference, the name of the user-fac
 the phrase the product organisation calls the symptom by and the phrase finance and legal call
 the work by. Two are the file-name identifiers that link its documents, the backup object and
 the legacy signing key. Each becomes one plain phrase, the same phrase in every document, so
-the room still says what happened and never says what it is called. Dates, record counts,
-amounts, people and organisations are untouched, and so are the system names `legacy_uap` and
-`VPAuth`, the deal codename `Project Atlas`, and the streaming organisation whose name resembles
-the workstream's codename and is a different organisation.
+the room still says what happened and never says what it is called. A name of two words is the
+name however the room joins the two, with a space, a hyphen or an underscore, so the warehouse
+table named after the matter goes with the rest. Dates, record counts, amounts, people and
+organisations are untouched, and so are the system names `legacy_uap` and `VPAuth`, the deal
+codename `Project Atlas`, and the streaming organisation whose name resembles the workstream's
+codename and is a different organisation.
 
 How a phrase is written into a sentence. Five of the seven phrases take an article and the two
 mass phrases never do. A quote mark on each side of a name belongs to the name and goes with it.
 Two names written one after the other name one thing, so the first goes and the second is
-written where the first stood. A bracketed aside carrying one name and nothing but label words
+written where the first stood. A name the room wrote as one bare token is written back as one
+bare token, the phrase with underscores and no article, so `trust_reset_audit` reads
+`programme_audit`. A bracketed aside carrying one name and nothing but label words
 goes with its brackets, and so does a trailing apposition inside a bracket. The head nouns and
 the label words standing immediately before the name, or the head noun standing immediately
 after it, are the same thing the phrase is, so the name and those words together become the
@@ -69,6 +73,16 @@ class Identifier:
         """The words the phrase and its head nouns are made of, in small letters."""
         return frozenset(self.phrase.lower().split()) | {one.lower() for one in self.synonyms}
 
+    @property
+    def two_words(self) -> bool:
+        """Says whether the name is two words, so the room may write it as one token."""
+        return " " in self.names[0]
+
+    @property
+    def token(self) -> str:
+        """The phrase as one token, for a name the room wrote as one."""
+        return self.phrase.replace(" ", "_")
+
 
 IDENTIFIERS: tuple[Identifier, ...] = (
     Identifier(
@@ -101,7 +115,7 @@ IDENTIFIERS: tuple[Identifier, ...] = (
     ),
     Identifier(
         id="account-security",
-        names=("credential-hygiene", "credential hygiene"),
+        names=("credential hygiene",),
         phrase="account-security",
         article=False,
         synonyms=(),
@@ -126,15 +140,15 @@ BY_ID = {one.id: one for one in IDENTIFIERS}
 
 # How each identifier's names are found in a section text. The workstream's codename is matched
 # on the capitals alone, because the publisher schedule writes a streaming organisation whose
-# name is the same word in ordinary case. Every other name is matched whatever its case. A name
-# is a whole token: neither a letter, a figure nor an underscore stands on either side of it, so
-# a system name that carries one of these words is left alone.
+# name is the same word in ordinary case. Every other name is matched whatever its case, and a
+# name of two words is matched whether the room joins them with a space, a hyphen or an
+# underscore. What may stand on either side of a name is in `bounded`.
 BODY = {
     "workstream": r"AURORA",
     "ticket": r"NQ-?17",
-    "programme": r"(?i:Trust Reset)",
-    "sign-in-difficulty": r"(?i:login friction)",
-    "account-security": r"(?i:credential[- ]hygiene)",
+    "programme": r"(?i:Trust[ _-]Reset)",
+    "sign-in-difficulty": r"(?i:login[ _-]friction)",
+    "account-security": r"(?i:credential[ _-]hygiene)",
     "archive": r"legacy_uap_backup_2021\.tar\.gz",
     "signing-key": r"vpauth-legacy-2019",
 }
@@ -194,11 +208,23 @@ LABELS = frozenset(("the", "a", "an", "and", "or")) | HEADS
 ASIDE = re.compile(r"\([^()]*\)")
 
 
+def bounded(one: Identifier, body: str) -> str:
+    """One name's pattern with what may not stand on either side of it.
+
+    A name of one word is a whole token, and an underscore beside it makes it part of another
+    word, so `legacy_uap` is not the backup object. A name of two words is a name however the
+    room joins the two, with a space, a hyphen or an underscore, and a warehouse table named
+    after the matter is the matter's name, so an underscore beside it is the name's own.
+    """
+    edge = "" if one.two_words else "_"
+    return rf"(?<![A-Za-z0-9{edge}]){body}(?![A-Za-z0-9{edge}])"
+
+
 def pattern_over(bodies: dict[str, str]) -> re.Pattern:
     """One pattern over every name, with a group per identifier so a match knows what it is."""
     return re.compile(
         "|".join(
-            rf"(?P<{one.id.replace('-', '_')}>(?<![A-Za-z0-9_]){bodies[one.id]}(?![A-Za-z0-9_]))"
+            rf"(?P<{one.id.replace('-', '_')}>{bounded(one, bodies[one.id])})"
             for one in IDENTIFIERS
         )
     )
@@ -397,6 +423,11 @@ def edits(text: str, names: re.Pattern = IN_TEXT, articles: bool = True) -> list
 
     for number, match in enumerate(standing):
         one = identifier_of(match)
+        if one.two_words and "_" in match.group(0):
+            # The room wrote the name as one bare token, so the phrase is written as one too:
+            # no article, no capital and no head noun beside it.
+            taken.append((match.start(), match.end(), one.token))
+            continue
         start, end = quoted(text, match.start(), match.end())
         after = standing[number + 1] if number + 1 < len(standing) else None
         if after is not None and not text[end : after.start()].strip():

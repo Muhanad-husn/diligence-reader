@@ -10,7 +10,7 @@ Classification Strictly Confidential — Project Atlas
 the ticket
 Type sign-in difficulty / availability
 
-Blameless postmortem for the elevated login-friction and support-load incident observed during November 2025,
+Blameless postmortem for the elevated sign-in difficulty and support-load incident observed during November 2025,
 tracked under the ticket. This is an availability / user-experience postmortem covering login success,
 reset-completion and support impact. It is not a security-incident report.
 The ticket

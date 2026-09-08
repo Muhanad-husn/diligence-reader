@@ -55,16 +55,35 @@ PHRASES = {
     "signing-key": "signing key",
 }
 
-# The names the knob removes, by the identifier's id. A name is matched on a whole token, and
-# every name but the first is matched whatever its case.
+# The names the knob removes, by the identifier's id. Every name but the first is matched
+# whatever its case, and a name of two words is a name however the room joins the two: with a
+# space, with a hyphen, or with an underscore as a warehouse table joins them.
 REMOVED = {
     "workstream": ("AURORA",),
     "ticket": ("NQ-17", "NQ17"),
     "programme": ("Trust Reset",),
     "sign-in-difficulty": ("login friction",),
-    "account-security": ("credential-hygiene", "credential hygiene"),
+    "account-security": ("credential hygiene",),
     "archive": ("legacy_uap_backup_2021.tar.gz",),
     "signing-key": ("vpauth-legacy-2019",),
+}
+
+# The joins a name of two words may be written with.
+JOINS = (" ", "-", "_")
+
+
+def written_forms(name: str) -> tuple[str, ...]:
+    """Every way the room may write one name: a name of two words with each of the joins."""
+    first, space, second = name.partition(" ")
+    if not space:
+        return (name,)
+    return tuple(f"{first}{join}{second}" for join in JOINS)
+
+
+# Every name in every form the room may write it in, by the identifier's id.
+FORMS = {
+    name: tuple(one for written in names for one in written_forms(written))
+    for name, names in REMOVED.items()
 }
 
 # The one organisation whose name reads like the workstream's and is not it. Sample 1's
@@ -72,6 +91,11 @@ REMOVED = {
 # the workstream's name skips it.
 OTHER_ORGANISATION = "Aurora Streaming Network"
 OTHER_ORGANISATION_DOCUMENT = "DR-041"
+
+# The one fact id that reads like a name. An id is the answer key's own name for a fact, not
+# text the room writes, and the ids stay comparable to sample 1's, so key.json is read with its
+# fact ids taken out and every value, path and rubric row of it read as it stands.
+KEPT_FACT_ID = "trust-reset-addback"
 
 # The four documents whose file name carried a name, and the name the variant gives each.
 RENAMED = {
@@ -103,9 +127,9 @@ GONE = re.compile(
         (
             r"(?<![A-Za-z0-9_])AURORA(?![A-Za-z0-9_])",
             r"(?<![A-Za-z0-9_])NQ-?17(?![A-Za-z0-9_])",
-            r"(?i:(?<![A-Za-z0-9_])Trust Reset(?![A-Za-z0-9_]))",
-            r"(?i:(?<![A-Za-z0-9_])login friction(?![A-Za-z0-9_]))",
-            r"(?i:(?<![A-Za-z0-9_])credential[- ]hygiene(?![A-Za-z0-9_]))",
+            r"(?i:(?<![A-Za-z0-9])Trust[ _-]Reset(?![A-Za-z0-9]))",
+            r"(?i:(?<![A-Za-z0-9])login[ _-]friction(?![A-Za-z0-9]))",
+            r"(?i:(?<![A-Za-z0-9])credential[ _-]hygiene(?![A-Za-z0-9]))",
             r"(?<![A-Za-z0-9_])legacy_uap_backup_2021\.tar\.gz",
             r"(?<![A-Za-z0-9_])vpauth-legacy-2019(?![A-Za-z0-9_])",
         )
@@ -143,7 +167,17 @@ def hits(text: str) -> list[str]:
     because its name is the workstream's codename in ordinary case and it is not the matter.
     """
     lowered = text.lower().replace(OTHER_ORGANISATION.lower(), " ")
-    return [name for names in REMOVED.values() for name in names if name.lower() in lowered]
+    return [name for names in FORMS.values() for name in names if name.lower() in lowered]
+
+
+def readable(path: Path, text: str) -> str:
+    """One file of the variant as the check for a removed name reads it: key.json with its fact
+    ids taken out, and every other file whole."""
+    if path.name != "key.json":
+        return text
+    for fact in load_key(UNNAMED_DIR).facts:
+        text = text.replace(f'"{fact.id}"', " ")
+    return text
 
 
 def variant_files() -> list[Path]:
@@ -176,10 +210,11 @@ def carried() -> dict[str, list[str]]:
     found: dict[str, list[str]] = {name: [] for name in REMOVED}
     for doc_id, path in sorted(source.documents.items()):
         text = "\n".join(texts.get(path, ()))
-        for name, names in REMOVED.items():
+        for name, names in FORMS.items():
+            edge = "" if len(names) == len(JOINS) else "_"
             for one in names:
                 pattern = re.compile(
-                    rf"(?<![A-Za-z0-9_]){re.escape(one)}(?![A-Za-z0-9_])",
+                    rf"(?<![A-Za-z0-9{edge}]){re.escape(one)}(?![A-Za-z0-9{edge}])",
                     0 if one == "AURORA" else re.IGNORECASE,
                 )
                 if pattern.search(text):
@@ -218,7 +253,7 @@ def written_beside_another_name() -> dict[str, set[str]]:
 
 def identifier_written(name: str) -> str:
     """The identifier id one written name belongs to."""
-    for key, names in REMOVED.items():
+    for key, names in FORMS.items():
         if any(one.lower() == name.lower() for one in names):
             return key
     raise AssertionError(name)
@@ -288,10 +323,23 @@ def test_no_file_of_the_variant_holds_a_removed_name():
     found = {}
     for path in files:
         relative = path.relative_to(UNNAMED_DIR).as_posix()
-        written = hits(relative) + hits(path.read_text(encoding="utf-8"))
+        written = hits(relative) + hits(readable(path, path.read_text(encoding="utf-8")))
         if written:
             found[relative] = sorted(set(written))
     assert not found, found
+
+
+def test_the_key_keeps_the_fact_ids_of_sample_one():
+    """A fact id is the answer key's own name for a fact and stays as sample 1 wrote it, so the
+    variant's facts are read against sample 1's one for one."""
+    needs_unnamed()
+    source = load_key(SOURCE_DIR)
+    key = load_key(UNNAMED_DIR)
+
+    assert KEPT_FACT_ID in {fact.id for fact in key.facts}
+    assert [fact.id for fact in key.facts] == [
+        fact.id for fact in source.facts if fact.id not in DROPPED
+    ]
 
 
 def test_the_organisation_that_is_not_the_matter_is_untouched():
