@@ -1,0 +1,186 @@
+From: karl webb <karl.webb@vistaport.example>
+
+To: Raman, Priya <priya.raman@vistaport.example>
+
+Cc: DANIEL CHO <daniel.cho@vistaport.example>
+
+Subject: AURORA — carrier notice timing
+
+Date: Thu, 04 Dec 2025 16:05:00 +0000
+
+Message-ID: <atlas-dr100-001@vistaport.example>
+
+MIME-Version: 1.0
+
+Content-Type: text/plain; charset="UTF-8"
+
+Priya,
+
+Flagging the cyber tower notice. If awareness is measured from the 21 October internal ticket, the 45-day window runs to around 5 December — i.e. essentially now. I would prefer we get a holding notice to Redbridge before the window closes rather than debate characterisation first.
+
+Can we align tomorrow?
+
+Karl
+
+From: Raman, Priya <priya.raman@vistaport.example>
+
+To: karl webb <karl.webb@vistaport.example>
+
+Cc: DANIEL CHO <daniel.cho@vistaport.example>
+
+Subject: RE: AURORA — carrier notice timing
+
+Date: Fri, 05 Dec 2025 09:40:00 +0000
+
+Message-ID: <atlas-dr100-002@vistaport.example>
+
+MIME-Version: 1.0
+
+Content-Type: text/plain; charset="UTF-8"
+
+Karl,
+
+Understood on timing. My concern is that we not over-characterise before we have the final IronLake position. The Phase 1 material is a privileged draft and is more definitive than I think is warranted; the final executive summary is softer. I would rather the notice reflect the final.
+
+Let us treat awareness as a question for counsel — receipt of the final summary is a defensible reference point. Please hold the formal notice until we have agreed wording.
+
+Priya
+
+From: karl webb <karl.webb@vistaport.example>
+
+To: Marc Delacroix <m.delacroix@redbridge-risk.example>
+
+Cc: Raman, Priya <priya.raman@vistaport.example>
+
+Subject: Draft notice — characterisation
+
+Date: Thu, 11 Dec 2025 11:15:00 +0000
+
+Message-ID: <atlas-dr100-003@vistaport.example>
+
+MIME-Version: 1.0
+
+Content-Type: text/plain; charset="UTF-8"
+
+Marc,
+
+Draft notice attached for the cyber tower. One open point for your steer: how to describe the matter. Internally the review is referenced as AURORA, but operationally the user-facing programme is the “Trust Reset” credential-hygiene initiative. Counsel would prefer the notice describe the Trust Reset programme and an associated review rather than lead with a breach characterisation.
+
+We are conscious this is later than ideal relative to the policy notice condition; the covering note explains the position. Grateful for your read.
+
+Karl
+
+From: Marc Delacroix <m.delacroix@redbridge-risk.example>
+
+To: karl webb <karl.webb@vistaport.example>
+
+Cc: Raman, Priya <priya.raman@vistaport.example>
+
+Subject: RE: Draft notice — characterisation
+
+Date: Fri, 12 Dec 2025 08:30:00 +0000
+
+Message-ID: <atlas-dr100-004@vistaport.example>
+
+MIME-Version: 1.0
+
+Content-Type: text/plain; charset="UTF-8"
+
+Karl,
+
+Thanks. Two things to be candid about. First, the carriers will look closely at the notice date against the 45-day condition; framing the awareness date around the final summary rather than the October activity is a position they may test. Second, describing the matter solely as a “Trust Reset” programme, when the internal review (AURORA) examines unauthorised access, could be read as under-notification. I would rather we describe both plainly.
+
+Happy to discuss. Marc
+
+From: OWEN BELL <owen.bell@vistaport.example>
+
+To: DANIEL CHO <daniel.cho@vistaport.example>
+
+Cc: Raman, Priya <priya.raman@vistaport.example>, G. Okafor <grace.okafor@vistaport.example>
+
+Subject: Reserve — AURORA exposure
+
+Date: Mon, 29 Dec 2025 17:50:00 +0000
+
+Message-ID: <atlas-dr100-005@vistaport.example>
+
+MIME-Version: 1.0
+
+Content-Type: text/plain; charset="UTF-8"
+
+Daniel,
+
+I cannot reconcile a $12m reserve with the technical picture. The legacy backup at the centre of this covers ~912.8m historical profiles, of which ~286m are active within 24 months, and the signing-key issue makes session forging feasible. Outside counsel’s working range is materially higher than $12m once notification, regulatory and litigation heads are included.
+
+Booking $12m as “proportionate” will not reflect the exposure. I have said this in the steering committee and I am repeating it in writing.
+
+Owen
+
+From: DANIEL CHO <daniel.cho@vistaport.example>
+
+To: OWEN BELL <owen.bell@vistaport.example>
+
+Cc: Raman, Priya <priya.raman@vistaport.example>, G. Okafor <grace.okafor@vistaport.example>
+
+Subject: RE: Reserve — AURORA exposure
+
+Date: Tue, 30 Dec 2025 10:20:00 +0000
+
+Message-ID: <atlas-dr100-006@vistaport.example>
+
+MIME-Version: 1.0
+
+Content-Type: text/plain; charset="UTF-8"
+
+Owen,
+
+Noted, and I do not dismiss the range. But accounting requires a reliably estimable amount, and we do not have a confirmed reportable event or an agreed quantum. On that basis a proportionate $12m trust-and-safety contingency is what I can support today; we will revisit as the position firms up. The memo records that a wider range exists.
+
+Let us not litigate this over email. Daniel
+
+From: Raman, Priya <priya.raman@vistaport.example>
+
+To: RENATA CASTELLANO <r.castellano@ironlake.example>
+
+Cc: G. Okafor <grace.okafor@vistaport.example>
+
+Subject: AURORA — draft vs final, October window
+
+Date: Fri, 12 Dec 2025 14:05:00 +0000
+
+Message-ID: <atlas-dr100-007@vistaport.example>
+
+MIME-Version: 1.0
+
+Content-Type: text/plain; charset="UTF-8"
+
+Renata,
+
+Thank you for the team’s work. For the file I want to be precise on two points. First, the Phase 1 technical findings are a privileged DRAFT and should be marked as such wherever referenced; the executive summary is the final work product. Second, the anomalous activity centres on the 18 October 2025 window — please ensure the dating in the final is consistent with that and with the Kestrel log extract.
+
+We will route any external references through counsel.
+
+Priya
+
+From: RENATA CASTELLANO <r.castellano@ironlake.example>
+
+To: Raman, Priya <priya.raman@vistaport.example>
+
+Cc: G. Okafor <grace.okafor@vistaport.example>
+
+Subject: RE: AURORA — draft vs final, October window
+
+Date: Fri, 12 Dec 2025 15:40:00 +0000
+
+Message-ID: <atlas-dr100-008@vistaport.example>
+
+MIME-Version: 1.0
+
+Content-Type: text/plain; charset="UTF-8"
+
+Priya,
+
+Understood. The final executive summary carries the privileged markings and is the version for reliance; the Phase 1 memo remains a draft. The earliest anomalous bulk-read activity is dated 18 October 2025 in both the draft and the final, consistent with the Kestrel object-store logs. We have generalised some of the draft’s quantitative language in the final per counsel’s direction.
+
+Renata
+IronLake Forensics
