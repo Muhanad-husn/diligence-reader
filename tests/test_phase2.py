@@ -19,6 +19,7 @@ import pytest
 from rlm import bakeoff
 from rlm.amounts import AMOUNT
 from rlm.gateway import (
+    IGNORED_PROVIDERS,
     PAST_PRICES,
     PRICES,
     REASONING,
@@ -261,6 +262,21 @@ def test_gateway_complete_sends_low_effort_reasoning_to_glm():
 
         body = json.loads(transport.requests[0].content)
         assert body["reasoning"] == {"effort": "low"}
+
+
+def test_gateway_complete_leaves_out_the_providers_that_ignore_the_reasoning_object():
+    """One model is served by several providers and a provider that ignores the reasoning
+    object spends the whole budget on reasoning and answers with nothing. Every call names
+    those providers so the routing never reaches them."""
+    assert IGNORED_PROVIDERS
+    for model in PRICES:
+        transport = FakeTransport([reply('{"what": "x"}')])
+        gateway = Gateway(api_key="test-key", transport=transport)
+
+        gateway.complete(model, [{"role": "user", "content": "u"}], max_tokens=100)
+
+        body = json.loads(transport.requests[0].content)
+        assert body["provider"] == {"ignore": list(IGNORED_PROVIDERS)}, model
 
 
 def test_gateway_complete_reads_a_null_content_as_empty_text():

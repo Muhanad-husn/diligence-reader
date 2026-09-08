@@ -1,8 +1,9 @@
 """The one module that calls the gateway, and the ledger that pays for the call.
 
 Every model call in this repository goes through Gateway.complete, which posts one chat
-completion to OpenRouter with temperature 0, a fixed seed, JSON output mode and the reasoning
-object REASONING gives its model. Nothing else opens a socket.
+completion to OpenRouter with temperature 0, a fixed seed, JSON output mode, the reasoning
+object REASONING gives its model, and the providers of IGNORED_PROVIDERS left out of the
+routing. Nothing else opens a socket.
 
 Money is a ceiling the code enforces. A batch of calls runs inside Ledger.batch, which prints
 the estimated tokens and the price before anything is sent, refuses when the estimate would
@@ -65,6 +66,15 @@ REASONING: dict[str, dict] = {
     "z-ai/glm-5.3": {"effort": "low"},
     "z-ai/glm-5.3-flash": {"effort": "low"},
 }
+
+# The gateway serves one model from several providers and picks one per call. A provider named
+# here ignores the reasoning object above: it spends the whole max_tokens budget on reasoning
+# and answers with a null content and a finish reason of length, so the call pays in full and
+# returns nothing. Every call leaves these out. Wafer was found doing this to z-ai/glm-5.3-flash
+# on 2026-09-09, burning 6000 reasoning tokens on a prompt the other providers answer with 10
+# to 26; the same prompt had been answered a day earlier and the ten documents it hit came back
+# with no note at all, three runs in a row.
+IGNORED_PROVIDERS = ("Wafer",)
 
 # The total ceiling and the per phase caps, from PLAN.md section 6.
 TOTAL_CEILING = 50.0
@@ -169,6 +179,7 @@ class Gateway:
             "seed": 0,
             "max_tokens": max_tokens,
             "reasoning": REASONING.get(model, {"enabled": False}),
+            "provider": {"ignore": list(IGNORED_PROVIDERS)},
         }
         if json:
             body["response_format"] = {"type": "json_object"}
