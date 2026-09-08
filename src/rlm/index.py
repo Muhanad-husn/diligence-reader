@@ -299,7 +299,7 @@ def _is_line_row(section: dict) -> bool:
     return _LINE_JOIN in text or _LINE_NUMBER.fullmatch(text.strip()) is not None
 
 
-def _line_cells(text: str) -> list[dict]:
+def line_cells(text: str) -> list[dict]:
     """Splits one line into its fields, each a cell of column c1 onward.
 
     A field whose whole text is a number carries that number as its value, the way a workbook
@@ -343,7 +343,7 @@ def _line_tables(sections: list[dict]) -> dict[str, dict]:
     """
     found: dict[str, dict] = {}
     for at, run in enumerate(_line_runs(sections), start=1):
-        rows = [(section, _line_cells(section["text"])) for section in run]
+        rows = [(section, line_cells(section["text"])) for section in run]
         numeric = [
             any(_is_number(cell["value"]) for cell in cells) for _section, cells in rows
         ]
