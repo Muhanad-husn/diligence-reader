@@ -839,6 +839,7 @@ def test_one_document_named_values_put_the_rarest_carried_value_first(tmp_path):
             index_record("identifier", "AAA-1", [DR_069, OTHER_DOC, THIRD_DOC, "d4"]),
             index_record("identifier", "BBB-2", [DR_069, OTHER_DOC]),
             index_record("identifier", "CCC-3", [DR_069, OTHER_DOC, THIRD_DOC]),
+            index_record("date", "2025-10-18", [f"d{n}" for n in range(4, 12)]),
         ],
     )
     assert named_values(read_index(tmp_path), DR_069) == ["BBB-2", "CCC-3", "AAA-1"]
@@ -926,28 +927,32 @@ def test_one_document_a_value_inside_no_flag_quote_is_asked_for_once():
     assert note["flags"][1]["about"] == ["286m"]
 
 
-def test_one_document_a_cross_reference_in_no_flag_quote_is_asked_for_too():
-    """A code the note wrote counts as a value of the document; a person's name does not."""
+def test_one_document_a_cross_reference_in_no_flag_quote_is_not_asked_for():
+    """Only the index's named values are asked for; a code the note itself wrote is not."""
     first = {
         "what": "x",
         "flags": [{"flag": "f", "quote": SENTENCE, "consequence": "c", "about": []}],
         "figures": [],
-        "cross_references": [
-            {"kind": "code", "value": "AURORA", "quote": EGRESS},
-            {"kind": "person", "value": "Renata Castellano", "quote": EGRESS},
-        ],
+        "cross_references": [{"kind": "code", "value": "AURORA", "quote": EGRESS}],
         "concealed": [],
     }
-    second = json.loads(json.dumps(first))
-    second["flags"].append({"flag": "g", "quote": EGRESS, "consequence": "c", "about": ["AURORA"]})
-    calls = Replies([json.dumps(first), json.dumps(second)])
-    note, _ = model_note(DR_069, MODEL, "a", VALUE_SECTIONS, calls, named=[])
+    calls = Replies([json.dumps(first)])
+    model_note(DR_069, MODEL, "a", VALUE_SECTIONS, calls, named=[])
 
-    assert len(calls.messages) == 2
-    asked = calls.messages[1][-1]["content"]
-    assert "AURORA" in asked
-    assert "Renata Castellano" not in asked
-    assert [flag["flag"] for flag in note["flags"]] == ["f", "g"]
+    assert len(calls.messages) == 1
+
+
+def test_one_document_named_values_leave_out_a_value_more_than_half_the_room_carries(tmp_path):
+    """A surface every document writes, a footer word, is not a value the map can link on."""
+    room = [f"data_room/doc{n}.pdf" for n in range(6)]
+    write_index(
+        tmp_path,
+        [
+            index_record("name", "CONFIDENTIAL", [DR_069] + room),
+            index_record("name", "AURORA", [DR_069, room[0]]),
+        ],
+    )
+    assert named_values(read_index(tmp_path), DR_069) == ["AURORA"]
 
 
 def test_one_document_the_reask_lists_the_failed_items_then_the_uncovered_values():

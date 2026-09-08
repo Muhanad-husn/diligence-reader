@@ -70,7 +70,7 @@ from pathlib import Path
 from rlm.amounts import AMOUNT
 from rlm.gateway import PHASE_CAPS, Batch, Completion, Gateway, Ledger, estimate_tokens, price
 from rlm.key import load_key
-from rlm.map import is_count, ordinary_words
+from rlm.map import BREADTH_SHARE, is_count, ordinary_words
 from rlm.words import fold
 
 PHASE = 2
@@ -93,7 +93,6 @@ CROSS_REFERENCE_KINDS = frozenset({"code", "name", "person", "document", "regula
 
 # The cross reference kinds whose value names something the map can join two documents through.
 # A person is not one of them: the same general counsel signs the tax memo and the forensic memo.
-NAMED_REFERENCE_KINDS = frozenset({"code", "name", "document", "ticket"})
 
 # How many of a document's named values are read, rarest carried first.
 NAMED_VALUE_LIMIT = 40
@@ -465,11 +464,14 @@ def named_values(records: list[dict], doc: str, skipped: frozenset[str] = frozen
     A surface counts when the index calls it an identifier or an amount, or calls it a name and
     writes it as one word in upper case, which is the rule map.shared_values links on. A bare
     count is left out, so is a surface in skipped, which main fills with the room's ordinary
-    words (map.ordinary_words: THE, COUNSEL, DRAFT), and so is a surface only this document
-    carries, since it joins nothing. The document of an anchor is the part before its #. The
+    words (map.ordinary_words: THE, COUNSEL, DRAFT), so is a surface only this document
+    carries, since it joins nothing, and so is one more than BREADTH_SHARE of the room's
+    documents carry, which the map does not link on either. The document of an anchor is the part before its #. The
     rarest carried surface comes first, ties in alphabetical order, and the list stops at
     NAMED_VALUE_LIMIT.
     """
+    room = {anchor.rsplit("#", 1)[0] for record in records for anchor in record["anchors"]}
+    breadth = max(2, int(len(room) * BREADTH_SHARE))
     carriers: dict[str, int] = {}
     for record in records:
         kind = record["kind"]
@@ -480,7 +482,7 @@ def named_values(records: list[dict], doc: str, skipped: frozenset[str] = frozen
         if not linkable or is_count(surface) or surface in skipped:
             continue
         documents = {anchor.rsplit("#", 1)[0] for anchor in record["anchors"]}
-        if doc not in documents or len(documents) < 2:
+        if doc not in documents or len(documents) < 2 or len(documents) > breadth:
             continue
         held = carriers.get(surface)
         if held is None or len(documents) < held:
@@ -490,22 +492,18 @@ def named_values(records: list[dict], doc: str, skipped: frozenset[str] = frozen
 
 
 def uncovered_values(note: dict, named: Sequence[str]) -> list[str]:
-    """The values of one document that read inside no verified flag's quote.
+    """The named values of one document that read inside no verified flag's quote.
 
-    Those are the document's named values, then the values the note's own verified cross
-    references wrote whose kind is one of NAMED_REFERENCE_KINDS. A value is covered when its
-    folded form sits inside the folded quote of one flag, so the punctuation either side wrote
-    does not matter. A value that appears twice is listed once, in the order above.
+    A value is covered when its folded form sits inside the folded quote of one flag, so the
+    punctuation either side wrote does not matter. A value that appears twice is listed once, in
+    the order the named values came. The values the note's own cross references wrote are not
+    asked for: on the control they pulled every title and firm of the room into the flags and
+    the map's set grew from 34 documents to 83.
     """
     quotes = [fold(flag["quote"]) for flag in note["flags"]]
-    wanted = list(named) + [
-        reference["value"]
-        for reference in note["cross_references"]
-        if reference["kind"] in NAMED_REFERENCE_KINDS
-    ]
     missing: list[str] = []
     seen: set[str] = set()
-    for value in wanted:
+    for value in named:
         folded = fold(value)
         if not folded or folded in seen:
             continue
