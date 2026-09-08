@@ -25,14 +25,19 @@ A document joins as `shared` where it has such an edge to the seed, which is to 
 of its note and a flag of the seed's note are about the same value. It joins as `version` where
 it is the draft or the final of a pair the set already touches. It joins as `consequence` where
 the matter broke a series it holds, or where it is a model written after the matter that still
-carries a figure the broken series left behind. It joins as `reach` where two different
-documents of the set each share a rare value with it and those are two different values, a
-value being rare when at most a quarter of the room carries it, or where one rare value it
-shares with one document of the set is an exact money figure, which names a matter as well as
-a code does. It joins as `compare` where a set document's note names it at a place that asks,
-in the room's own words, for the two to be read against each other. It joins as `covenant`
-where one of its flags is quoted with a termination word and writes the same run of words as
-a flag of the seed.
+carries a figure the broken series left behind. It joins as `reach` where two documents of the
+set each share a value of the matter with it and those are two different values, one of which
+the matter owns, or where one value of the matter it shares with one document of the set is an
+exact money figure the matter owns. A value of the matter is a value the room's notes write,
+as a cross reference or as a figure, whole or as a word inside one they write, and that the
+matter owns, every other document of the room carrying it being in the set already; an exact
+money figure is a value of the matter whether the matter owns it or not, because a figure only
+a few documents carry names a matter as well as a code does. It joins as `compare` where a set
+document's note names it at a place that asks, in the room's own words, for the two to be read
+against each other. It joins as `covenant` where one of its flags is quoted with a termination
+word and writes the same run of words as a flag of the seed or of a document the seed joined by
+`shared`, and either that flag is quoted with a termination word as well or the run names a
+value of the matter.
 
 Every document is also scored by what it shares with the seed, plus one round of that score
 spread along the edges, each neighbour's contribution divided by its own total weight so that
@@ -246,6 +251,63 @@ def person_values(notes: dict[str, dict]) -> set[str]:
         if top[0] == "person":
             people.add(value)
     return people
+
+
+def written_values(notes: dict[str, dict]) -> tuple[set[str], set[str]]:
+    """The values the room's notes write in their own right, whole and in every run of words.
+
+    A note writes a value where it names it as a cross reference or reads it as a figure. A
+    cross reference the note calls a person is left out, because a person's name is not evidence
+    that two documents are about the same matter, and a title written beside a person is not
+    one either. The second set holds every run of words of those values, so `DPA` is found
+    inside `Tidewater DPA` and `45 days` inside `Net 45 days` without looking for either there.
+    """
+    whole: set[str] = set()
+    for note in notes.values():
+        for reference in note["cross_references"]:
+            if reference["kind"] != "person":
+                whole.add(fold(reference["value"]))
+        for figure in note["figures"]:
+            whole.add(fold(figure["surface"]))
+    whole.discard("")
+    return whole, {run for value in whole for run in word_runs(value)}
+
+
+def word_runs(folded: str) -> set[str]:
+    """Every run of one or more words of a folded value, in no particular order."""
+    words = folded.split()
+    return {
+        " ".join(words[start:end])
+        for start in range(len(words))
+        for end in range(start + 1, len(words) + 1)
+    }
+
+
+def is_written(value, written: tuple[set[str], set[str]]) -> bool:
+    """Whether the notes write a value, whole or as a word inside a value they write.
+
+    `DPA` is written inside `Tidewater DPA` and `45 days` inside `Net 45 days`, so the room
+    writes both down. `EBITDA`, `MAU`, `CEO` and `Day-1` are in no cross reference and no
+    figure, whole or in part: they are the words the room writes in front of a number, beside a
+    person or on a milestone, and the index cut them out of its prose.
+    """
+    return fold(value) in written[1]
+
+
+def names_a_value(words: str, written: tuple[set[str], set[str]]) -> bool:
+    """Whether a folded run of words holds a value the notes write in its own right."""
+    return bool(word_runs(words) & written[0])
+
+
+def value_holders(
+    shared: dict[tuple[str, str], dict[str, tuple[float, int]]]
+) -> dict[str, set[str]]:
+    """Every document that carries each value the set is built along."""
+    holders: dict[str, set[str]] = {}
+    for pair, held in shared.items():
+        for value in held:
+            holders.setdefault(value, set()).update(pair)
+    return holders
 
 
 def ordinary_words(sections: list[dict]) -> set[str]:
@@ -736,38 +798,58 @@ def reach_links(
     shared: dict[tuple[str, str], dict[str, tuple[float, int]]],
     inside: set[str],
     order: list[str],
+    written: tuple[set[str], set[str]],
 ) -> dict[str, dict]:
-    """Every document the set reaches by rare values, from two places or from one money figure.
+    """Every document the set reaches by values of the matter, from two places or by one figure.
 
-    A rare value is one at most REACH_SHARE of the room carries. One rare value in common with
-    one document of the set is a coincidence of vocabulary; the same document named twice over,
-    from two places, by two different values, is the matter.
+    A value of the matter is a value the room's notes write and the matter owns. The notes write
+    it where a cross reference or a figure carries it, whole or as a word inside one they carry.
+    The matter owns it where every other document of the room that carries it is in the set
+    already, so the value reaches this one document and no other.
 
-    A money figure is the exception, because an exact figure only a few documents carry names a
-    matter as well as a code does: one such figure shared with one document of the set reaches
-    the document on its own. The row then carries that one document and that one figure, the
-    heaviest of them where the document has several, and the earliest by value and by id where
-    two weigh the same.
+    Both halves are needed. `EBITDA`, `MAU`, `CEO` and `Day-1` are in no cross reference and no
+    figure: the room writes them in front of a number, beside a person and on a milestone, and
+    the index cut them out of its prose. `LLP` is written after three firms and `SOC` in front
+    of a certificate, so the notes do write both, but eleven documents carry either and the set
+    holds three of them, so neither is the matter's.
+
+    An exact money figure is a value of the matter whether the matter owns it or not, because a
+    figure only a few documents carry names a matter as well as a code does. A value more than
+    REACH_SHARE of the room carries is not a value of the matter at all.
+
+    A document joins where two documents of the set each share a value of the matter with it,
+    those are two different values, and the matter owns at least one of the two. It joins on one
+    value alone where that value is an exact money figure the matter owns; the row then carries
+    that one document and that one figure, the heaviest of them where the document has several,
+    and the earliest by value and by id where two weigh the same.
     """
     breadth = REACH_SHARE * len(order)
+    holders = value_holders(shared)
     found: dict[str, dict] = {}
     for doc in order:
         if doc in inside:
             continue
-        holders: dict[str, set[str]] = {}
+        carried: dict[str, set[str]] = {}
+        owned: set[str] = set()
         money: tuple[float, str, str] | None = None
         for other in sorted(inside):
             for value, (weight, carriers) in shared.get((doc, other), {}).items():
-                if carriers > breadth:
+                if carriers > breadth or not is_written(value, written):
                     continue
-                holders.setdefault(value, set()).add(other)
+                owns = not (holders[value] - inside - {doc})
+                if not (owns or value.startswith("$")):
+                    continue
+                carried.setdefault(value, set()).add(other)
+                if not owns:
+                    continue
+                owned.add(value)
                 if value.startswith("$"):
                     mark = (-weight, value, other)
                     if money is None or mark < money:
                         money = mark
-        heads = {other for held in holders.values() for other in held}
-        if len(holders) >= 2 and len(heads) >= 2:
-            found[doc] = {"from": sorted(heads), "kind": "reach", "values": sorted(holders)}
+        heads = {other for held in carried.values() for other in held}
+        if len(carried) >= 2 and len(heads) >= 2 and owned:
+            found[doc] = {"from": sorted(heads), "kind": "reach", "values": sorted(carried)}
         elif money is not None:
             found[doc] = {"from": [money[2]], "kind": "reach", "values": [money[1]]}
     return found
@@ -812,20 +894,25 @@ def compare_links(
 
 
 def covenant_links(
-    seed: list[str], notes: dict[str, dict], inside: set[str], order: list[str]
+    core: list[str],
+    notes: dict[str, dict],
+    inside: set[str],
+    order: list[str],
+    written: tuple[set[str], set[str]],
 ) -> dict[str, dict]:
-    """Every document outside the set whose termination clause writes the seed's own subject.
+    """Every document outside the set whose termination clause writes a set document's own words.
 
-    A flag quoted with a termination word that shares a run of words with a flag of the seed is
-    a right to end an agreement over the very thing the seed found. Whether that clause gives
-    the right or takes it away is not read here: the dossier reads the clause out of the note.
+    A flag quoted with a termination word that writes the same run of words as a flag of the
+    seed, or of a document the seed joined by `shared`, is a right to end an agreement over what
+    the set already holds. The run has to be more than the words every agreement writes: either
+    the set document's flag is quoted with a termination word as well, so the run is one right
+    written twice, or the run names a value of the matter, so it is one subject written twice.
+    `written notice if the other party materially breaches this agreement` is the first, `as the
+    Trust Reset` is the second, and `change of control` and `without undue delay` are neither.
+    Whether the clause gives the right or takes it away is not read here: the dossier reads the
+    clause out of the note.
     """
-    said = [
-        folded_words(flag["quote"])
-        for head in seed
-        if head in notes
-        for flag in notes[head]["flags"]
-    ]
+    said = [(head, flag) for head in core if head in notes for flag in notes[head]["flags"]]
     found: dict[str, dict] = {}
     for doc in order:
         note = notes.get(doc)
@@ -834,16 +921,16 @@ def covenant_links(
         for flag in note["flags"]:
             if not TERMINATION_WORDS.search(one_line(flag["quote"])):
                 continue
-            written = folded_words(flag["quote"])
-            for words in said:
-                run = shared_run(written, words)
+            mine = folded_words(flag["quote"])
+            for head, other in said:
+                run = shared_run(mine, folded_words(other["quote"]))
                 if run is None:
                     continue
-                found[doc] = {
-                    "from": sorted(seed),
-                    "kind": "covenant",
-                    "values": [" ".join(run)],
-                }
+                words = " ".join(run)
+                ends = bool(TERMINATION_WORDS.search(one_line(other["quote"])))
+                if not (ends or names_a_value(words, written)):
+                    continue
+                found[doc] = {"from": [head], "kind": "covenant", "values": [words]}
                 break
             if doc in found:
                 break
@@ -1074,6 +1161,7 @@ def build_map(sample_dir: Path, run_dir: Path) -> dict:
 
     nodes = {node["doc"]: node for node in documents}
     shared = value_edges(edges)
+    written = written_values(notes)
     why = reasons(edges, scores)
 
     via: dict[str, dict] = {head: {"from": [], "kind": "seed", "values": []} for head in seed}
@@ -1100,9 +1188,9 @@ def build_map(sample_dir: Path, run_dir: Path) -> dict:
     hold(model_links(modelled, notes, set(inside)))
     consequences = sorted(broken + modelled, key=lambda row: (row["kind"], row["doc"]))
 
-    hold(reach_links(shared, set(inside), order))
+    hold(reach_links(shared, set(inside), order, written))
     hold(compare_links(set(inside), nodes, notes, sections, ids_by_path))
-    hold(covenant_links(seed, notes, set(inside), order))
+    hold(covenant_links(core, notes, set(inside), order, written))
 
     lift = max(scores.values(), default=0.0)
     for doc in inside:
