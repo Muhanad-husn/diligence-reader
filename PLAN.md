@@ -88,7 +88,7 @@ on the three gate samples and, from phase 5, the rubric score on sample 1.
 | 3 Map | Phase 3 | done | 100 / 100 / 100 | 0 | 0 / 0 / 0 | 2026-09-07 |
 | 4 Dossier | Phase 4 | done | 100 / 100 / 100 | 0 | 0 / 0 / 0 | 2026-09-07 |
 | 5 Report | Phase 5 | done | 100 / 100 / 100, rubric 90 | 1.78 | 4 / 0 / 0 | 2026-09-08 |
-| 6 Widen | Phase 6 | not started | | | | |
+| 6 Widen | Phase 6 | done | 100, rubric 96 | 2.16 | 1 | 2026-09-08 |
 | 7 Compare | Phase 7 | not started | | | | |
 
 **How a phase becomes issues.** The founder types `/aeo:sprint-plan` for the phase. The plan is

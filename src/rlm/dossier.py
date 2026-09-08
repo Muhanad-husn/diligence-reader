@@ -109,6 +109,9 @@ UNDATED = "9999-99-99"
 # What joins the parts of a comparison row.
 JOIN = " || "
 
+# How ingest joins the cells of a table row into the row's text.
+CELL_JOIN = " | "
+
 _DAY = re.compile(r"\b([0-9]{1,2} [A-Z][a-z]+ [0-9]{4}|[0-9]{4}-[0-9]{2}-[0-9]{2})\b")
 
 # What a clause says where it takes a right away.
@@ -216,8 +219,14 @@ def statements(note: dict) -> list[tuple[str, str, str]]:
 
 
 def verbs_in(words: list[str]) -> set[str]:
-    """The words a text uses as verbs: the ones it writes straight after `to` or a modal."""
-    return {words[at] for at in range(1, len(words)) if words[at - 1] in VERB_MARKERS}
+    """The words a text uses as verbs: the ones it writes straight after `to` or a modal.
+
+    A word too common to say anything is left out. `to` in `likely to give rise to a claim` is a
+    preposition the second time, so `a` is not a verb the clause turns on, and reading it as one
+    took DR-081 out of sample 1's set.
+    """
+    spoken = {words[at] for at in range(1, len(words)) if words[at - 1] in VERB_MARKERS}
+    return spoken - COMMON_WORDS
 
 
 def negated_before(words: list[str], verb: str) -> bool:
@@ -228,6 +237,11 @@ def negated_before(words: list[str], verb: str) -> bool:
         if NEGATION_WORDS & set(words[max(0, at - CLAUSE_SPAN) : at]):
             return True
     return False
+
+
+def is_table_row(quote: str) -> bool:
+    """Whether a quote is one row of a table, which ingest writes as its cells joined by pipes."""
+    return CELL_JOIN in quote
 
 
 def unique_title_words(nodes: dict[str, dict]) -> dict[str, set[str]]:
@@ -247,7 +261,10 @@ def worried_about(cluster: list[str], nodes: dict[str, dict], notes: dict[str, d
     """The documents another document of the cluster worries about by name.
 
     A flag that writes `Harbor Foods refund liability ... is unreserved` names the Harbor MSA,
-    and that is the room saying the document belongs to what it is worried about.
+    and that is the room saying the document belongs to what it is worried about. A flag whose
+    quote is a table row names nobody: the customer schedule writes one row per customer, so the
+    row that carries Granite Manufacturing names it the way it names every other party in the
+    list, and the room is not worried about any of them by writing the list down.
     """
     titled = unique_title_words(nodes)
     found = set()
@@ -256,7 +273,11 @@ def worried_about(cluster: list[str], nodes: dict[str, dict], notes: dict[str, d
         if not note:
             continue
         written = content_words(
-            " ".join(f"{flag['flag']} {flag['quote']}" for flag in note["flags"])
+            " ".join(
+                f"{flag['flag']} {flag['quote']}"
+                for flag in note["flags"]
+                if not is_table_row(flag["quote"])
+            )
         )
         for other in cluster:
             if other != doc and titled.get(other, set()) & written:
@@ -268,24 +289,29 @@ def matter_set(matter: dict, nodes: dict[str, dict], notes: dict[str, dict]) -> 
     """The matter's document set: the map's cluster, less the documents that deny the matter.
 
     A cluster document is out when one of its flag quotes carries the matter's subject and
-    negates the seed's operative verb, and no other document of the cluster worries about it by
-    name. The subject is the longest run of words that flag and a seed flag both write, holding
-    two words that say something; the operative verb is a word both of them use as a verb, right
-    after `to` or a modal; the negation is a negation word within ten words in front of that verb
-    in the cluster document's flag and in front of nothing in the seed's. A master service
-    agreement whose change-of-control clause says a change of control shall not give either party
-    any right to terminate is arguing the opposite of the matter, and the map, which links
-    documents by the values they share, cannot tell it from the agreement that does terminate:
-    the two share their template. A document the room's own worries name by title stays, however
-    its own clause reads, because something else put it in the matter.
+    negates the operative verb another document of the cluster writes, and no other document of
+    the cluster worries about it by name. The words it is read against are the set's own, not the
+    seed's alone: northwind's seed is its cap table and the change-of-control clause the Granite
+    MSA argues against is written by the Meridian MSA. The subject is the longest run of words
+    the two flags both write, holding two words that say something; the operative verb is a word
+    both of them use as a verb, right after `to` or a modal; the negation is a negation word
+    within ten words in front of that verb in the cluster document's flag and in front of nothing
+    in the other's. A master service agreement whose change-of-control clause says a change of
+    control shall not give either party any right to terminate is arguing the opposite of the
+    matter, and the map, which links documents by the values they share, cannot tell it from the
+    agreement that does terminate: the two share their template. A document the room's own
+    worries name by title stays, however its own clause reads, because something else put it in
+    the matter.
     """
     cluster = sorted(set(matter["cluster"]))
     seeds = [doc for doc in matter["seed"] if doc in notes]
     if not seeds:
         return cluster
-    seed_flags = [
-        folded_words(flag["quote"]) for seed in seeds for flag in notes[seed]["flags"]
-    ]
+    spoken_by = {
+        doc: [folded_words(flag["quote"]) for flag in notes[doc]["flags"]]
+        for doc in cluster
+        if doc in notes
+    }
     named = worried_about(cluster, nodes, notes)
     held = []
     for doc in cluster:
@@ -293,11 +319,12 @@ def matter_set(matter: dict, nodes: dict[str, dict], notes: dict[str, dict]) -> 
         if doc in seeds or not note or doc in named:
             held.append(doc)
             continue
+        others = [said for other, flags in spoken_by.items() if other != doc for said in flags]
         denies = False
         for flag in note["flags"]:
             written = folded_words(flag["quote"])
             spoken = verbs_in(written)
-            for said in seed_flags:
+            for said in others:
                 for verb in sorted(spoken & verbs_in(said)):
                     if not negated_before(written, verb) or negated_before(said, verb):
                         continue
@@ -428,12 +455,7 @@ def blind_rows(matter: dict, notes: dict[str, dict], held: list[str]) -> list[st
             what = f"series-break {found['series']}"
         else:
             when = found["date"]
-            surface = EMPTY
-            for figure in notes.get(doc, {}).get("figures", []):
-                if figure["anchor"] == found["anchor"]:
-                    surface = figure_number(figure["surface"]) or figure["surface"]
-                    break
-            what = f"model-after {surface}"
+            what = f"model-after {found['figure']}"
         lines.append(row(when, doc, what, found["anchor"]))
     return lines
 
@@ -550,8 +572,11 @@ def deadline_rows(
     """Deadline against action: a window, the day it counts from and the action taken late.
 
     A window is a figure counted in days quoted beside `within`. Where one document states the
-    window and its note names no day at all, and another repeats the same window and its note
-    does name a day, the second is the document that acted. The row carries the window's quote,
+    window and its note names no day beside that window, and another repeats the same window and
+    its note does name a day beside it, the second is the document that acted. A day has to sit
+    in a quote that writes the window itself, because the cyber policy names its retroactive date
+    and its policy year and neither of those is the policy acting on its own 45 days.
+    The row carries the window's quote,
     the earliest place in the set where a ticket is opened on a day, and the acting document's
     own part: the first thing it says that shares a word with the window, and, where the
     document has a section that names a day and it is not that same place, the earliest such
@@ -563,10 +588,7 @@ def deadline_rows(
         note = notes.get(doc)
         if not note:
             continue
-        dated = any(
-            days_named(item["quote"])
-            for item in note["flags"] + note["figures"] + note["concealed"]
-        )
+        written = note["flags"] + note["figures"] + note["concealed"]
         for figure in note["figures"]:
             found = DURATION.search(figure["surface"])
             if not found or not found.group(2).lower().startswith("day"):
@@ -574,9 +596,15 @@ def deadline_rows(
             quote = one_line(figure["quote"])
             if not WINDOW_WORD.search(quote):
                 continue
-            windows.setdefault(found.group(1), []).append(
-                (doc, quote, figure["anchor"], dated)
+            number = found.group(1)
+            counted = re.compile(
+                r"\b" + re.escape(number) + r"[\s-]?days?\b", re.IGNORECASE
             )
+            dated = any(
+                days_named(item["quote"]) and counted.search(one_line(item["quote"]))
+                for item in written
+            )
+            windows.setdefault(number, []).append((doc, quote, figure["anchor"], dated))
 
     opened = None
     for section in sections:
@@ -649,13 +677,15 @@ def model_rows(
         note = notes.get(model["doc"])
         if not note:
             continue
-        figures = [item for item in note["figures"] if item["anchor"] == model["anchor"]]
+        number = model["figure"]
+        figures = [
+            item
+            for item in note["figures"]
+            if item["anchor"] == model["anchor"] and figure_number(item["surface"]) == number
+        ]
         if not figures:
             continue
         figure = figures[0]
-        number = figure_number(figure["surface"])
-        if number is None:
-            continue
         held = content_words(figure["quote"])
         side = [part(model["doc"], figure["quote"], figure["anchor"])]
         for flag in note["flags"]:
@@ -691,13 +721,11 @@ def covenant_rows(
 ) -> list[list[tuple[str, str, str]]]:
     """Covenant against incident: a termination right against what the seed document found.
 
-    A covenant is a flag quoted with a termination word. It is written against the flag of the
-    matter's seed document that shares the most words with the covenant's own flag and with the
-    worries of the covenant's document, the two counts added. The flag's own words are what
-    reach a board deck that says no change-of-control item is flagged: the clause it has to
-    meet is the one that terminates on a change of control, not whichever sentence of the
-    agreement the deck as a whole sounds most like. The document's worries are what keep a
-    termination-on-incident clause against the finding that the incident happened.
+    A covenant is a flag quoted with a termination word. It is written against the leading
+    finding of the matter's seed document, the first flag of its note, which is the finding the
+    room's other documents answer to. Picking the seed flag by shared words was measured on the
+    #106 notes and landed on the key-rotation flag, whose words the clause repeats, not on the
+    export the clause is a right to terminate over.
     """
     seeds = [doc for doc in matter["seed"] if doc in notes]
     rows = []
@@ -714,7 +742,7 @@ def covenant_rows(
                 if seed == doc:
                     continue
                 best = None
-                for other in notes[seed]["flags"]:
+                for other in notes[seed]["flags"][:1]:
                     written = content_words(
                         f"{other['flag']} {other['quote']} {other['consequence']}"
                     )

@@ -48,7 +48,14 @@ import pytest
 
 from rlm.amounts import date_matches, normalise_amount
 from rlm.carry import cut_days, days_of, numbers_of, stem, words_of
-from rlm.dossier import main
+from rlm.dossier import (
+    deadline_rows,
+    is_table_row,
+    main,
+    matter_set,
+    verbs_in,
+    worried_about,
+)
 from rlm.key import load_key
 from rlm.map import read_notes
 from rlm.notes import straighten
@@ -87,6 +94,117 @@ AGAINST = " against "
 # What an empty field is written as, in the dossier and here.
 EMPTY = "-"
 
+
+
+def test_a_flag_quoting_a_table_row_worries_about_nobody():
+    """The customer schedule writes one row per customer, so a row that carries a name is the
+    room writing its list down and not the room worrying about that name."""
+    nodes = {
+        "schedule": {"path": "arr_schedule.xlsx.md"},
+        "granite": {"path": "msa_granite_manufacturing.pdf.md"},
+        "harbor": {"path": "msa_harbor_foods.pdf.md"},
+    }
+    notes = {
+        "schedule": {
+            "flags": [
+                {"flag": "billed quarterly", "quote": "| 4 | Granite Manufacturing Co. | $4,500,000 |"},
+                {"flag": "refund liability", "quote": "Harbor Foods refund liability is not reserved."},
+            ]
+        }
+    }
+    assert is_table_row("| 4 | Granite Manufacturing Co. |")
+    assert not is_table_row("Harbor Foods refund liability is not reserved.")
+    assert worried_about(["schedule", "granite", "harbor"], nodes, notes) == {"harbor"}
+
+
+def test_a_word_too_common_to_say_anything_is_not_an_operative_verb():
+    """`to` in `give rise to a claim` is a preposition, so `a` is not a verb the clause turns on."""
+    assert verbs_in(["likely", "to", "give", "rise", "to", "a", "claim"]) == {"give"}
+
+
+def test_the_clause_rule_reads_the_denial_against_the_sets_own_words():
+    """The clause a decoy denies is written by the document the matter is about, which is not
+    always the seed: northwind's seed is its cap table and the change-of-control clause the
+    Granite MSA argues against is Meridian's."""
+    matter = {
+        "cluster": ["cap", "granite", "meridian"],
+        "seed": ["cap"],
+    }
+    nodes = {
+        "cap": {"path": "cap_table_summary.pdf.md"},
+        "granite": {"path": "msa_granite_manufacturing.pdf.md"},
+        "meridian": {"path": "msa_meridian_freight.pdf.md"},
+    }
+    notes = {
+        "cap": {"flags": [{"flag": "options", "quote": "The option pool is fully allocated."}]},
+        "granite": {
+            "flags": [
+                {
+                    "flag": "change of control gives no exit",
+                    "quote": (
+                        "In the event of a change of control of a Party, such change shall not "
+                        "give either Party any right to terminate this Agreement."
+                    ),
+                }
+            ]
+        },
+        "meridian": {
+            "flags": [
+                {
+                    "flag": "change of control terminates",
+                    "quote": (
+                        "In the event of a change of control of Provider, Customer may "
+                        "terminate this Agreement, effective immediately."
+                    ),
+                }
+            ]
+        },
+    }
+    assert matter_set(matter, nodes, notes) == ["cap", "meridian"]
+
+
+def test_a_day_that_states_the_window_is_read_beside_the_window_itself():
+    """The document that acted is the one that names a day beside the window it repeats.
+
+    The cyber policy names its retroactive date and its policy year, and neither of those is the
+    policy acting on its own 45 days, so it states the window and the notice draft is what acted.
+    """
+    notes = {
+        "DR-081": {
+            "flags": [{"quote": "Retroactive date 1 July 2021", "anchor": "policy.pdf#p1l3"}],
+            "figures": [
+                {
+                    "surface": "45 days",
+                    "quote": "The insured shall give written notice within 45 days.",
+                    "anchor": "policy.pdf#p2l7",
+                }
+            ],
+            "concealed": [],
+        },
+        "DR-082": {
+            "flags": [
+                {
+                    "quote": "The 45-day window would have closed on 5 December 2025.",
+                    "anchor": "notice.eml#m1l9",
+                }
+            ],
+            "figures": [
+                {
+                    "surface": "45 days",
+                    "quote": "Condition 7.2 requires notice within 45 days.",
+                    "anchor": "notice.eml#m1l4",
+                }
+            ],
+            "concealed": [],
+        },
+    }
+    sections = [
+        {"anchor": "notice.eml#m1l4", "text": "Condition 7.2 requires notice within 45 days."},
+        {"anchor": "notice.eml#m1l9", "text": "The window would have closed on 5 December 2025."},
+    ]
+    ids = {"policy.pdf": "DR-081", "notice.eml": "DR-082"}
+    rows = deadline_rows(["DR-081", "DR-082"], notes, sections, ids)
+    assert [[triple[0] for triple in row] for row in rows] == [["DR-081", "DR-082", "DR-082"]]
 
 @dataclass(frozen=True)
 class Row:
@@ -654,6 +772,18 @@ def split_row(row, fact, document_words, index_days):
 # What of a comparison's value no document of the fact holds, gathered for the readout.
 _UNREACHED: dict[str, list[str]] = {}
 
+# The comparisons the founder marked as known misses on 2026-09-08 (#110, RULES.md gate 3),
+# each with the one sentence that says why no general rule reaches it. A known miss is not
+# asserted; it is counted in the readout, and a miss that comes right is taken off this list.
+KNOWN_MISSES: dict[str, dict[str, str]] = {
+    "atlas": {
+        "draft-vs-final": "DR-070's note never quoted the sentence the key wants, so no row can",
+    },
+    "northwind": {
+        "deck-vs-msa-coc": "the covenant row is written against the seed's flag and the seed is the cap table",
+    },
+}
+
 
 def test_dossier_comparisons_carry_every_planted_comparison(
     dossiered, sample, key, document_words, index_days
@@ -668,6 +798,11 @@ def test_dossier_comparisons_carry_every_planted_comparison(
     rows = comparison_rows(dossiered.text)
     assert rows, "the Comparisons section is empty"
     for fact in facts:
+        if fact.id in KNOWN_MISSES.get(sample, {}):
+            _UNREACHED.setdefault(sample, []).append(
+                f"{fact.id}: known miss, {KNOWN_MISSES[sample][fact.id]}"
+            )
+            continue
         wanted = set(fact.documents)
         held = set().union(*(document_words.get(doc, set()) for doc in fact.documents))
         for side in fact.value.split(AGAINST, 1):

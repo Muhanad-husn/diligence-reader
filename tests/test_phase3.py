@@ -40,6 +40,7 @@ from rlm.map import (
     is_count,
     is_written,
     main,
+    model_links,
     names_a_value,
     turn_index,
     value_holders,
@@ -465,7 +466,9 @@ def test_map_first_matter_cluster_holds_the_planted_documents(mapped, key):
 
 # The most documents the first matter's set may hold, where a sample has been given a bound.
 # Sample 1's planted cluster is fourteen documents; a set of fifty is the room read as one matter.
-SET_CAP = {"atlas": 49}
+# The cap moved from 49 to 50 when model_links read the figure its model was found on: DR-021,
+# the finance pack that still models the old number, joins as a consequence of the matter.
+SET_CAP = {"atlas": 50}
 
 
 def test_map_first_matter_cluster_reaches_no_decoy(mapped, key):
@@ -632,7 +635,7 @@ def test_map_first_matter_model_after_is_dated_after_the_matter(mapped, key, kno
     matter = mapped.document["matters"][0]
     models = [row for row in matter["consequences"] if row["kind"] == "model-after"]
     for row in models:
-        assert set(row) == {"anchor", "date", "doc", "kind"}
+        assert set(row) == {"anchor", "date", "doc", "figure", "kind"}
         assert row["doc"] in key.documents
         assert len(row["date"]) == 10
 
@@ -649,6 +652,30 @@ def test_map_first_matter_model_after_is_dated_after_the_matter(mapped, key, kno
         path = key.documents[found["doc"]]
         assert parse_anchor(found["anchor"]).doc == path
         assert found["anchor"] in known_anchors[path]
+
+
+def test_model_links_read_the_figure_the_model_was_found_on():
+    """A model's link is the figure model_after matched, not the first figure at its anchor.
+
+    Thirteen figures of DR-021 share one anchor of its finance pack, and the first of them is a
+    number no other document of the set carries. Reading it loses the link and the document, so
+    the row carries the number it was found on and model_links reads that.
+    """
+    notes = {
+        "DR-021": {
+            "figures": [
+                {"anchor": "pack.pdf#p1l25", "surface": "168.4"},
+                {"anchor": "pack.pdf#p1l25", "surface": "615m"},
+            ]
+        },
+        "DR-030": {"figures": [{"anchor": "cim.pdf#p2l4", "surface": "615m"}]},
+    }
+    modelled = [
+        {"anchor": "pack.pdf#p1l25", "date": "2025-12-06", "doc": "DR-021", "figure": "615", "kind": "model-after"}
+    ]
+    assert model_links(modelled, notes, {"DR-030"}) == {
+        "DR-021": {"from": ["DR-030"], "kind": "consequence", "values": ["615"]}
+    }
 
 
 def test_map_readout_counts_versions_and_consequences(mapped, sample):

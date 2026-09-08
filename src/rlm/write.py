@@ -178,12 +178,6 @@ TERM_FIGURE_ROWS = 20
 # timeline row.
 DIGEST_ROWS = 150
 
-# The most comparison rows a digest carries. Each of them costs three sentences of the reply,
-# one for the contradiction and one for each half quoted whole, and the halves are the longest
-# quotes the dossier holds, so thirty of them is half a report. The rows that can be quoted
-# inside a sentence come first and the dossier's own order decides the rest.
-COMPARISON_ROWS = 30
-
 # The most lesser matters a digest carries out of the documents the matter already holds. The
 # dossier ranks that section by the largest money figure of each document, so these are its
 # largest. Every digest row costs a quoted sentence of a capped reply, so the least material
@@ -482,7 +476,11 @@ def digest_sections(dossier: str) -> dict[str, list[str]]:
     """The rows the digest keeps, by the dossier heading they came from.
 
     Every comparison row and every model blind to the matter goes in whole, because those are
-    the matter's contradictions and its blind spots and there are few of them. The lesser
+    the matter's contradictions and its blind spots and there are few of them. A cap of thirty
+    comparison rows stood here and dropped two of sample 1's thirty-two; the rows it dropped are
+    charged against the timeline and the figures instead, which is what the room below does. The
+    rows that can be quoted inside a sentence come first and the dossier's own order decides the
+    rest. The lesser
     matters give their largest by money and every row naming a document the matter does not
     hold. The names give one row each. The timeline gives its dated turning points and the
     figures give the largest money and the counts and defined terms, and those two are what a
@@ -494,7 +492,7 @@ def digest_sections(dossier: str) -> dict[str, list[str]]:
     weight = document_weight(sections)
     lesser = lesser_rows(sections.get("Lesser matters", []), set(weight))
     models = sections.get("Models blind to it", [])
-    comparisons = quotable_first(sections.get("Comparisons", []))[:COMPARISON_ROWS]
+    comparisons = quotable_first(sections.get("Comparisons", []))
     # The lesser matters outside the matter are not charged against the timeline and the
     # figures: a date the report loses is a date the report cannot write, and the rows that
     # name what is smaller are one short line each.
@@ -786,6 +784,9 @@ and the hundreds digit goes up when what is dropped is fifty or more: on invente
   Calculation: (<low> + <high>) / 2 = <middle>, rounded to <number>, range <low> to <high>.
 
 and the `Recommendation:` line under it names the deal action and repeats the rounded number.
+The low and the high are two amounts the room itself writes. Where the room estimates one
+amount and not a range, the low and the high are both that amount and the line repeats it four
+times; write no band of your own around a number you worked out.
 
 Begin now, with `## Executive summary`.
 
