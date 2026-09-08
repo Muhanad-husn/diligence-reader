@@ -38,9 +38,14 @@ from rlm.map import (
     build_edges,
     figure_number,
     is_count,
+    is_written,
     main,
+    names_a_value,
     turn_index,
+    value_holders,
     value_weight,
+    word_runs,
+    written_values,
 )
 from rlm.sections import parse_anchor
 
@@ -212,6 +217,80 @@ def test_figure_number_reads_a_figure_without_its_unit():
     assert figure_number("4100") != figure_number("410")
     assert figure_number("8.0%") == "8"
     assert figure_number("early reset ramp") is None
+
+
+# One room's notes, written small: what a note names as a cross reference and reads as a figure.
+WRITING_NOTES = {
+    "DR-001": {
+        "cross_references": [
+            {"kind": "name", "value": "Juniper & Rowe LLP"},
+            {"kind": "person", "value": "Elena Marquez (CEO)"},
+            {"kind": "document", "value": "Tidewater DPA"},
+            {"kind": "name", "value": "Trust Reset"},
+        ],
+        "figures": [{"surface": "Net 45 days"}, {"surface": "$12m"}],
+    }
+}
+
+
+def test_written_values_leaves_a_person_out():
+    """A note writes a cross reference and a figure; a person it names is not a value."""
+    whole, runs = written_values(WRITING_NOTES)
+
+    assert "juniper rowe llp" in whole
+    assert "tidewater dpa" in whole
+    assert "trust reset" in whole
+    assert "net 45 days" in whole
+    assert "12m" in whole
+    # A person's name is not evidence that two documents are about the same matter.
+    assert "elena marquez ceo" not in whole
+    assert whole <= runs
+
+
+def test_word_runs_holds_every_run_of_words_of_a_value():
+    assert word_runs("tidewater dpa") == {"tidewater", "dpa", "tidewater dpa"}
+    assert word_runs("12m") == {"12m"}
+    assert word_runs("") == set()
+
+
+def test_is_written_reads_a_value_whole_or_as_a_word_inside_one():
+    """DPA is written inside Tidewater DPA; EBITDA and CEO are written nowhere."""
+    written = written_values(WRITING_NOTES)
+
+    assert is_written("Tidewater DPA", written)
+    assert is_written("DPA", written)
+    assert is_written("45 days", written)
+    assert is_written("$12m", written)
+    # LLP is written after a firm, so the notes do write it; ownership is what refuses it.
+    assert is_written("LLP", written)
+    # A word the index cut out of the prose is in no cross reference and no figure.
+    assert not is_written("EBITDA", written)
+    assert not is_written("MAU", written)
+    assert not is_written("CEO", written)
+    assert not is_written("Day-1", written)
+
+
+def test_names_a_value_reads_a_run_that_holds_a_value_the_notes_write():
+    """`as the trust reset` names the matter's own programme; `change of control` names nothing."""
+    written = written_values(WRITING_NOTES)
+
+    assert names_a_value("as the trust reset", written)
+    assert names_a_value("tidewater dpa annex", written)
+    assert not names_a_value("change of control", written)
+    assert not names_a_value("without undue delay", written)
+
+
+def test_value_holders_gathers_every_document_that_carries_a_value():
+    shared = {
+        ("DR-001", "DR-002"): {"AURORA": (1.0, 3)},
+        ("DR-002", "DR-001"): {"AURORA": (1.0, 3)},
+        ("DR-002", "DR-003"): {"AURORA": (1.0, 3), "$12m": (0.5, 2)},
+    }
+
+    assert value_holders(shared) == {
+        "AURORA": {"DR-001", "DR-002", "DR-003"},
+        "$12m": {"DR-002", "DR-003"},
+    }
 
 
 # The two documents the shared rule is tested on, and the value they both write.
