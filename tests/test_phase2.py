@@ -37,10 +37,12 @@ from rlm.notes import (
     DEFAULT_MODEL,
     LOG_KEYS,
     MAX_OUTPUT_TOKENS,
+    NAMED_VALUE_LIMIT,
     NOTE_KEYS,
     QUOTED_FIELDS,
     REASK_ITEMS,
     REASK_JSON,
+    REASK_VALUES,
     SYSTEM_PROMPT,
     build_messages,
     document_text,
@@ -48,7 +50,10 @@ from rlm.notes import (
     item_detail,
     locate_quote,
     main,
+    model_note,
+    named_values,
     note_name,
+    read_index,
     read_sections,
     straighten,
     verify_items,
@@ -744,6 +749,217 @@ def test_one_document_the_prompt_stays_inside_its_budget():
     """
     assert len(SYSTEM_PROMPT) < 4200
     assert MAX_OUTPUT_TOKENS == 6000
+
+
+# ---------------------------------------------------------------- notes: the values of a document
+
+
+OTHER_DOC = "data_room/05_Security_IT_and_Infrastructure/Backup_Retention_Inventory.xlsx"
+THIRD_DOC = "data_room/06_Legal_Regulatory_and_Compliance/Outside_Counsel_Privacy_Risk_Memo_Redacted.pdf"
+
+# A second section of the drift memo, carrying a code, a magnitude and a person's name.
+EGRESS = "Peak egress on the AURORA prefix reached 286m rows, per Renata Castellano."
+VALUE_SECTIONS = [section(1, SENTENCE), section(2, EGRESS)]
+
+
+def index_record(kind: str, surface: str, docs: list[str], unit: str | None = None) -> dict:
+    """One record of the phase 1 index, anchored once inside each document that carries it."""
+    return {
+        "kind": kind,
+        "surface": surface,
+        "value": surface,
+        "unit": unit,
+        "anchors": [f"{doc}#p1l1" for doc in docs],
+        "context": surface,
+        "docs": list(docs),
+    }
+
+
+def write_index(run_dir: Path, records: list[dict]) -> Path:
+    """Writes a small index.jsonl under run_dir, one record per line."""
+    run_dir.mkdir(parents=True, exist_ok=True)
+    path = run_dir / "index.jsonl"
+    path.write_text(
+        "".join(json.dumps(record, sort_keys=True) + "\n" for record in records), encoding="utf-8"
+    )
+    return path
+
+
+class Replies:
+    """Stands in for the gateway call model_note makes, answering with each canned text in turn."""
+
+    def __init__(self, texts: list[str]):
+        self.texts = list(texts)
+        self.messages: list[list[dict]] = []
+
+    def __call__(self, messages: list[dict]) -> Completion:
+        self.messages.append(messages)
+        return Completion(text=self.texts.pop(0), tokens_in=1000, tokens_out=200, seconds=0.1, model=MODEL)
+
+
+def test_one_document_named_values_are_the_surfaces_the_map_can_link_through(tmp_path):
+    """An identifier, an amount and a one-word capitalised name that a second document carries."""
+    write_index(
+        tmp_path,
+        [
+            index_record("identifier", "legacy_uap_backup_2021.tar.gz", [DR_069, OTHER_DOC]),
+            index_record("amount", "912.8m", [DR_069, OTHER_DOC]),
+            index_record("name", "AURORA", [DR_069, THIRD_DOC]),
+            index_record("name", "Renata Castellano", [DR_069, OTHER_DOC]),
+            index_record("name", "backup", [DR_069, OTHER_DOC]),
+            index_record("amount", "286m", [DR_069]),
+            index_record("amount", "1,840", [DR_069, OTHER_DOC]),
+            index_record("date", "14 October 2025", [DR_069, OTHER_DOC]),
+            index_record("identifier", "NQ-17", [OTHER_DOC, THIRD_DOC]),
+        ],
+    )
+    assert named_values(read_index(tmp_path), DR_069) == [
+        "912.8m",
+        "AURORA",
+        "legacy_uap_backup_2021.tar.gz",
+    ]
+
+
+def test_one_document_named_values_put_the_rarest_carried_value_first(tmp_path):
+    write_index(
+        tmp_path,
+        [
+            index_record("identifier", "AAA-1", [DR_069, OTHER_DOC, THIRD_DOC, "d4"]),
+            index_record("identifier", "BBB-2", [DR_069, OTHER_DOC]),
+            index_record("identifier", "CCC-3", [DR_069, OTHER_DOC, THIRD_DOC]),
+        ],
+    )
+    assert named_values(read_index(tmp_path), DR_069) == ["BBB-2", "CCC-3", "AAA-1"]
+
+
+def test_one_document_named_values_stop_at_the_limit(tmp_path):
+    write_index(
+        tmp_path,
+        [index_record("identifier", f"ID-{number:03d}", [DR_069, OTHER_DOC]) for number in range(60)],
+    )
+    values = named_values(read_index(tmp_path), DR_069)
+    assert NAMED_VALUE_LIMIT == 40
+    assert len(values) == NAMED_VALUE_LIMIT
+    assert values[0] == "ID-000"
+
+
+def test_one_document_named_values_are_empty_without_an_index(tmp_path):
+    """A run directory phase 1 never indexed gives no named values and nothing raises."""
+    assert read_index(tmp_path) == []
+    assert named_values(read_index(tmp_path), DR_069) == []
+
+
+def test_one_document_about_is_the_models_values_then_the_index_values_in_the_quote():
+    """Code fills what the model left out: a named value inside the quote joins the flag's about."""
+    items = [{"flag": "The reserve is soft", "quote": SENTENCE, "consequence": "c", "about": ["counsel"]}]
+    kept, dropped = verify_items(
+        DR_069, "flags", items, DRIFT_SECTIONS, named=["$12m", "reserve", "286m"]
+    )
+    assert dropped == []
+    assert kept[0]["about"] == ["counsel", "$12m", "reserve"]
+
+
+def test_one_document_about_does_not_write_a_value_the_model_already_named():
+    items = [{"flag": "The reserve is soft", "quote": SENTENCE, "consequence": "c", "about": ["$12m"]}]
+    kept, _ = verify_items(DR_069, "flags", items, DRIFT_SECTIONS, named=["$12m", "reserve"])
+    assert kept[0]["about"] == ["$12m", "reserve"]
+
+
+def test_one_document_about_is_the_models_list_alone_without_an_index():
+    items = [{"flag": "The reserve is soft", "quote": SENTENCE, "consequence": "c", "about": ["$12m"]}]
+    kept, _ = verify_items(DR_069, "flags", items, DRIFT_SECTIONS)
+    assert kept[0]["about"] == ["$12m"]
+
+
+def test_one_document_every_value_inside_a_flag_quote_makes_one_call():
+    """Nothing failed and nothing is uncovered, so there is no second call."""
+    answer = {
+        "what": "x",
+        "flags": [{"flag": "f", "quote": SENTENCE, "consequence": "c", "about": ["$12m"]}],
+        "figures": [],
+        "cross_references": [],
+        "concealed": [],
+    }
+    calls = Replies([json.dumps(answer)])
+    note, records = model_note(DR_069, MODEL, "a", DRIFT_SECTIONS, calls, named=["$12m", "reserve"])
+    assert len(calls.messages) == 1
+    assert records == []
+    assert note["flags"][0]["about"] == ["$12m", "reserve"]
+
+
+def test_one_document_a_value_inside_no_flag_quote_is_asked_for_once():
+    """The second call names the value and asks for the sentence that introduces it."""
+    first = {
+        "what": "x",
+        "flags": [{"flag": "f", "quote": SENTENCE, "consequence": "c", "about": ["$12m"]}],
+        "figures": [],
+        "cross_references": [],
+        "concealed": [],
+    }
+    second = json.loads(json.dumps(first))
+    second["flags"].append({"flag": "g", "quote": EGRESS, "consequence": "c", "about": ["286m"]})
+    calls = Replies([json.dumps(first), json.dumps(second)])
+    note, records = model_note(DR_069, MODEL, "a", VALUE_SECTIONS, calls, named=["$12m", "286m"])
+
+    assert len(calls.messages) == 2
+    asked = calls.messages[1][-1]["content"]
+    assert "These values of the document are inside no flag's quote:" in asked
+    assert "286m" in asked
+    assert "These items of your reply did not verify" not in asked
+    assert "add one flag that quotes verbatim the sentence or table row that introduces it" in asked
+    assert "Keep every existing item exactly as it was." in asked
+    # Nothing about the uncovered list reaches the verify log.
+    assert records == []
+    assert [flag["flag"] for flag in note["flags"]] == ["f", "g"]
+    assert note["flags"][1]["about"] == ["286m"]
+
+
+def test_one_document_a_cross_reference_in_no_flag_quote_is_asked_for_too():
+    """A code the note wrote counts as a value of the document; a person's name does not."""
+    first = {
+        "what": "x",
+        "flags": [{"flag": "f", "quote": SENTENCE, "consequence": "c", "about": []}],
+        "figures": [],
+        "cross_references": [
+            {"kind": "code", "value": "AURORA", "quote": EGRESS},
+            {"kind": "person", "value": "Renata Castellano", "quote": EGRESS},
+        ],
+        "concealed": [],
+    }
+    second = json.loads(json.dumps(first))
+    second["flags"].append({"flag": "g", "quote": EGRESS, "consequence": "c", "about": ["AURORA"]})
+    calls = Replies([json.dumps(first), json.dumps(second)])
+    note, _ = model_note(DR_069, MODEL, "a", VALUE_SECTIONS, calls, named=[])
+
+    assert len(calls.messages) == 2
+    asked = calls.messages[1][-1]["content"]
+    assert "AURORA" in asked
+    assert "Renata Castellano" not in asked
+    assert [flag["flag"] for flag in note["flags"]] == ["f", "g"]
+
+
+def test_one_document_the_reask_lists_the_failed_items_then_the_uncovered_values():
+    """A document with both gets one message carrying the failed items block, then the values."""
+    first = {
+        "what": "x",
+        "flags": [
+            {"flag": "f", "quote": SENTENCE, "consequence": "c", "about": []},
+            {"flag": "made up", "quote": "the attacker was a state actor", "consequence": "c"},
+        ],
+        "figures": [],
+        "cross_references": [],
+        "concealed": [],
+    }
+    calls = Replies([json.dumps(first), json.dumps(first)])
+    model_note(DR_069, MODEL, "a", VALUE_SECTIONS, calls, named=["286m"])
+
+    asked = calls.messages[1][-1]["content"]
+    opening = REASK_VALUES.split("{")[0].strip()
+    assert "These items of your reply did not verify" in asked
+    assert "the attacker was a state actor" in asked
+    assert asked.index("These items of your reply") < asked.index(opening)
+    assert "286m" in asked
+
 
 
 # ---------------------------------------------------------------- notes: main with a fake gateway
