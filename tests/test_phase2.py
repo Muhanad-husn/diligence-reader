@@ -32,6 +32,7 @@ from rlm.gateway import (
     price,
 )
 from rlm.key import load_key
+from rlm.map import ordinary_words
 from rlm.notes import (
     CROSS_REFERENCE_KINDS,
     DEFAULT_MODEL,
@@ -2363,12 +2364,16 @@ def test_all_documents_carry_every_planted_quote(notes, key):
 
 
 def test_seed_document_flags_name_every_planted_identifier(notes, key, run_dir, sample):
-    """Every planted identifier and figure of a seed document is named by one of its flags.
+    """Every planted identifier and figure of a seed document that the index can ask for is
+    named by one of its flags.
 
     The map joins a document to the matter where the shared value is one a flag of both notes
     says it is about, so a seed whose flags name none of its own planted values cannot pull the
-    documents that carry them into the set. The check reads the seed off map.json and is skipped
-    where the map has not been run.
+    documents that carry them into the set. The values held to this are the seed's named values
+    (rlm.notes.named_values, what the coverage re-ask can put in front of the model): a planted
+    value the index does not carry as an identifier, a money or unit amount or a one-word code,
+    or that more than half the room carries, is left to the model's own draw and not asserted.
+    The check reads the seed off map.json and is skipped where the map has not been run.
     """
     map_path = run_dir / "map.json"
     if not map_path.exists():
@@ -2376,9 +2381,13 @@ def test_seed_document_flags_name_every_planted_identifier(notes, key, run_dir, 
     document = json.loads(map_path.read_text(encoding="utf-8"))
     seeds = document["matters"][0]["seed"]
     by_path = {note["doc"]: note for _, note in notes.values()}
+    index = read_index(run_dir)
+    sections = [json.loads(line) for line in (run_dir / "sections.jsonl").read_text(encoding="utf-8").splitlines()]
+    skipped = frozenset(ordinary_words(sections)) | frozenset(key.documents)
     for seed in seeds:
         note = by_path.get(key.documents[seed])
         assert note is not None, f"{seed} is the seed of {sample} and has no note"
+        askable = [fold_value(value) for value in named_values(index, key.documents[seed], skipped)]
         about = [value for flag in note["flags"] for value in flag.get("about", [])]
         for fact in key.facts:
             if fact.kind not in ("identifier", "number") or fact.phase not in (1, 2):
@@ -2386,6 +2395,8 @@ def test_seed_document_flags_name_every_planted_identifier(notes, key, run_dir, 
             if seed not in fact.documents:
                 continue
             wanted = fold_value(fact.value)
+            if not any(wanted in value for value in askable):
+                continue
             assert any(wanted in fold_value(value) for value in about), (
                 f"{fact.id}: {fact.value!r} of the seed {seed} is in no flag of its note; "
                 f"its flags are about {about}"
