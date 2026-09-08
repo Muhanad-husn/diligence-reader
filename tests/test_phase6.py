@@ -550,12 +550,16 @@ def test_phase_1_holds_on_the_variant(sample, sample_dir, key, records, indexed)
     holds(sample, 1)
 
 
-def test_phase_2_holds_on_the_variant(sample, key, notes, sections_by_doc):
-    """Every note is well shaped, every quote verifies, and every phase 2 fact is quoted."""
+def test_phase_2_holds_on_the_variant(sample, key, notes, sections_by_doc, run_dir):
+    """Every note is well shaped, every quote verifies, every phase 2 fact is quoted, and the
+    seed document's flags name its own planted identifiers."""
     ran(sample, 2)
     test_phase2.assert_notes_well_shaped(notes, key)
     test_phase2.assert_notes_quotes_verified(notes, sections_by_doc)
     test_phase2.test_one_document_carries_its_planted_quotes(notes, key)
+    test_phase2.test_seed_document_flags_name_every_planted_identifier(
+        notes, key, run_dir, sample
+    )
     holds(sample, 2)
 
 

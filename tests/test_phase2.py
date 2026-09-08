@@ -39,6 +39,8 @@ from rlm.notes import (
     MAX_OUTPUT_TOKENS,
     NOTE_KEYS,
     QUOTED_FIELDS,
+    REASK_ITEMS,
+    REASK_JSON,
     SYSTEM_PROMPT,
     build_messages,
     document_text,
@@ -53,6 +55,7 @@ from rlm.notes import (
     well_shaped,
 )
 from rlm.sections import parse_anchor
+from rlm.words import fold as fold_value
 
 ROOT = Path(__file__).resolve().parents[1]
 SKIP_REASON = "notes not run for this sample yet"
@@ -646,6 +649,72 @@ def test_one_document_verify_items_keeps_two_items_that_share_a_quote_and_differ
     assert dropped == []
 
 
+def test_one_document_verify_items_keeps_the_about_values_inside_the_flags_quote():
+    """A flag names the identifiers and figures its own quote carries."""
+    quote = "Management recommends a reserve of $12m at this time"
+    items = [{"flag": "The reserve is soft", "quote": quote, "consequence": "c", "about": ["$12m"]}]
+    kept, dropped = verify_items(DR_069, "flags", items, DRIFT_SECTIONS)
+    assert dropped == []
+    assert kept[0]["about"] == ["$12m"]
+
+
+def test_one_document_verify_items_drops_an_about_value_outside_the_quote():
+    """An about value that is not in the flag's quote is dropped and the flag is kept."""
+    quote = "Management recommends a reserve of $12m at this time"
+    items = [
+        {
+            "flag": "The reserve is soft",
+            "quote": quote,
+            "consequence": "c",
+            "about": ["$12m", "AURORA", 12, "counsel's view"],
+        }
+    ]
+    kept, dropped = verify_items(DR_069, "flags", items, DRIFT_SECTIONS)
+    assert dropped == []
+    assert len(kept) == 1
+    assert kept[0]["about"] == ["$12m"]
+
+
+def test_one_document_verify_items_reads_a_flag_without_about_as_an_empty_list():
+    """An older reply that writes no about, or writes something that is not a list, keeps the
+    flag with an empty about."""
+    quote = "Management recommends a reserve of $12m at this time"
+    items = [
+        {"flag": "The reserve is soft", "quote": quote, "consequence": "c"},
+        {"flag": "The reserve is late", "quote": quote, "consequence": "c", "about": "$12m"},
+    ]
+    kept, dropped = verify_items(DR_069, "flags", items, DRIFT_SECTIONS)
+    assert dropped == []
+    assert [flag["about"] for flag in kept] == [[], []]
+
+
+def test_one_document_verify_items_keeps_a_repeated_about_value_once():
+    quote = "Management recommends a reserve of $12m at this time"
+    items = [
+        {
+            "flag": "The reserve is soft",
+            "quote": quote,
+            "consequence": "c",
+            "about": ["$12m", "reserve", "$12m"],
+        }
+    ]
+    kept, _ = verify_items(DR_069, "flags", items, DRIFT_SECTIONS)
+    assert kept[0]["about"] == ["$12m", "reserve"]
+
+
+def test_one_document_two_flags_that_differ_only_in_about_are_kept_once():
+    """The dedup signature of a flag is its flag, quote and consequence, as it was."""
+    quote = "Management recommends a reserve of $12m at this time"
+    items = [
+        {"flag": "f", "quote": quote, "consequence": "c", "about": ["$12m"]},
+        {"flag": "f", "quote": quote, "consequence": "c", "about": ["reserve"]},
+    ]
+    kept, dropped = verify_items(DR_069, "flags", items, DRIFT_SECTIONS)
+    assert len(kept) == 1
+    assert kept[0]["about"] == ["$12m"]
+    assert dropped == []
+
+
 def test_one_document_well_shaped_wants_what_and_at_least_one_list_key():
     assert well_shaped({"what": "x", "flags": [], "figures": [], "cross_references": [], "concealed": []})
     assert well_shaped({"what": "x", "flags": []})
@@ -654,6 +723,15 @@ def test_one_document_well_shaped_wants_what_and_at_least_one_list_key():
     assert not well_shaped({"what": "x"})
     assert not well_shaped({"what": "x", "summary": [], "numbers": []})
     assert not well_shaped({"what": 3, "flags": []})
+
+
+def test_one_document_the_prompt_asks_each_flag_for_what_it_is_about():
+    """The schema and the rules both name about, so a flag comes back with its own values."""
+    assert '"about"' in SYSTEM_PROMPT
+    assert "about lists" in SYSTEM_PROMPT
+    assert "verbatim" in SYSTEM_PROMPT
+    assert "flag, quote, consequence and about" in REASK_ITEMS
+    assert "flag, quote, consequence and about" in REASK_JSON
 
 
 def test_one_document_the_prompt_stays_inside_its_budget():
@@ -1779,7 +1857,12 @@ def assert_notes_well_shaped(notes, key):
         for field in QUOTED_FIELDS:
             assert isinstance(note[field], list), (name, field)
         for flag in note["flags"]:
-            assert set(flag) == {"flag", "quote", "anchor", "consequence"}, name
+            assert set(flag) == {"flag", "quote", "anchor", "consequence", "about"}, name
+            assert isinstance(flag["about"], list), name
+            inside = straighten(flag["quote"])
+            for value in flag["about"]:
+                assert isinstance(value, str), name
+                assert straighten(value) in inside, (name, value)
         for figure in note["figures"]:
             assert set(figure) == {"surface", "quote", "anchor"}, name
         for ref in note["cross_references"]:
@@ -1991,6 +2074,36 @@ def test_all_documents_carry_every_planted_quote(notes, key):
         ]
         quotes = [item["quote"] for note in noted for _, _, item in quoted_items(note)]
         assert hits, f"{fact.id}: {fact.value!r} not inside any verified quote of {paths}; the notes quote {quotes}"
+
+
+def test_seed_document_flags_name_every_planted_identifier(notes, key, run_dir, sample):
+    """Every planted identifier and figure of a seed document is named by one of its flags.
+
+    The map joins a document to the matter where the shared value is one a flag of both notes
+    says it is about, so a seed whose flags name none of its own planted values cannot pull the
+    documents that carry them into the set. The check reads the seed off map.json and is skipped
+    where the map has not been run.
+    """
+    map_path = run_dir / "map.json"
+    if not map_path.exists():
+        pytest.skip("map not run for this sample yet")
+    document = json.loads(map_path.read_text(encoding="utf-8"))
+    seeds = document["matters"][0]["seed"]
+    by_path = {note["doc"]: note for _, note in notes.values()}
+    for seed in seeds:
+        note = by_path.get(key.documents[seed])
+        assert note is not None, f"{seed} is the seed of {sample} and has no note"
+        about = [value for flag in note["flags"] for value in flag["about"]]
+        for fact in key.facts:
+            if fact.kind not in ("identifier", "number") or fact.phase not in (1, 2):
+                continue
+            if seed not in fact.documents:
+                continue
+            wanted = fold_value(fact.value)
+            assert any(wanted in fold_value(value) for value in about), (
+                f"{fact.id}: {fact.value!r} of the seed {seed} is in no flag of its note; "
+                f"its flags are about {about}"
+            )
 
 
 def readout(terminalreporter):

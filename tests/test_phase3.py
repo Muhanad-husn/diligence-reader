@@ -35,6 +35,7 @@ from rlm.map import (
     MATTER_FACT,
     REACH_SHARE,
     VIA_KINDS,
+    build_edges,
     figure_number,
     is_count,
     main,
@@ -211,6 +212,81 @@ def test_figure_number_reads_a_figure_without_its_unit():
     assert figure_number("4100") != figure_number("410")
     assert figure_number("8.0%") == "8"
     assert figure_number("early reset ramp") is None
+
+
+# The two documents the shared rule is tested on, and the value they both write.
+TWO_DOCS = {"a.md": "DR-001", "b.md": "DR-002"}
+SHARED_TEXT = "The AURORA workstream was paused on the day of the incident."
+INDEX_RECORDS = [
+    {
+        "kind": "identifier",
+        "surface": "AURORA",
+        "value": "AURORA",
+        "unit": None,
+        "docs": sorted(TWO_DOCS),
+        "anchors": ["a.md#p1l1", "b.md#p1l1"],
+    }
+]
+
+
+def two_notes(about_a: list[str], about_b: list[str]) -> dict[str, dict]:
+    """One note per document, each with one flag quoting the shared sentence.
+
+    The flag's consequence names AURORA in both notes, so a rule that looked inside a flag's own
+    words would join the two whatever about carries.
+    """
+    notes = {}
+    for path, about in (("a.md", about_a), ("b.md", about_b)):
+        anchor = f"{path}#p1l1"
+        notes[TWO_DOCS[path]] = {
+            "doc": path,
+            "what": "x",
+            "concealed": [],
+            "cross_references": [],
+            "figures": [],
+            "flags": [
+                {
+                    "flag": "The workstream stopped",
+                    "quote": SHARED_TEXT,
+                    "consequence": "AURORA is the workstream the deal turns on.",
+                    "about": list(about),
+                    "anchor": anchor,
+                }
+            ],
+        }
+    return notes
+
+
+def edges_of(about_a: list[str], about_b: list[str]) -> list[dict]:
+    """The edges build_edges writes for the two documents, given what their flags are about."""
+    sections = [
+        {"doc": path, "anchor": f"{path}#p1l1", "ordinal": 1, "text": SHARED_TEXT}
+        for path in sorted(TWO_DOCS)
+    ]
+    first_anchors = {doc_id: f"{path}#p1l1" for path, doc_id in TWO_DOCS.items()}
+    return build_edges(
+        INDEX_RECORDS,
+        sections,
+        two_notes(about_a, about_b),
+        TWO_DOCS,
+        first_anchors,
+        sorted(TWO_DOCS.values()),
+    )
+
+
+def test_shared_rule_joins_two_documents_whose_flags_are_about_the_value():
+    """A value both notes' flags name is what the shared rule looks inside."""
+    edges = edges_of(["AURORA"], ["AURORA"])
+
+    assert [(edge["a"], edge["b"], edge["kind"], edge["value"]) for edge in edges] == [
+        ("DR-001", "DR-002", "identifier", "AURORA")
+    ]
+
+
+def test_shared_rule_ignores_a_value_only_a_flags_consequence_writes():
+    """A flag that mentions a code in its own words is not a flag about that code."""
+    assert edges_of([], []) == []
+    assert edges_of(["AURORA"], []) == []
 
 
 # ---------------------------------------------------------------- the artefact
