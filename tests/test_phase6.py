@@ -667,3 +667,72 @@ def readout(terminalreporter):
         terminalreporter.write_line(
             f"phase 6 {sample}: recall {recall}, ${dollars:.4f}, spread {spread}, {state}"
         )
+
+
+# ---------------------------------------------------------------- what the rendition may not lose
+
+
+def _index_of(sample: str) -> list[dict] | None:
+    path = ROOT / "runs" / sample / "index.jsonl"
+    if not path.exists():
+        return None
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+
+
+def _is_cell(anchor: str) -> bool:
+    """A workbook cell anchor: `doc#Sheet!B7`."""
+    return "!" in anchor.rpartition("#")[2]
+
+
+def test_control_index_carries_every_header_unit_amount_of_sample_one():
+    """Every amount sample 1's index reads out of workbook cells alone, with the unit and the
+    scale its column header names, has a counterpart in the control's index with the same
+    value and the same unit. The markdown file carries the header as a line, and the index
+    reads it there."""
+    source = _index_of(SOURCE)
+    control = _index_of(CONTROL)
+    if source is None:
+        pytest.skip(SKIP_NO_PIN)
+    if control is None:
+        pytest.skip("ingest not run for the control yet")
+    held = {
+        (record["value"], record["unit"]) for record in control if record["kind"] == "amount"
+    }
+    from_cells = [
+        record
+        for record in source
+        if record["kind"] == "amount" and all(_is_cell(anchor) for anchor in record["anchors"])
+    ]
+    assert from_cells
+    missing = [
+        (record["surface"], record["value"], record["unit"], record["anchors"][0])
+        for record in from_cells
+        if (record["value"], record["unit"]) not in held
+    ]
+    assert not missing, f"{len(missing)} of {len(from_cells)}: {missing[:10]}"
+
+
+def test_control_index_holds_the_six_series_of_sample_one():
+    """The control's index holds sample 1's six series, each with the same step, the same
+    form and the same number of members, the four row series among them."""
+    source = _index_of(SOURCE)
+    control = _index_of(CONTROL)
+    if source is None:
+        pytest.skip(SKIP_NO_PIN)
+    if control is None:
+        pytest.skip("ingest not run for the control yet")
+
+    def shape(index):
+        return sorted(
+            (
+                record["surface"],
+                record["value"]["step"],
+                record["value"]["form"],
+                len(record["value"]["members"]),
+            )
+            for record in index
+            if record["kind"] == "series"
+        )
+
+    assert len(shape(source)) == 6
+    assert shape(control) == shape(source)

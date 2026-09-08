@@ -21,6 +21,7 @@ import pytest
 from pdftext.extraction import paginated_plain_text_output
 
 from rlm.amounts import normalise_amount, normalise_date
+from rlm.index import build_index
 from rlm.ingest import Coverage, ingest, main
 from rlm.key import load_key
 from rlm.sections import KINDS, parse_anchor
@@ -1056,3 +1057,141 @@ def test_gate_pin_sections_matches_the_committed_digests(tmp_path, capsys):
     assert code == 0
     committed = (ROOT / "tests" / "phase1-digests.json").read_bytes()
     assert digests_path.read_bytes() == committed
+
+
+# ---------------------------------------------------------------- line tables
+
+
+LINE_DOC = "data_room/02_Financials_and_Tax/Revenue_Summary.xlsx.md"
+
+
+def line_section(doc, line, text, heading=None):
+    """One text section of a markdown file, anchored to the line it starts at."""
+    return {
+        "anchor": f"{doc}#l{line}",
+        "doc": doc,
+        "heading": heading,
+        "kind": "text",
+        "ordinal": line,
+        "text": text,
+        "warning": None,
+    }
+
+
+def line_table(doc, lines, first=1):
+    """Consecutive single-line sections, one per row, the way a variant renders a sheet."""
+    return [line_section(doc, first + 2 * at, text) for at, text in enumerate(lines)]
+
+
+def amounts_at(indexed, anchor):
+    """The (value, unit) pairs of every amount record anchored at one place."""
+    return {
+        (record["value"], record["unit"])
+        for record in indexed
+        if record["kind"] == "amount" and anchor in record["anchors"]
+    }
+
+
+def test_index_amount_in_a_line_row_takes_its_unit_and_scale_from_the_header_line():
+    """A bare number in a pipe-separated line under a header line that names a unit and a scale
+    is indexed the way the same cell of the workbook is: 3.6 under Revenue ($M) is 3,600,000 USD,
+    anchored to the row's own line."""
+    sections = line_table(
+        LINE_DOC,
+        [
+            "Year | Category | Revenue ($M)",
+            "2024 | Hygiene | 3.6",
+            "2025 | Hygiene | 4.1",
+        ],
+    )
+
+    indexed = build_index(sections)
+
+    assert (3600000.0, "USD") in amounts_at(indexed, f"{LINE_DOC}#l3")
+    assert (4100000.0, "USD") in amounts_at(indexed, f"{LINE_DOC}#l5")
+    assert (3.6, None) not in amounts_at(indexed, f"{LINE_DOC}#l3")
+
+
+def test_index_reads_a_negative_and_a_zero_line_cell_as_the_workbook_reads_them():
+    """-3 under a bare header is -3 count, and 0 under Record count is 0 records."""
+    sections = line_table(
+        LINE_DOC,
+        [
+            "Function | Movement | Record count",
+            "Sales | -3 | 0",
+        ],
+    )
+
+    indexed = build_index(sections)
+
+    found = amounts_at(indexed, f"{LINE_DOC}#l3")
+    assert (-3.0, "count") in found
+    assert (0.0, "records") in found
+
+
+def test_index_line_header_is_the_nearest_text_only_line_of_the_same_table():
+    """The header is the last text-only pipe line above the first numeric row of the run of
+    consecutive pipe lines the row sits in. Prose between two tables ends a table, so the
+    second table's rows read their own header, not the first table's."""
+    doc = LINE_DOC
+    sections = [
+        line_section(doc, 1, "Helios Retail Group | Insertion Orders"),
+        line_section(doc, 3, "Month | Campaign | Booked $k | Delivered $k"),
+        line_section(doc, 5, "January 2025 | New Year Clearance | 966 | 952.9"),
+        line_section(doc, 7, "Booked against delivered, in thousands."),
+        line_section(doc, 9, "Quarter | Headcount"),
+        line_section(doc, 11, "Q1 2025 | 41"),
+    ]
+
+    indexed = build_index(sections)
+
+    assert (966000.0, "USD") in amounts_at(indexed, f"{doc}#l5")
+    assert (952900.0, "USD") in amounts_at(indexed, f"{doc}#l5")
+    assert (41.0, "count") in amounts_at(indexed, f"{doc}#l11")
+    assert not any(
+        unit == "USD" for _, unit in amounts_at(indexed, f"{doc}#l11")
+    )
+
+
+def test_index_builds_a_row_series_from_line_anchored_rows():
+    """Consecutive pipe lines whose first field steps by a week are a row series anchored to
+    the header line, with the rows' own anchors as its members, as a workbook sheet gives."""
+    doc = "data_room/04_Product_Data_and_Technology/User_Metrics_Dashboard_Q3_Q4_2025.xlsx.md"
+    sections = line_table(
+        doc,
+        [
+            "Week commencing | Total MAU (m) | Total MAU plan (m)",
+            "1 September 2025 | 614 | 615",
+            "8 September 2025 | 615 | 616",
+            "15 September 2025 | 616 | 617",
+            "22 September 2025 | 615 | 617",
+        ],
+    )
+
+    series = records_of(build_index(sections), "series")
+
+    assert len(series) == 1
+    assert series[0]["surface"] == "Week commencing"
+    assert series[0]["value"] == {
+        "step": "week",
+        "form": "rows",
+        "members": [f"{doc}#l3", f"{doc}#l5", f"{doc}#l7", f"{doc}#l9"],
+    }
+    assert series[0]["anchors"] == [f"{doc}#l1"]
+    assert series[0]["docs"] == [doc]
+    assert (614000000.0, "count") in amounts_at(build_index(sections), f"{doc}#l3")
+
+
+def test_index_leaves_a_multi_line_markdown_table_block_as_text():
+    """A markdown table held in one block of several lines is not a line table. Samples 2 and
+    3 write their tables this way, and their index does not change."""
+    doc = "sample_data_room/Northwind_Logistics/arr_schedule.xlsx.md"
+    block = "| Tier | ARR ($M) |\n|---|---:|\n| Top 1 | 12.4 |\n| Top 3 | 28.8 |"
+    sections = [line_section(doc, 55, block)]
+
+    indexed = build_index(sections)
+
+    found = amounts_at(indexed, f"{doc}#l55")
+    assert (12.4, None) in found
+    assert (12400000.0, "USD") not in found
+    assert records_of(indexed, "series") == []
