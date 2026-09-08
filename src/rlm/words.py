@@ -50,6 +50,45 @@ def fold(value) -> str:
     return _LOOSE.sub(" ", str(value).casefold()).strip()
 
 
+# The words a room writes at the end of an organisation's name that are not part of it.
+CORPORATE_SUFFIXES = frozenset("inc llp plc ltd group".split())
+
+
+def name_forms(value) -> tuple[str, ...]:
+    """The forms a person or organisation name folds to, the whole name first.
+
+    A name is written several ways in one room. The forms below are what the ways have in
+    common: the value is case folded and its punctuation dropped, a corporate suffix at the end
+    is taken off, a surname written first with a comma is put back in reading order, the space
+    or the hyphen inside a compound is closed, and a first name is cut to its initial. Two
+    values are the same name where they write a form in common, so `Priya Raman`, `P. Raman`,
+    `Raman, Priya` and `PRIYA RAMAN` all write `praman`, and `VistaPort`, `Vista Port` and
+    `Vista-Port` all write `vistaport`. A transposed-letter misspelling writes no form the
+    correct spelling writes, so `Priya Ramna` is a name of its own.
+
+    The initial is written for a name of two words only. A first name and a surname are two
+    words; a run of three or more is a phrase, and cutting its first word to a letter would
+    make `Analysis VistaPort` and `Addendum VistaPort` the same thing.
+    """
+    text = str(value)
+    orders = [fold(text).split()]
+    if "," in text:
+        head, _, tail = text.partition(",")
+        turned = fold(tail).split() + fold(head).split()
+        if turned:
+            orders.append(turned)
+    forms: list[str] = []
+    for words in orders:
+        while len(words) > 1 and words[-1] in CORPORATE_SUFFIXES:
+            words = words[:-1]
+        if not words:
+            continue
+        for form in ("".join(words), words[0][0] + words[1] if len(words) == 2 else ""):
+            if form and form not in forms:
+                forms.append(form)
+    return tuple(forms)
+
+
 def one_line(text) -> str:
     """The text with every run of whitespace collapsed to one space and the ends trimmed.
 

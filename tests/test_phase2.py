@@ -2391,7 +2391,7 @@ def test_seed_document_flags_name_every_planted_identifier(notes, key, run_dir, 
         note = by_path.get(key.documents[seed])
         assert note is not None, f"{seed} is the seed of {sample} and has no note"
         askable = [fold_value(value) for value in named_values(index, key.documents[seed], skipped)]
-        named = map_named_values(note)
+        named = map_named_values(note, {})
         about = [value for flag in note["flags"] for value in flag.get("about", [])]
         for fact in key.facts:
             if fact.kind not in ("identifier", "number") or fact.phase not in (1, 2):
