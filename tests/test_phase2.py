@@ -2320,10 +2320,10 @@ def quoted_items(note: dict):
             yield field, index, item
 
 
-def assert_notes_well_shaped(notes, key):
+def assert_notes_well_shaped(notes, key, sections_by_doc=None):
     """The shape every note of a phase 2 pass must have. Shared by the sample-level notes test
     and the bake-off artefact test, so a note is held to the same standard wherever it is
-    written."""
+    written. With sections_by_doc the calls of a note are bounded by its pieces (#131)."""
     ids_by_path = {path: doc_id for doc_id, path in key.documents.items()}
     for name, (raw, note) in notes.items():
         assert raw == json.dumps(note, indent=1, sort_keys=True, ensure_ascii=False) + "\n", name
@@ -2352,12 +2352,16 @@ def assert_notes_well_shaped(notes, key):
         usage = note["usage"]
         assert set(usage) == {"tokens_in", "tokens_out", "dollars", "seconds", "calls"}, name
         assert usage["tokens_in"] > 0 and usage["tokens_out"] > 0, name
-        assert usage["calls"] in (1, 2), name
+        # One or two calls per piece: a document over PIECE_LIMIT is noted in pieces (#131).
+        assert usage["calls"] >= 1, name
+        if sections_by_doc is not None:
+            pieces = len(split_sections(sections_by_doc[note["doc"]]))
+            assert usage["calls"] <= 2 * pieces, (name, usage["calls"], pieces)
         assert usage["dollars"] == pytest.approx(price(note["model"], usage["tokens_in"], usage["tokens_out"])), name
 
 
-def test_one_document_note_is_well_shaped(notes, key):
-    assert_notes_well_shaped(notes, key)
+def test_one_document_note_is_well_shaped(notes, key, sections_by_doc):
+    assert_notes_well_shaped(notes, key, sections_by_doc)
 
 
 def assert_notes_quotes_verified(notes, sections_by_doc):

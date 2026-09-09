@@ -86,12 +86,12 @@ rubric are on sample 1's variants; its dollars are every phase 6 row of `LEDGER.
 |---|---|---|---|---|---|---|
 | 0 Fixtures | Phase 0 | done | 100 / 100 / 100 | 0 | 0 | 2026-09-05 |
 | 1 Ingest | Phase 1 | done | 100 / 100 / 100 | 0 | 0 | 2026-09-06 |
-| 2 Notes | Phase 2 | done | 100 / 100 / 100 | 1.51 | 0 / 20 / 0 | 2026-09-06 |
+| 2 Notes | Phase 2 | done | 100 / 100 / 100 | 1.80 | 0 / 20 / 0 | 2026-09-09 |
 | 3 Map | Phase 3 | done | 100 / 100 / 100 | 0 | 0 / 0 / 0 | 2026-09-07 |
 | 4 Dossier | Phase 4 | done | 100 / 100 / 100 | 0 | 0 / 0 / 0 | 2026-09-07 |
 | 5 Report | Phase 5 | done | 100 / 100 / 100, rubric 100 | 8.28 | 0 / 0 / 0 | 2026-09-08 |
 | 6 Widen | Phase 6 | done | recall 100 / 100 / 97.9 / 98.5 / 98.1, rubric 100 / 94 / 98 / 99 / 100 | 7.78 | 0 / 6 / 2 / 1 / 1 | 2026-09-09 |
-| 7 Compare | Phase 7 | done | sample 4 recall 72.7 | 0.26 | RLM 2, ours 0 | 2026-09-09 |
+| 7 Compare | Phase 7 | done | sample 4 recall 86.4 | 0.26 | RLM 2, ours 0 | 2026-09-09 |
 
 Phase 5's row was restated on 2026-09-09 by the phase 6 gate, which rewrote the three gate
 samples' reports after PR #119 changed the map under them: rubric 90 to 100, spread 4 / 0 / 0
@@ -107,15 +107,17 @@ Code on the subscription, Sonnet 5 as the leaf, on `reference/rlm-skill/skill/` 
 seconds are the two passes' wall time from its own manifests and its dollars are zero by that
 route. Ours is the pinned phase 5 run. The RLM's recall is low because the grader's carry rule
 reads our citation shape; its rubric score is the number to compare. Sample 4 has no rubric,
-so its score is recall, 16 of 22 facts; the six misses are named in PR #129, three phase 2's
-and three phase 4's. Its seconds are blank: the notes ran in two passes and the run kept no
-one wall time.
+so its score is recall, 19 of 22 facts; the three misses are phase 4's, named in PR #129.
+Its seconds are blank: the notes ran in two passes and the run kept no one wall time.
+Restated 2026-09-09 with #131: phase 2 notes a document over 20,000 characters in pieces, and
+the chain reran from the notes on; the rerun cost $0.29, booked to phase 2. The row read
+recall 72.7, 16 of 22, before it.
 
 | Sample | Tool | Score a | Score b | Spread | Recall | Seconds | Dollars |
 |---|---|---|---|---|---|---|---|
 | 1 `atlas` | RLM skill | 82 | 84 | 2 | 34.0 | 990 | 0 |
 | 1 `atlas` | ours | 100 | 100 | 0 | 100 | 750 | 3.68 |
-| 4 `yahoo` | ours | 72.7 | | | 72.7 | | 0.26 |
+| 4 `yahoo` | ours | 86.4 | | | 86.4 | | 0.26 |
 
 **How a phase becomes issues.** The founder types `/aeo:sprint-plan` for the phase. The plan is
 sliced into three to six issues, each a vertical piece that leaves an artefact a test checks
@@ -174,7 +176,8 @@ contain it. That is the spread of 20 on `northwind` the gate row carries, and th
 it. DeepSeek Pro's probe miss is a reply of `{}` and then one that is not JSON on DR-074.
 GLM 5.3 was not run: its probe in the first run of the day lost two of seven documents to the
 6000 output token cap with reasoning on, and its two passes would cost about $3 to fail the same
-way. The rerun cost $0.98; phase 2 has spent $1.51 of its $8.
+way. The rerun cost $0.98; phase 2 had spent $1.51 of its $8, and $1.80 after #131's
+sample 4 rerun on 2026-09-09.
 
 **Phase 5 bake-off, run 2026-09-07 and 2026-09-08** (`runs/<sample>/write-bakeoff.json`,
 issues #83, #90 and #92). Every model wrote each sample twice from the pinned dossier; the

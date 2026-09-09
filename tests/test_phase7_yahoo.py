@@ -529,7 +529,7 @@ def test_phase_2_holds_on_yahoo(key, notes, sections_by_doc):
     _RAN.add(2)
     known = excused(key)
     kept = replace(key, facts=tuple(fact for fact in key.facts if fact.id not in known))
-    test_phase2.assert_notes_well_shaped(notes, key)
+    test_phase2.assert_notes_well_shaped(notes, key, sections_by_doc)
     test_phase2.assert_notes_quotes_verified(notes, sections_by_doc)
     test_phase2.test_one_document_carries_its_planted_quotes(notes, kept)
     test_phase2.test_seed_document_flags_name_every_planted_identifier(
