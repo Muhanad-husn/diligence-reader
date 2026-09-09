@@ -42,6 +42,7 @@ from rlm.notes import (
     LOG_KEYS,
     MAX_OUTPUT_TOKENS,
     NAMED_VALUE_LIMIT,
+    PIECE_LIMIT,
     NOTE_KEYS,
     QUOTED_FIELDS,
     REASK_ITEMS,
@@ -56,7 +57,9 @@ from rlm.notes import (
     main,
     model_note,
     named_values,
+    note_document,
     note_name,
+    split_sections,
     read_index,
     read_sections,
     straighten,
@@ -1047,6 +1050,106 @@ def test_one_document_a_value_inside_no_flag_quote_is_asked_for_once():
     assert records == []
     assert [flag["flag"] for flag in note["flags"]] == ["f", "g"]
     assert note["flags"][1]["about"] == ["286m"]
+
+
+# ---------------------------------------------------------------- one document: long documents in pieces
+# #131: on yahoo the 10-K item 7 is 40,000 characters and one call filled its completion cap
+# before the committee's sentence came out. A document over PIECE_LIMIT characters is noted in
+# pieces cut at section boundaries, each piece its own call with the same prompt, and the
+# pieces' items merged in document order.
+
+LONG_WORDS = "The board met and the minutes record nothing of the reserve or the egress. "
+
+
+def long_sections(count: int, chars: int) -> list[dict]:
+    """count sections of about chars characters each, every one distinct."""
+    return [section(ordinal, f"Section {ordinal}. " + LONG_WORDS * (chars // len(LONG_WORDS))) for ordinal in range(1, count + 1)]
+
+
+def test_long_document_piece_limit_is_twenty_thousand_characters():
+    assert PIECE_LIMIT == 20000
+
+
+def test_long_document_is_split_at_section_boundaries_under_the_limit():
+    """Sections stay whole and in order; every piece is under the limit; a short document is
+    one piece; a lone section over the limit is a piece of its own."""
+    sections = long_sections(9, 5000)
+    pieces = split_sections(sections, 20000)
+    assert [s["ordinal"] for piece in pieces for s in piece] == list(range(1, 10))
+    assert len(pieces) == 3
+    for piece in pieces:
+        assert len(document_text(piece)) <= 20000
+        assert piece == sections[sections.index(piece[0]) : sections.index(piece[0]) + len(piece)]
+    assert split_sections(VALUE_SECTIONS, 20000) == [VALUE_SECTIONS]
+    huge = [section(1, "x" * 30000), section(2, "y")]
+    assert split_sections(huge, 20000) == [[huge[0]], [huge[1]]]
+
+
+def test_long_document_is_noted_in_pieces_and_the_pieces_merged_in_order():
+    """Two pieces, two calls, each seeing only its own sections; the note's what is the first
+    piece's, the flags follow document order, and the figures the model did not write are
+    harvested over the whole document."""
+    sections = long_sections(3, 9000)
+    sections[0]["text"] = sections[0]["text"] + " " + SENTENCE
+    sections[2]["text"] = sections[2]["text"] + " " + EGRESS
+    first = {"what": "first piece", "flags": [{"flag": "f", "quote": SENTENCE, "consequence": "c", "about": []}],
+             "figures": [], "cross_references": [], "concealed": []}
+    second = {"what": "second piece", "flags": [{"flag": "g", "quote": EGRESS, "consequence": "c", "about": []}],
+              "figures": [], "cross_references": [], "concealed": []}
+    calls = Replies([json.dumps(first), json.dumps(second)])
+    note, records = note_document(DR_069, MODEL, "a", sections, calls, named=[])
+    assert len(calls.messages) == 2
+    assert SENTENCE in calls.messages[0][-1]["content"]
+    assert EGRESS not in calls.messages[0][-1]["content"]
+    assert EGRESS in calls.messages[1][-1]["content"]
+    assert SENTENCE not in calls.messages[1][-1]["content"]
+    assert note["what"] == "first piece"
+    assert [flag["flag"] for flag in note["flags"]] == ["f", "g"]
+    assert note["flags"][0]["anchor"] == sections[0]["anchor"]
+    assert note["flags"][1]["anchor"] == sections[2]["anchor"]
+    assert [figure["surface"] for figure in note["figures"]] == ["$12m"]
+    assert records == []
+
+
+def test_long_document_a_piece_that_never_parses_loses_only_its_own_items():
+    """The first piece fails twice and is one note-dropped record; the second piece's items
+    make the note."""
+    sections = long_sections(3, 9000)
+    sections[2]["text"] = sections[2]["text"] + " " + EGRESS
+    second = {"what": "second piece", "flags": [{"flag": "g", "quote": EGRESS, "consequence": "c", "about": []}],
+              "figures": [], "cross_references": [], "concealed": []}
+    calls = Replies(["not json", "still not json", json.dumps(second)])
+    note, records = note_document(DR_069, MODEL, "a", sections, calls, named=[])
+    assert len(calls.messages) == 3
+    assert note is not None
+    assert [flag["flag"] for flag in note["flags"]] == ["g"]
+    assert note["what"] == "second piece"
+    assert [record["outcome"] for record in records] == ["note-dropped"]
+
+
+def test_long_document_a_piece_is_asked_only_for_the_named_values_it_carries():
+    """A named value that reads in the second piece alone is not asked of the first."""
+    sections = long_sections(3, 9000)
+    sections[0]["text"] = sections[0]["text"] + " " + SENTENCE
+    sections[2]["text"] = sections[2]["text"] + " " + EGRESS
+    first = {"what": "x", "flags": [{"flag": "f", "quote": SENTENCE, "consequence": "c", "about": ["$12m"]}],
+             "figures": [], "cross_references": [], "concealed": []}
+    second = {"what": "y", "flags": [{"flag": "g", "quote": EGRESS, "consequence": "c", "about": ["286m"]}],
+              "figures": [], "cross_references": [], "concealed": []}
+    calls = Replies([json.dumps(first), json.dumps(second)])
+    note, records = note_document(DR_069, MODEL, "a", sections, calls, named=["$12m", "286m"])
+    assert len(calls.messages) == 2
+    assert records == []
+    assert [flag["about"] for flag in note["flags"]] == [["$12m"], ["286m"]]
+
+
+def test_short_document_is_still_one_call():
+    answer = {"what": "x", "flags": [{"flag": "f", "quote": SENTENCE, "consequence": "c", "about": []}],
+              "figures": [], "cross_references": [], "concealed": []}
+    calls = Replies([json.dumps(answer)])
+    note, records = note_document(DR_069, MODEL, "a", VALUE_SECTIONS, calls, named=[])
+    assert len(calls.messages) == 1
+    assert [flag["flag"] for flag in note["flags"]] == ["f"]
 
 
 def test_one_document_a_cross_reference_in_no_flag_quote_is_not_asked_for():
@@ -2217,10 +2320,10 @@ def quoted_items(note: dict):
             yield field, index, item
 
 
-def assert_notes_well_shaped(notes, key):
+def assert_notes_well_shaped(notes, key, sections_by_doc=None):
     """The shape every note of a phase 2 pass must have. Shared by the sample-level notes test
     and the bake-off artefact test, so a note is held to the same standard wherever it is
-    written."""
+    written. With sections_by_doc the calls of a note are bounded by its pieces (#131)."""
     ids_by_path = {path: doc_id for doc_id, path in key.documents.items()}
     for name, (raw, note) in notes.items():
         assert raw == json.dumps(note, indent=1, sort_keys=True, ensure_ascii=False) + "\n", name
@@ -2249,12 +2352,16 @@ def assert_notes_well_shaped(notes, key):
         usage = note["usage"]
         assert set(usage) == {"tokens_in", "tokens_out", "dollars", "seconds", "calls"}, name
         assert usage["tokens_in"] > 0 and usage["tokens_out"] > 0, name
-        assert usage["calls"] in (1, 2), name
+        # One or two calls per piece: a document over PIECE_LIMIT is noted in pieces (#131).
+        assert usage["calls"] >= 1, name
+        if sections_by_doc is not None:
+            pieces = len(split_sections(sections_by_doc[note["doc"]]))
+            assert usage["calls"] <= 2 * pieces, (name, usage["calls"], pieces)
         assert usage["dollars"] == pytest.approx(price(note["model"], usage["tokens_in"], usage["tokens_out"])), name
 
 
-def test_one_document_note_is_well_shaped(notes, key):
-    assert_notes_well_shaped(notes, key)
+def test_one_document_note_is_well_shaped(notes, key, sections_by_doc):
+    assert_notes_well_shaped(notes, key, sections_by_doc)
 
 
 def assert_notes_quotes_verified(notes, sections_by_doc):
