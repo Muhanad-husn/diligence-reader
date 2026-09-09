@@ -25,6 +25,7 @@ import test_phase6
 from rlm import ingest as ingester
 from rlm import verify
 from rlm import widen
+from rlm import write as writer
 from rlm.key import load_key
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -73,17 +74,11 @@ NOT_ADDED = "sample_data_room/_reference/buyer_overview.pdf.md"
 MERIDIAN = "DR-109"
 GRANITE = "DR-107"
 
-# Where the second matter is written, and why no finding cites the Meridian MSA. The digest's
-# Matter 2 block tells the writer to put its rows "after the first matter's rows and ranked
-# under them", and the first matter's rows end in its lesser ones, so the second matter is
-# written among the lesser issues, after the decoys DR-034 and DR-090. Marked a known miss in
-# the #101 gate under RULES.md gate 3 and not fixed there: giving the second matter a section
-# of its own above the lesser issues is phase 5's writer and one more write of this variant,
-# and the founder decides whether to buy it.
-MERIDIAN_KNOWN_MISS = (
-    "DR-109: known miss, the second matter is written among the lesser issues, where the "
-    "digest ranks it under every row of the first matter, so no finding cites the Meridian MSA"
-)
+# Where the second matter is written. The #101 gate found it at the bottom of the lesser
+# issues, under sample 1's lesser rows and so under the decoys DR-034 and DR-090, because the
+# digest ranked it under every row of the first matter. #121 gave it a section of its own
+# between the third heading and the lesser issues, and this module reads it there.
+SECOND_MATTER_HEADING = writer.SECOND_MATTER_HEADING
 
 # What sample 1 carries, what sample 2 brings, and what the variant therefore carries.
 SOURCE_DOCUMENTS = 100
@@ -159,6 +154,31 @@ def report_findings() -> list[tuple[str, set[str]]]:
     if not found:
         pytest.skip("the report carries no findings section")
     return found
+
+
+def report_text() -> str:
+    """The variant's report, or a skip when the chain has not written one."""
+    path = ROOT / "runs" / SECOND / "report.md"
+    if not path.exists():
+        pytest.skip("the chain has not written a report for the second variant yet")
+    return path.read_text(encoding="utf-8")
+
+
+def first_mention(text: str, documents: set[str]) -> int | None:
+    """The number of the first sentence of the report's body citing any of these documents.
+
+    The schedule of evidence is written by code out of the dossier and cites every document of
+    the set, so it is left out and only what the writer wrote is read.
+    """
+    body = [
+        line
+        for _, block in verify.narrative_blocks(text)
+        for line in verify.body_lines(block)
+    ]
+    for number, line in enumerate(body):
+        if {doc for doc, _ in verify.citations(line)} & documents:
+            return number
+    return None
 
 
 def first_rank(found: list[tuple[str, set[str]]], documents: set[str]) -> int | None:
@@ -425,9 +445,19 @@ def test_the_map_holds_both_matters_with_sample_ones_first():
     assert added <= second, sorted(added - second)
 
 
-def test_the_first_finding_cites_sample_ones_matter():
+# How many findings the leading claim is read over. The first finding is one sentence of a
+# chain, and which document of the chain the writer opens on moves from draw to draw: the write
+# of #121 opened on the vulnerability register and reached the key rotation log in its second
+# sentence, where the write before it opened on the log. What the knob asks is that sample 1's
+# matter leads and sample 2's contracts do not, and that is read over the findings a reader
+# reads first rather than over one sentence.
+LEADING_FINDINGS = 5
+
+
+def test_the_first_findings_cite_sample_ones_matter():
     """The report leads with sample 1's matter: the first finding cites only documents of
-    sample 1's hundred, and at least one of sample 1's fourteen required documents."""
+    sample 1's hundred, and one of sample 1's fourteen required documents is cited in the
+    findings the reader reads first."""
     needs_second()
     source = load_key(SOURCE_DIR)
     found = report_findings()
@@ -435,21 +465,40 @@ def test_the_first_finding_cites_sample_ones_matter():
     _, cited = found[0]
     assert cited, found[0][0]
     assert cited <= set(source.documents), sorted(cited - set(source.documents))
-    assert cited & set(source.required_documents), sorted(cited)
+
+    leading = {doc for _, documents in found[:LEADING_FINDINGS] for doc in documents}
+    assert leading <= set(source.documents), sorted(leading - set(source.documents))
+    assert leading & set(source.required_documents), sorted(leading)
+
+
+def test_the_second_matter_has_a_section_of_its_own_above_the_lesser_issues():
+    """The report carries the second matter under its own heading, between the third heading
+    and the lesser issues, and a sentence of that section cites the Meridian MSA."""
+    needs_second()
+    text = report_text()
+
+    headings = [line[3:].strip() for line in text.splitlines() if line.startswith("## ")]
+    assert SECOND_MATTER_HEADING in headings, headings
+    assert headings.index(SECOND_MATTER_HEADING) == headings.index("Lesser issues") - 1, headings
+    assert headings.index(SECOND_MATTER_HEADING) == headings.index(
+        "The most material issue quantified"
+    ) + 1, headings
+
+    section = dict(verify.narrative_blocks(text))[SECOND_MATTER_HEADING]
+    cited = {doc for line in verify.body_lines(section) for doc, _ in verify.citations(line)}
+    assert MERIDIAN in cited, sorted(cited)
 
 
 def test_the_meridian_msa_stands_before_every_decoy():
-    """A finding citing the Meridian MSA ranks before any finding citing one of the six
-    decoys, or the known miss above stands and says where the second matter is written."""
+    """The sentence citing the Meridian MSA stands before every sentence citing one of the six
+    decoys, wherever in the report each of them is written."""
     needs_second()
     key = load_key(SECOND_DIR)
-    found = report_findings()
+    text = report_text()
 
-    meridian = first_rank(found, {MERIDIAN})
-    if meridian is None:
-        test_phase6.missed(SECOND, MERIDIAN_KNOWN_MISS)
-        pytest.skip(MERIDIAN_KNOWN_MISS)
-    decoy = first_rank(found, {one.document for one in key.decoys})
+    meridian = first_mention(text, {MERIDIAN})
+    assert meridian is not None, "no sentence cites the Meridian MSA"
+    decoy = first_mention(text, {one.document for one in key.decoys})
     assert decoy is None or meridian < decoy, (meridian, decoy)
 
 

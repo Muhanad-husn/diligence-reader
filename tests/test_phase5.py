@@ -1012,6 +1012,71 @@ def test_write_asks_the_gateway_for_prose_not_json(fake_sample):
 # ---------------------------------------------------------------- the prompt and the parse
 
 
+def headings_asked_for(instructions: str) -> list[str]:
+    """The second level headings the shape block of the instructions asks the writer for."""
+    shape = instructions.split("THE SHAPE", 1)[1].split("THE NUMBER", 1)[0]
+    return [line[3:].strip() for line in shape.splitlines() if line.startswith("## ")]
+
+
+def test_build_messages_leaves_a_one_matter_prompt_where_it_was():
+    """A digest holding one matter carries the five headings, in order, and asks for no sixth."""
+    brief = "# Brief\n\nFind the matter.\n"
+    dossier = "# Digest\n\n### Timeline\n\n- 2025-10-18 | DR-001 | a quote | a/b.pdf#p1l1\n"
+
+    instructions = writer.build_messages(brief, dossier)[0]["content"]
+
+    assert "Five second level headings, in this order, and nothing after the fifth:" in instructions
+    assert "Write no sixth heading." in instructions
+    assert f"## {writer.SECOND_MATTER_HEADING}" not in instructions
+    assert headings_asked_for(instructions) == list(HEADINGS[:-1])
+
+
+def test_build_messages_asks_for_the_second_matter_above_the_lesser_issues():
+    """A digest holding a second matter asks for a section of its own, after the third heading
+    and before the lesser issues, so that it is never ranked under the first matter's lesser rows."""
+    brief = "# Brief\n\nFind the matter.\n"
+    dossier = (
+        "# Digest\n\n### Timeline\n\n- 2025-10-18 | DR-001 | a quote | a/b.pdf#p1l1\n\n"
+        "## Matter 2\n\n"
+        f"{writer.FURTHER_NOTE}\n\n"
+        "### Timeline\n\n- 2025-11-02 | DR-101 | another quote | c/d.pdf#p2l3\n"
+    )
+
+    instructions = writer.build_messages(brief, dossier)[0]["content"]
+
+    assert headings_asked_for(instructions) == [
+        "Executive summary",
+        "Findings ranked by materiality",
+        "The most material issue quantified",
+        writer.SECOND_MATTER_HEADING,
+        "Lesser issues",
+        "Open items",
+    ]
+    assert "Write no seventh heading." in instructions
+    assert "Write no sixth heading." not in instructions
+
+
+def test_the_further_note_sends_the_second_matter_to_its_own_heading():
+    """The line the digest writes over a second matter's rows names the heading they belong
+    under, and no longer ranks them under every row of the first matter."""
+    assert writer.SECOND_MATTER_HEADING in writer.FURTHER_NOTE
+    assert "after the first matter's rows and ranked under them" not in writer.FURTHER_NOTE
+
+
+def test_a_report_is_whole_with_the_second_matter_in_its_place():
+    """is_whole reads a six heading report as whole where the second matter stands between the
+    third heading and the lesser issues, and not where it stands after them."""
+    section = (
+        f"## {writer.SECOND_MATTER_HEADING}\n\n"
+        "A smaller matter of the same room [DR-101 | c/d.pdf#p2l3].\n\n"
+    )
+    right = FAKE_REPORT.replace("## Lesser issues", section + "## Lesser issues")
+    wrong = FAKE_REPORT.replace("## Open items", section + "## Open items")
+
+    assert writer.is_whole(right)
+    assert not writer.is_whole(wrong)
+
+
 def test_build_messages_carries_the_headings_and_the_whole_digest():
     """The five headings are in the instructions and the digest is the user message, whole."""
     brief = "# Brief\n\nFind the matter.\n"

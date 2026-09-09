@@ -99,6 +99,14 @@ HEADINGS = (
     "Evidence",
 )
 
+# The heading a room's second matter is written under, and where it stands. A room may hold two
+# matters and the map ranks them, so the report ranks them too: the second matter comes after the
+# first matter's own three sections and before the lesser issues, which are what the room carries
+# outside both matters. Written under the lesser issues it would stand below them, and a planted
+# document of the second matter would be read after a decoy of the first.
+SECOND_MATTER_HEADING = "The second matter"
+SECOND_MATTER_PLACE = 3
+
 # The two lines that carry no citation: the recommendation and the arithmetic.
 RECOMMENDATION = "Recommendation:"
 CALCULATION = "Calculation:"
@@ -207,9 +215,10 @@ FURTHER_ROWS = 45
 # The line the digest writes under a further matter's heading, so that a reply reading the
 # digest knows those rows are a second matter and where they belong in the report.
 FURTHER_NOTE = (
-    "A second matter of the same room, smaller than the matter above. Write its rows in the "
-    "same five sections, after the first matter's rows and ranked under them, and do not mix "
-    "them into the first matter's findings."
+    "A second matter of the same room, smaller than the matter above. Write its rows under the "
+    f"report's own `## {SECOND_MATTER_HEADING}` heading, which stands after the first matter's "
+    "three sections and before the lesser issues, and do not mix them into the first matter's "
+    "sections."
 )
 
 # The most words a row's quote may run to before the digest passes it over. A dossier row can
@@ -806,6 +815,52 @@ def evidence_within_reach(dossier: str) -> tuple[str, int]:
     return evidence, 2
 
 
+# The shape the prompt asks for, and the shape it asks for instead where the digest holds a
+# second matter. The two differ in one heading and the count that names it, so a room holding one
+# matter is asked exactly what it was asked before.
+SHAPE_ONE_MATTER = """Five second level headings, in this order, and nothing after the fifth:
+
+## Executive summary
+  A first line beginning `Recommendation:`, then four sentences, each cited.
+## Findings ranked by materiality
+  The matter in order of what it costs: the chronology of the dates that moved it, the
+  comparisons one sentence each, the names and the figures that bear on it, and what the
+  models blind to it assumed. One sentence a row, each cited.
+## The most material issue quantified
+  Three cited sentences on the largest exposure, then the `Calculation:` line, then one
+  `Recommendation:` line.
+## Lesser issues
+  The lesser matters, one cited sentence each. Say why it is smaller first and quote it last,
+  so that the citation is still the last thing in the sentence before the full stop.
+## Open items
+  Three cited sentences on what you would still need.
+
+Write no sixth heading."""
+
+SHAPE_TWO_MATTERS = """Six second level headings, in this order, and nothing after the sixth:
+
+## Executive summary
+  A first line beginning `Recommendation:`, then four sentences, each cited.
+## Findings ranked by materiality
+  The matter in order of what it costs: the chronology of the dates that moved it, the
+  comparisons one sentence each, the names and the figures that bear on it, and what the
+  models blind to it assumed. One sentence a row, each cited.
+## The most material issue quantified
+  Three cited sentences on the largest exposure, then the `Calculation:` line, then one
+  `Recommendation:` line.
+## The second matter
+  The rows the digest writes under its own second level heading, one cited sentence each, in
+  the order the digest gives them. This is a matter of the room, not a lesser issue: write it
+  here, under the first matter and above the lesser issues, and write it nowhere else.
+## Lesser issues
+  The lesser matters, one cited sentence each. Say why it is smaller first and quote it last,
+  so that the citation is still the last thing in the sentence before the full stop.
+## Open items
+  Three cited sentences on what you would still need.
+
+Write no seventh heading."""
+
+
 PROMPT = """You are the buy-side diligence lead. You write the findings report of one matter from two
 things and nothing else: the brief below, and the digest in the next message.
 
@@ -949,10 +1004,22 @@ def failure_items(failures: list[dict]) -> str:
     )
 
 
+def holds_further_matter(digest: str) -> bool:
+    """Says whether a digest carries a further matter, which digest_markdown writes under a
+    second level heading of its own. The first matter's rows carry no such heading."""
+    return any(line.startswith("## ") for line in digest.splitlines())
+
+
 def build_messages(brief: str, digest: str) -> list[dict]:
-    """The two messages of the call: the instructions with the brief, then the digest."""
+    """The two messages of the call: the instructions with the brief, then the digest.
+
+    A digest holding a second matter is asked for the shape that gives it a heading of its own.
+    """
+    instructions = PROMPT
+    if holds_further_matter(digest):
+        instructions = instructions.replace(SHAPE_ONE_MATTER, SHAPE_TWO_MATTERS, 1)
     return [
-        {"role": "system", "content": PROMPT + brief},
+        {"role": "system", "content": instructions + brief},
         {"role": "user", "content": digest},
     ]
 
@@ -975,13 +1042,18 @@ def parse_reply(reply: str) -> str:
 
 
 def is_whole(narrative: str) -> bool:
-    """Says whether a reply carries the brief's five headings in order.
+    """Says whether a reply carries the brief's headings in order.
 
     A reply cut short at the token cap loses its last sections, and the writer falls back to
-    the reply before it rather than write a report with no lesser issues and no open items.
+    the reply before it rather than write a report with no lesser issues and no open items. A
+    reply that wrote a second matter carries one heading more, and it is whole only where that
+    heading stands in its place: written anywhere else the second matter is ranked wrongly.
     """
     found = [line[3:].strip() for line in narrative.splitlines() if line.startswith("## ")]
-    return found[: len(HEADINGS) - 1] == list(HEADINGS[:-1])
+    wanted = list(HEADINGS[:-1])
+    if SECOND_MATTER_HEADING in found[: len(wanted) + 1]:
+        wanted.insert(SECOND_MATTER_PLACE, SECOND_MATTER_HEADING)
+    return found[: len(wanted)] == wanted
 
 
 def write_report(run_dir: Path, report: str) -> Path:
