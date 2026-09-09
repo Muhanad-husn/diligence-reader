@@ -259,6 +259,11 @@ def holds(sample: str, phase: int) -> None:
     _HELD.add((sample, phase))
 
 
+def missed(sample: str, line: str) -> None:
+    """Records one known miss for the readout to print under this variant."""
+    _MISSED.setdefault(sample, []).append(line)
+
+
 def first_failure(sample: str) -> int | None:
     """The lowest phase whose test ran on this variant and did not reach its end."""
     for phase in range(1, 6):

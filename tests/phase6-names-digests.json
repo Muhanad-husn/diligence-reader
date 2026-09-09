@@ -1,9 +1,7 @@
 {
   "atlas-names": {
-    "dossier.md": "ecb6632d10641e2cd8e7e1dd9344f1983ea267b387e9b2023cbdb8c594b50533",
-    "grade.json": "bed8643bde051b2f41cd76e4ef60cba3b655111ac30888b7676cde4e64fc4926",
     "index.jsonl": "970ab50926730967d33b52b74fa148d605a0853128439dbb2ba227ec360c77bb",
-    "map.json": "ca1d83c0b9124afff0adb424533d71da2ef6fe6aacc8edc1cfa9d183de8fbed0",
+    "sections.jsonl": "d58f8e98c4374f4eb6e68d5dfbf47ef93a12711871a4ae90ab59bfd576027b97",
     "notes-verify.jsonl": "47ca449afec681c293cb931e12d01c6448f307b03c060b05174c77b13cdc72c7",
     "notes/DR-001.json": "bbb387d4c1ed8f74cb521c8a8ca6d08f8004b6438f69b246bf48555c89577c8a",
     "notes/DR-002.json": "8ca248b3f4bcad9457ea8af3defe3c84302d6d76f8f3e77a64a942acb52a489a",
@@ -105,8 +103,10 @@
     "notes/DR-098.json": "3df07fd2d2d71e327c904b4705e6b1a435af3568d678e8b0172d35d680c09e78",
     "notes/DR-099.json": "f8d3a9c162d3e35709cda0c0a306a8d6f377b71ae4e6cfa4fc1720ee13beac92",
     "notes/DR-100.json": "8b6db3b63c4be36b422ff8199313f4d2683aef5f095d45a50e8c7623792a9f7e",
-    "report.md": "92b01a6120ae16eb0001f3bcfc1ec0be61ceb51d6628ded1896bca3785f010d5",
-    "sections.jsonl": "d58f8e98c4374f4eb6e68d5dfbf47ef93a12711871a4ae90ab59bfd576027b97",
-    "verify.json": "3239219bbe6c377677378f8b434421c0938a7e845671901cb1c4defa8537e1a4"
+    "map.json": "ca1d83c0b9124afff0adb424533d71da2ef6fe6aacc8edc1cfa9d183de8fbed0",
+    "dossier.md": "ecb6632d10641e2cd8e7e1dd9344f1983ea267b387e9b2023cbdb8c594b50533",
+    "report.md": "763b274c9c386dc32bd806a6ab4737add1b38784104e511b9b5be8bf6a66fbb9",
+    "verify.json": "6238c301682bf3fd974fb7b252800db5337003e96ddb27bf82a0cc7a05226afa",
+    "grade.json": "0e6bfb2a7cad17f086fda7cc9afbca051f4e8fbedaf6a0e5cb5b760b4258ca83"
   }
 }

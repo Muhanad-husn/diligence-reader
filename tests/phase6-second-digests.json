@@ -1,9 +1,7 @@
 {
   "atlas-second": {
-    "dossier.md": "4b764f19b17a650603ed78a5db1e0e879d4db879ff8a8e64d576462166b8b03f",
-    "grade.json": "b424156d53e7636785f480fa3e7f7bf06a52635f80eb1426b8516ab4743ca1a6",
     "index.jsonl": "e387392f2c8a547a4fb8cc95e19550dd7dc03df6c9dd419790880e865f78c56d",
-    "map.json": "a349c47e133cc73fae35c186919b96a5e7d31507747f727b722cf0a3fac29cb4",
+    "sections.jsonl": "8dd4482af3a358d1d06990e6f560dc34cb9a8800bee08b7df11156745f1a3ee6",
     "notes-verify.jsonl": "6f89a685cefb36165025ae3523503d6eee1e9eb61db542e15798625fc1e48fba",
     "notes/DR-001.json": "858be5514a76d362b8edf03ebc089585a7dd8796d6a9c58acfc0addf4b64fdfd",
     "notes/DR-002.json": "36eec20eadda2c8a8ea2dd1640d822e2b526cd8eff2e4badec72e2e2abde411a",
@@ -116,8 +114,10 @@
     "notes/DR-109.json": "33fb4131f40fb84df28c86f6739ec920e2c55939d6b077876bf716b19af609cc",
     "notes/DR-110.json": "6a3c639bb4f6c151bed58d846ad3c58ef167b0b86cfd953a28015a7f14b0582f",
     "notes/DR-111.json": "52cc201904a61b5494196769b3e1903c33201dbd0b980effb7f2eeb85d723269",
-    "report.md": "eb346cb328fb33d9b120b599864376c128fdaa877737889d11988c267e62a20d",
-    "sections.jsonl": "8dd4482af3a358d1d06990e6f560dc34cb9a8800bee08b7df11156745f1a3ee6",
-    "verify.json": "dca74a46d76c8243a37c638fbb8bb444dcebfea5a6b40a8303efa2085b44a081"
+    "map.json": "a349c47e133cc73fae35c186919b96a5e7d31507747f727b722cf0a3fac29cb4",
+    "dossier.md": "4b764f19b17a650603ed78a5db1e0e879d4db879ff8a8e64d576462166b8b03f",
+    "report.md": "60326fc944bf1b56a62ebbe693da2813017d0acd2426af0610f3d4f5bdd51820",
+    "verify.json": "17b1c11c599d9740786a2e9d135c557ba89296a79e66bfd84ace68693221cf18",
+    "grade.json": "5a1bf7b055a3687301ef27e27beab54965176255c9d60be16d1246aaa12ca34d"
   }
 }

@@ -61,12 +61,12 @@ the gap is fixed in its own phase and every later phase reruns.
 | 2 Notes | `runs/<sample>/notes/<doc>.json`, `notes-verify.jsonl` | Every planted fact appears in the note of its own document, with a verified quote. Two passes: agreement on planted facts printed. Bake-off over the five models, cheapest that passes wins | bake-off | $8 |
 | 3 Map | `runs/<sample>/map.json` | Every key document of the planted matter in its cluster. Deterministic over pinned notes. The decoy count in the cluster is printed, not gated: moved to phase 4 on 2026-09-07, see the phase 4 row. Rescored under phase 5 on 2026-09-07 (slice 04, PR #88): a named-link set replaces the score cut, sample 1's set fell from 68 documents to 44, rubric 89 and 87, spread 2 | none | $0 |
 | 4 Dossier | `runs/<sample>/dossier.md` | Every planted fact present with the right anchor and number. No decoy in the matter's document set, and every planted document ranked above every decoy. Read by the founder once as a reader. Byte-identical | none | $0 |
-| 5 Report | `runs/<sample>/report.md`, `verify.json`, `grade.json` | Verifier passes. Score at or above the bar. Two writes, spread printed. Bake-off over the five models | bake-off | $8 |
-| 6 Widen | same artefacts under `runs/<sample>-<knob>/` | Phases 1 to 5 hold when a knob is turned on the fixture: names spelled inconsistently, the matter named nowhere and linked only by dates and numbers, a second matter, twice the documents. Each knob is one generated variant of sample 1 with its own key. A failure names the phase that dropped the fact | as chosen in 2 and 5 | $15 |
+| 5 Report | `runs/<sample>/report.md`, `verify.json`, `grade.json` | Verifier passes. Score at or above the bar. Two writes, spread printed. Bake-off over the five models | bake-off | $9, $8 plus $1 borrowed from the reserve on 2026-09-09 to rewrite the three gate samples' reports, lost with #119's worktree; the reason is at the head of `LEDGER.md` |
+| 6 Widen | same artefacts under `runs/<sample>-<knob>/` | Phases 1 to 5 hold when a knob is turned on the fixture: names spelled inconsistently, the matter named nowhere and linked only by dates and numbers, a second matter, twice the documents. Each knob is one generated variant of sample 1 with its own key. A failure names the phase that dropped the fact. Closed 2026-09-09: `control` holds; `names` was dropped by phase 3, whose map linked documents by the surface of a name, fixed by #113; `unnamed`, `second` and `twice` were dropped by phase 3, whose map read the room from one seed and returned one matter, fixed by #115. Five known misses stand, each a knob taking away what tied a document to the matter | as chosen in 2 and 5 | $15 |
 | 7 Compare | `runs/atlas-rlm/`, `runs/yahoo/` | The RLM skill run on sample 1 from Claude Code (subscription, no gateway spend): its score, spread and time beside ours. Then our tool once on sample 4 against the public record | as chosen | $4 |
 
-Reserve: $15 of the $50. Nothing borrows from it without the reason written in `LEDGER.md`
-first.
+Reserve: $14 of the $50, $15 less the $1 phase 5 borrowed on 2026-09-09. Nothing borrows from
+it without the reason written in `LEDGER.md` first.
 
 **The bar for phase 5.** Planted-fact recall 100% (the key is by construction). Rubric score: 85
 on sample 1, the rubric's own floor for "excellent", proposed here and set by the founder.
@@ -78,7 +78,9 @@ wrong, not a phase. Stop, write what the phase tests showed, and redesign before
 ## 4a. Status
 
 One row per phase, written by the phase's closing pull request. Score is planted-fact recall
-on the three gate samples and, from phase 5, the rubric score on sample 1.
+on the three gate samples and, from phase 5, the rubric score on sample 1. The phase 6 row reads
+its five knobs in one order, `control`, `names`, `unnamed`, `second`, `twice`, and its recall and
+rubric are on sample 1's variants; its dollars are every phase 6 row of `LEDGER.md`.
 
 | Phase | Milestone | State | Score | Dollars | Spread | Closed |
 |---|---|---|---|---|---|---|
@@ -87,9 +89,13 @@ on the three gate samples and, from phase 5, the rubric score on sample 1.
 | 2 Notes | Phase 2 | done | 100 / 100 / 100 | 1.51 | 0 / 20 / 0 | 2026-09-06 |
 | 3 Map | Phase 3 | done | 100 / 100 / 100 | 0 | 0 / 0 / 0 | 2026-09-07 |
 | 4 Dossier | Phase 4 | done | 100 / 100 / 100 | 0 | 0 / 0 / 0 | 2026-09-07 |
-| 5 Report | Phase 5 | done | 100 / 100 / 100, rubric 90 | 1.78 | 4 / 0 / 0 | 2026-09-08 |
-| 6 Widen | Phase 6 | done | 100, rubric 96 | 2.16 | 1 | 2026-09-08 |
+| 5 Report | Phase 5 | done | 100 / 100 / 100, rubric 100 | 8.28 | 0 / 0 / 0 | 2026-09-08 |
+| 6 Widen | Phase 6 | done | recall 100 / 100 / 97.9 / 98.5 / 98.1, rubric 100 / 94 / 98 / 99 / 100 | 7.50 | 0 / 6 / 2 / 0 / 1 | 2026-09-09 |
 | 7 Compare | Phase 7 | not started | | | | |
+
+Phase 5's row was restated on 2026-09-09 by the phase 6 gate, which rewrote the three gate
+samples' reports after PR #119 changed the map under them: rubric 90 to 100, spread 4 / 0 / 0
+to 0 / 0 / 0, and dollars 1.78 to every phase 5 row of `LEDGER.md`. The date it closed stands.
 
 **How a phase becomes issues.** The founder types `/aeo:sprint-plan` for the phase. The plan is
 sliced into three to six issues, each a vertical piece that leaves an artefact a test checks
@@ -214,14 +220,17 @@ tests/           one test file per phase, parametrised over the three samples
 runs/            artefacts, never committed
 ```
 
-## 10. Decisions the founder has made, and two he has not
+## 10. Decisions the founder has made, and one he has not
 
 Made: $50 ceiling; five models; no Gemini; three-sample gate; phase order; samples 1 to 4;
 fresh repository, no lanes.
 
+**Decision 2, where phase 6's knobs come from. Made on 2026-09-08 with the phase 6 sprint plan,
+as proposed: the generator.** `python -m rlm.widen <knob> samples/atlas samples/atlas-<knob>`
+writes a variant of sample 1 whose key holds by construction, and the five variants are
+`control`, `names`, `unnamed`, `second` and `twice`. A knob is a controlled change and an open
+sample is not, so open samples stay as the transfer test, which is phase 7's sample 4.
+
 Open, with this plan's proposal:
 
 1. The phase 5 bar on sample 1. Proposed: 85.
-2. Whether phase 6's knobs come from a generator we write (variants of sample 1 with keys by
-   construction) or from more open samples. Proposed: the generator, because a knob is a
-   controlled change and an open sample is not; open samples stay as the transfer test.

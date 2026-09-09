@@ -2,6 +2,14 @@
 
 Ceiling $50. Written by the code that makes gateway calls; a line added by hand says so.
 
+**One dollar borrowed from the reserve, 2026-09-09.** Phase 5's cap goes from $8 to $9. PR #119
+reran the whole chain in a worktree, re-pinned the report digests of the three gate samples and
+the five variants from those artefacts, and the worktree was removed with its `runs/` in it. The
+maps and the dossiers rebuild from the notes for nothing; the eight reports are model calls and
+cannot. Rewriting `atlas`, `northwind` and `northstar-dental` costs about $0.58, and phase 5 had
+$0.31 left. The five variants book to phase 6 and need nothing. Approved by the founder for
+issue #101. The reserve stands at $14 of $15.
+
 | date | sample | phase | model | tokens in | tokens out | dollars | balance |
 |---|---|---|---|---|---|---|---|
 | 2026-09-05 | | | | 0 | 0 | 0.0000 | 50.0000 |
@@ -258,3 +266,19 @@ Ceiling $50. Written by the code that makes gateway calls; a line added by hand 
 | 2026-09-09 | atlas-names | 5 | z-ai/glm-5.3 | 45593 | 15160 | 0.1305 | 34.1138 |
 | 2026-09-09 | atlas | 5 | z-ai/glm-5.3 | 67971 | 30548 | 0.2296 | 33.8842 |
 | 2026-09-09 | atlas | 5 | z-ai/glm-5.3 | 46825 | 15307 | 0.1329 | 33.7513 |
+| 2026-09-09 | atlas | 5 | z-ai/glm-5.3 | 19381 | 6467 | 0.0556 | 33.6957 |
+| 2026-09-09 | atlas | 5 | z-ai/glm-5.3 | 48089 | 17891 | 0.1460 | 33.5497 |
+| 2026-09-09 | northwind | 5 | z-ai/glm-5.3 | 51322 | 28459 | 0.1971 | 33.3526 |
+| 2026-09-09 | northwind | 5 | z-ai/glm-5.3 | 34583 | 7242 | 0.0803 | 33.2723 |
+| 2026-09-09 | northstar-dental | 5 | z-ai/glm-5.3 | 21141 | 6365 | 0.0576 | 33.2147 |
+| 2026-09-09 | northstar-dental | 5 | z-ai/glm-5.3 | 20888 | 6109 | 0.0561 | 33.1586 |
+| 2026-09-09 | atlas-control | 6 | z-ai/glm-5.3 | 46693 | 12090 | 0.1186 | 33.0400 |
+| 2026-09-09 | atlas-control | 6 | z-ai/glm-5.3 | 47354 | 12542 | 0.1215 | 32.9185 |
+| 2026-09-09 | atlas-names | 6 | z-ai/glm-5.3 | 44755 | 11414 | 0.1129 | 32.8056 |
+| 2026-09-09 | atlas-names | 6 | z-ai/glm-5.3 | 46746 | 16187 | 0.1367 | 32.6689 |
+| 2026-09-09 | atlas-unnamed | 6 | z-ai/glm-5.3 | 43631 | 11330 | 0.1109 | 32.5580 |
+| 2026-09-09 | atlas-unnamed | 6 | z-ai/glm-5.3 | 43894 | 13199 | 0.1195 | 32.4385 |
+| 2026-09-09 | atlas-second | 6 | z-ai/glm-5.3 | 54634 | 11781 | 0.1283 | 32.3102 |
+| 2026-09-09 | atlas-second | 6 | z-ai/glm-5.3 | 56331 | 14649 | 0.1433 | 32.1669 |
+| 2026-09-09 | atlas-twice | 6 | z-ai/glm-5.3 | 56539 | 12175 | 0.1327 | 32.0342 |
+| 2026-09-09 | atlas-twice | 6 | z-ai/glm-5.3 | 57896 | 15350 | 0.1486 | 31.8856 |
