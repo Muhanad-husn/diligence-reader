@@ -2,26 +2,37 @@
 
 The map is a graph of the room. Its nodes are the documents the key names, in the key's own
 order, each with its folder, its first date and the status words the index read off it. Its
-edges are the values two documents share: an `identifier` the index saw, a `cross-reference` a
-note wrote, a `version` pair of a draft and its final, and a `date` where two documents carry a
-dated section within seven days of each other. A shared value weighs less the more documents
-carry it, so AURORA in sixteen documents weighs a quarter of `vpauth-legacy-2019` in four.
+edges are the values two documents share: an `identifier` the index saw, an `amount` the index
+read as a figure, a `cross-reference` a note wrote, a `version` pair of a draft and its final,
+and a `date` where two documents carry a dated section within seven days of each other. A shared
+value weighs less the more documents carry it, so AURORA in sixteen documents weighs a quarter
+of `vpauth-legacy-2019` in four. An amount weighs what an identifier weighs and a date nearly as
+much, because a room that names its matter nowhere still says its days and its figures. An
+amount that is a bare count is no edge at all: a room shares `5` and `2025` the way it shares
+the alphabet, so an identifier every document writes weighs nothing.
 
-An `identifier` or `cross-reference` edge is kept only where a flag of both notes says it is
-about that value, or the value is inside a concealed item of both. A name is read folded, so a
-flag about `P. Raman` and a flag about `Raman, Priya` are flags about one person. A value only
-the index saw joins two documents by coincidence about as often as by matter; a value both notes
-named as the thing a worry is about is the matter itself. A flag's own words, its quote and its
-consequence are not looked inside: a flag that mentions a code in passing is not a flag about
-that code.
+An `identifier`, an `amount` or a `cross-reference` edge is kept only where a flag of both notes
+says it is about that value, or the value is inside a concealed item of both. A name is read
+folded, so a flag about `P. Raman` and a flag about `Raman, Priya` are flags about one person. A
+value only the index saw joins two documents by coincidence about as often as by matter; a value
+both notes named as the thing a worry is about is the matter itself. A flag's own words, its
+quote and its consequence are not looked inside: a flag that mentions a code in passing is not a
+flag about that code.
 Date and version edges are kept as they are, because neither is a coincidence of vocabulary.
 
-The matter is seeded at the document whose three strongest links are the strongest in the room.
-The cluster around that seed is a set, not a cut: a document is in it because a named link put
-it there, and every document carries the link it came by, so the set reads backwards to the
-seed. Only non-date edges are followed, and never an edge whose value is a bare count, because
-a room shares `5` and `2025` the way it shares the alphabet. Each rule below runs once, on the
-set the rules before it built, and is not repeated.
+A matter is seeded at a document whose three strongest links are strong, every kind of edge
+counting, dates and amounts with the rest. The room is not read once. A matter is built at each
+of the SEED_TRIES strongest of those documents and the matter the room says the most about is
+the first matter, so a room whose corporate paperwork links hardest is not read as a matter of
+corporate paperwork. What the room says about a matter is its consequence: the number of series
+it broke and models it left carrying its old numbers, and then the largest sum of money those
+documents carry. Two matters the room says as much about are separated by the strength of their
+seeds.
+
+The cluster around a seed is a set, not a cut: a document is in it because a named link put it
+there, and every document carries the link it came by, so the set reads backwards to the seed.
+Only non-date edges are followed, and never an edge whose value is a bare count. Each rule below
+runs once, on the set the rules before it built, and is not repeated.
 
 A document joins as `shared` where it has such an edge to the seed, which is to say where a flag
 of its note and a flag of the seed's note are about the same value. It joins as `version` where
@@ -30,7 +41,10 @@ the matter broke a series it holds, or where it is a model written after the mat
 carries a figure the broken series left behind. It joins as `reach` where two documents of the
 set each share a value of the matter with it and those are two different values, one of which
 the matter owns, or where one value of the matter it shares with one document of the set is an
-exact money figure the matter owns. A value of the matter is a value the room's notes write,
+exact money figure the matter owns. The matter owns a figure once the documents this rule admits
+are counted, so the money route is read a second time, against the set the rule has just made,
+over the same documents and the same values; the two-value route is read once and no more.
+A value of the matter is a value the room's notes write,
 as a cross reference or as a figure, whole or as a word inside one they write, and that the
 matter owns, every other document of the room naming it being in the set already, where a
 document names a value by a flag of its note and not by a concealed item quoting a sentence it
@@ -41,7 +55,19 @@ document's note names it at a place that asks, in the room's own words, for the 
 against each other. It joins as `covenant` where one of its flags is quoted with a termination
 word and writes the same run of words as a flag of the seed or of a document the seed joined by
 `shared`, and either that flag is quoted with a termination word as well or the run names a
-value of the matter.
+value of the matter. It joins as `shared`, last of all, where the matter's own week stands it
+beside a document of the set and it writes a value the set writes: a date edge whose every day
+is within a week of the matter's date and that no more than a quarter of the room is dated
+inside, and then any value of the set it carries. This is how a room that named its matter
+nowhere is still found: the week says which of the room's ordinary words are this matter's.
+
+`matters` is a ranked list, the matter with the most consequence first. A room holding one
+matter returns a list of one. A second matter is looked for in the documents the first left, so
+two matters never hold one document, and it stands only where the room holds one: a cluster
+smaller than MATTER_SHARE of the room is a corner of the room and not a matter inside it, and a
+cluster dated MATTER_SPAN or more from the first matter is another entity's room standing in
+this one rather than this room's second matter. A room is read for at most MATTER_LIMIT matters.
+Each matter carries its own ranking of the whole room, scored against its own seed.
 
 Every document is also scored by what it shares with the seed, plus one round of that score
 spread along the edges, each neighbour's contribution divided by its own total weight so that
@@ -98,15 +124,18 @@ from rlm.words import (
 
 # What each kind of shared value is worth before it is divided by the number of documents that
 # carry it. A note that wrote a value down is better evidence than an index that saw it; a
-# draft and its final are the same matter twice; two dates within a week are the weakest of all.
+# draft and its final are the same matter twice. An exact figure two documents carry weighs what
+# a code they share weighs, and two dates within a week weigh nearly as much, because a room
+# that names its matter nowhere is still held together by its days and its figures.
 KIND_WEIGHTS = {
+    "amount": 1.0,
     "cross-reference": 4.0,
-    "date": 0.2,
+    "date": 0.9,
     "identifier": 1.0,
     "version": 4.0,
 }
 
-# The four kinds of edge the map writes.
+# The five kinds of edge the map writes.
 EDGE_KINDS = tuple(sorted(KIND_WEIGHTS))
 
 # Two dated sections this many days apart or fewer make a date edge.
@@ -119,6 +148,10 @@ BREADTH_SHARE = 0.5
 # that merely links two documents may be twice as common as one that pulls a third in.
 REACH_SHARE = 0.25
 
+# How few documents an exact money figure is carried by before it stands for the matter on its
+# own, whether the matter owns it or not.
+MONEY_CARRIERS = 6
+
 # The kinds of link that put a document in the set, in the order the map writes them.
 VIA_KINDS = ("compare", "consequence", "covenant", "reach", "seed", "shared", "version")
 
@@ -128,8 +161,22 @@ TURN_RUN = 3
 # The words that say a document is about what is to come rather than what happened.
 MODEL_WORDS = frozenset({"forecast", "model", "plan", "synergy"})
 
-# How many of a document's strongest links are read when the seed is chosen.
+# How many of a document's strongest links are read when a seed is weighed.
 SEED_LINKS = 3
+
+# How many documents a matter is tried at, strongest seed first.
+SEED_TRIES = 25
+
+# How many matters a room is read for.
+MATTER_LIMIT = 3
+
+# The least share of the room a second matter holds. Fewer documents than this is a corner of
+# the room, not a matter inside it.
+MATTER_SHARE = 0.125
+
+# How many days apart two matters of one room may be dated. A cluster dated further out than
+# this from the first matter is another entity's room standing in this one.
+MATTER_SPAN = 730
 
 # The id of the key fact the phase 3 tests read the planted cluster from.
 MATTER_FACT = "matter-documents"
@@ -618,7 +665,9 @@ def shared_values(
             continue
         found.append(("identifier", surface, carriers))
     for _, (surface, carriers) in sorted(by_amount.items(), key=lambda item: str(item[0])):
-        found.append(("identifier", surface, carriers))
+        if is_count(surface):
+            continue
+        found.append(("amount", surface, carriers))
     for surface, carriers in sorted(versions.items()):
         found.append(("version", surface, carriers))
 
@@ -770,29 +819,36 @@ def adjacency(edges: list[dict]) -> dict[str, dict[str, float]]:
     return linked
 
 
-def choose_seed(edges: list[dict], order: list[str]) -> list[str]:
-    """The document the matter is seeded at: the one whose strongest links are the strongest.
+def seed_pull(edges: list[dict], order: list[str]) -> dict[str, float]:
+    """What each document is worth as a seed: the sum of its SEED_LINKS heaviest links.
 
-    A document is measured by the sum of its three heaviest links that are not mere date
-    proximity, so a document sharing several rare values with several documents wins over one
-    the room mentions often. A link is a pair of documents, not a value: the pair is worth its
-    heaviest value and no more, so two documents that write four of the same rare words to each
-    other and to nobody else are one link, not four, and do not outweigh a document reaching
-    three others.
+    Every kind of edge counts, dates and amounts with the rest, so a room that names its matter
+    nowhere is still held together by the days its documents share and the figures they carry. A
+    link is a pair of documents, not a value: the pair is worth its heaviest value and no more,
+    so two documents that write four of the same rare words to each other and to nobody else are
+    one link, not four, and do not outweigh a document reaching three others.
     """
     strongest: dict[str, dict[str, float]] = {}
     for edge in edges:
-        if edge["kind"] == "date":
-            continue
         for one, other in ((edge["a"], edge["b"]), (edge["b"], edge["a"])):
             side = strongest.setdefault(one, {})
             side[other] = max(side.get(other, 0.0), edge["weight"])
-    pull = {
+    return {
         doc: sum(sorted(strongest.get(doc, {}).values(), reverse=True)[:SEED_LINKS])
         for doc in order
     }
-    head = min(order, key=lambda doc: (-pull[doc], doc))
-    return [head]
+
+
+def seed_candidates(edges: list[dict], order: list[str]) -> list[str]:
+    """The documents a matter is tried at, the strongest seed first.
+
+    A room is not read once from one document. The map seeds a matter at each of the SEED_TRIES
+    strongest documents and ranks what it finds, so a room holding two matters is read as two
+    and a room whose strongest links are its corporate paperwork is not read as one.
+    """
+    pull = seed_pull(edges, order)
+    ranked = sorted(order, key=lambda doc: (-pull[doc], doc))
+    return ranked[:SEED_TRIES]
 
 
 def score_documents(
@@ -1011,21 +1067,33 @@ def reach_links(
     REACH_SHARE of the room carries is not a value of the matter at all.
 
     A document joins where two documents of the set each share a value of the matter with it,
-    those are two different values, and the matter owns at least one of the two. It joins on one
-    value alone where that value is an exact money figure the matter owns; the row then carries
-    that one document and that one figure, the heaviest of them where the document has several,
-    and the earliest by value and by id where two weigh the same.
+    those are two different values, and one of the two is the matter's. A value is the matter's
+    where the matter owns it and, being an exact money figure, whether it owns it or not. Where
+    the document shares a money figure MONEY_CARRIERS documents or fewer carry, the second value
+    it comes by is read whatever the room does with it, because that figure has already named
+    the matter. It joins on one value alone where that value is an exact money figure the matter
+    owns; the row then carries that one document and that one figure, the heaviest of them where
+    the document has several, and the earliest by value and by id where two weigh the same.
+
+    The matter owns a figure once the documents the round admits are counted, so the money route
+    is read twice: against the set the rule was given, and then against that set with the
+    documents the rule has just put in it. Two documents can each be the last one outside the set
+    holding the other's figure, and against one frozen set neither is ever the matter's, which is
+    two documents that both belong waiting on each other rather than a rule refusing one of them.
+    The second reading takes no new candidate and no new value, only the ones already shared with
+    the set the round began with, and only the money route is read again: the two-value route
+    stays shut, because reading that one twice turns a room with one matter beside a hundred
+    copies of itself into a room with three.
     """
     breadth = REACH_SHARE * len(order)
     holders = value_holders(shared)
     read_by, referenced = figures
-    found: dict[str, dict] = {}
+
+    seen: dict[str, list[tuple[str, str, float, int]]] = {}
     for doc in order:
         if doc in inside:
             continue
-        carried: dict[str, set[str]] = {}
-        owned: set[str] = set()
-        money: tuple[float, str, str] | None = None
+        held: list[tuple[str, str, float, int]] = []
         for other in sorted(inside):
             for value, (weight, carriers) in shared.get((doc, other), {}).items():
                 if carriers > breadth or not is_written(value, written):
@@ -1033,22 +1101,130 @@ def reach_links(
                 folded = fold(value)
                 if folded not in referenced and not (read_by.get(folded, set()) - {doc}):
                     continue
-                owns = not (naming.get(value, holders[value]) - inside - {doc})
-                if not (owns or value.startswith("$")):
+                held.append((value, other, weight, carriers))
+        if held:
+            seen[doc] = held
+
+    def judge(
+        doc: str,
+        held: list[tuple[str, str, float, int]],
+        settled: set[str],
+        money_only: bool = False,
+    ) -> dict | None:
+        """The link one document comes by, ownership read against the set given, or None.
+
+        `money_only` reads the one money figure alone and leaves the two-value route shut.
+        """
+        carried: dict[str, set[str]] = {}
+        owned: set[str] = set()
+        money: tuple[float, str, str] | None = None
+        # A money figure MONEY_CARRIERS documents or fewer carry names the matter as well as a
+        # code does, and where a document shares one with the set the second value it comes by
+        # is read whether the matter owns it or not.
+        witness = any(
+            value.startswith("$") and carriers <= MONEY_CARRIERS
+            for value, _, _, carriers in held
+        )
+        for value, other, weight, carriers in held:
+            owns = not (naming.get(value, holders[value]) - settled - {doc})
+            if not (owns or value.startswith("$") or witness):
+                continue
+            carried.setdefault(value, set()).add(other)
+            if not (owns or value.startswith("$")):
+                continue
+            owned.add(value)
+            if owns and value.startswith("$"):
+                mark = (-weight, value, other)
+                if money is None or mark < money:
+                    money = mark
+        heads = {other for holding in carried.values() for other in holding}
+        if not money_only and len(carried) >= 2 and len(heads) >= 2 and owned:
+            return {"from": sorted(heads), "kind": "reach", "values": sorted(carried)}
+        if money is not None:
+            return {"from": [money[2]], "kind": "reach", "values": [money[1]]}
+        return None
+
+    found: dict[str, dict] = {}
+    for doc, held in seen.items():
+        link = judge(doc, held, inside)
+        if link is not None:
+            found[doc] = link
+
+    # The documents this round admits are in the set, so the matter owns a figure the last
+    # document outside was holding, and the money route is read once more against the set the
+    # round produced. The same candidates and the same values as before: nothing is looked for
+    # again, only counted again.
+    settled = inside | set(found)
+    for doc, held in seen.items():
+        if doc in found:
+            continue
+        link = judge(doc, held, settled, money_only=True)
+        if link is not None:
+            found[doc] = link
+    return found
+
+
+def window_edges(edges: list[dict], date: str | None, room: list[str]) -> dict[str, set[str]]:
+    """Every pair of documents a dated window of the matter's own puts side by side.
+
+    A date edge is the matter's own window where every day it names is within DATE_WINDOW of the
+    matter's date, and it counts where no more than REACH_SHARE of the room is dated inside it,
+    which is the rarity the map already asks of a value that reaches a document in. A window half
+    the room is dated in says nothing and stands beside nobody.
+    """
+    beside: dict[str, set[str]] = {}
+    began = as_iso(date)
+    if began is None:
+        return beside
+    breadth = REACH_SHARE * len(room)
+    for edge in edges:
+        if edge["kind"] != "date":
+            continue
+        if KIND_WEIGHTS["date"] / edge["weight"] > breadth:
+            continue
+        days = [as_iso(part) for part in str(edge["value"]).split(" to ")]
+        if not days or any(day is None or abs((day - began).days) > DATE_WINDOW for day in days):
+            continue
+        beside.setdefault(edge["a"], set()).add(edge["b"])
+        beside.setdefault(edge["b"], set()).add(edge["a"])
+    return beside
+
+
+def window_links(
+    beside: dict[str, set[str]],
+    shared: dict[tuple[str, str], dict[str, tuple[float, int]]],
+    inside: set[str],
+    room: list[str],
+) -> dict[str, dict]:
+    """Every document the matter's own week stands beside that writes a value of the set as well.
+
+    A room that names its matter nowhere is held together by its days and its figures. A day on
+    its own is not a matter, and a room shares a week the way it shares a supplier, so the
+    document has to write something the set writes too: the link it comes by is that value, and
+    the week is what says the value is this matter's and not the room's. The values are read the
+    way the shared rule reads them, the heaviest WHY_LIMIT of those no more than REACH_SHARE of
+    the room carries.
+    """
+    found: dict[str, dict] = {}
+    breadth = REACH_SHARE * len(room)
+    for doc in room:
+        if doc in inside or not (beside.get(doc, set()) & inside):
+            continue
+        values: dict[str, tuple[float, str]] = {}
+        for other in sorted(inside):
+            for value, (weight, carriers) in shared.get((doc, other), {}).items():
+                if carriers > breadth:
                     continue
-                carried.setdefault(value, set()).add(other)
-                if not owns:
-                    continue
-                owned.add(value)
-                if value.startswith("$"):
-                    mark = (-weight, value, other)
-                    if money is None or mark < money:
-                        money = mark
-        heads = {other for held in carried.values() for other in held}
-        if len(carried) >= 2 and len(heads) >= 2 and owned:
-            found[doc] = {"from": sorted(heads), "kind": "reach", "values": sorted(carried)}
-        elif money is not None:
-            found[doc] = {"from": [money[2]], "kind": "reach", "values": [money[1]]}
+                if values.get(value, (0.0, ""))[0] < weight:
+                    values[value] = (weight, other)
+        if not values:
+            continue
+        best = sorted(values, key=lambda value: (-values[value][0], value))[:WHY_LIMIT]
+        found[doc] = {
+            "from": sorted({values[value][1] for value in best}),
+            "kind": "shared",
+            "values": sorted(best),
+        }
     return found
 
 
@@ -1308,6 +1484,59 @@ def model_after(
     return found
 
 
+def money_carried(records: list[dict], ids_by_path: dict[str, str]) -> dict[str, float]:
+    """The largest sum of money the index read off each document.
+
+    A matter's consequence is what it moved, and what a document's figures are worth in money is
+    the part of that a graph of shared values can read. Only the index's own USD amounts count,
+    so a record count and a percentage are not money.
+    """
+    largest: dict[str, float] = {}
+    for record in records:
+        if record["kind"] != "amount" or record.get("unit") != "USD":
+            continue
+        value = record["value"]
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            continue
+        for anchor in record["anchors"]:
+            doc_id = document_of(anchor, ids_by_path)
+            if doc_id:
+                largest[doc_id] = max(largest.get(doc_id, 0.0), float(value))
+    return largest
+
+
+def consequence_rank(matter: dict, money: dict[str, float]) -> tuple[int, float]:
+    """How much a matter has consequence: what it broke, and the money its documents carry.
+
+    The rows of `consequences` are the series the matter turned and the models still carrying
+    the numbers it left behind, which is the room saying the matter moved something. The money is
+    the largest figure those documents carry, which is what the matter moved read in money. A
+    matter is read on the first and the second separates matters the room says as much about, so
+    a dense cluster the room says nothing about stands below a diffuse one that broke a series.
+    """
+    return (
+        len(matter["consequences"]),
+        max((money.get(row["doc"], 0.0) for row in matter["consequences"]), default=0.0),
+    )
+
+
+def stands_beside(first: dict, other: dict, room: int) -> bool:
+    """Whether a second cluster is a second matter of the same room.
+
+    A room holds a second matter where the rest of it holds one, and two things say it does. The
+    cluster is a part of the room and not a corner of it: fewer than MATTER_SHARE of the room's
+    documents is a handful of papers that share a supplier, not a matter. And the room's own days
+    put the two matters side by side: a cluster dated MATTER_SPAN or more from the first matter
+    is another entity's room standing in this one, not this room's second matter.
+    """
+    if len(other["cluster"]) < max(2, int(room * MATTER_SHARE)):
+        return False
+    began, second = as_iso(first["date"]), as_iso(other["date"])
+    if began is None or second is None:
+        return False
+    return abs((second - began).days) < MATTER_SPAN
+
+
 def build_map(sample_dir: Path, run_dir: Path) -> dict:
     """Reads a sample's index, sections and notes and returns the map."""
     key = load_key(sample_dir)
@@ -1355,65 +1584,111 @@ def build_map(sample_dir: Path, run_dir: Path) -> dict:
 
     edges, naming = build_edges(records, sections, notes, ids_by_path, first_anchors, order)
     linked = adjacency(edges)
-    seed = choose_seed(edges, order)
-    scores = score_documents(linked, seed, order)
 
     nodes = {node["doc"]: node for node in documents}
     shared = value_edges(edges)
     written = written_values(notes)
     figures = (figure_writers(notes), reference_runs(notes))
-    why = reasons(edges, scores)
-
-    via: dict[str, dict] = {head: {"from": [], "kind": "seed", "values": []} for head in seed}
-    inside = set(seed)
-
-    def hold(links: dict[str, dict]) -> None:
-        """Puts every document a rule found into the set, leaving the links already there."""
-        for doc, link in links.items():
-            if doc not in via:
-                via[doc] = link
-                inside.add(doc)
-
-    hold(shared_links(seed, shared, order))
-    core = sorted(inside)
-
-    date = matter_date(seed, core, dated)
-    versions = version_pairs(records, ids_by_path, nodes, set(inside))
-    hold(version_links(versions, set(inside)))
-
     by_anchor = {section["anchor"]: section for section in sections}
-    broken, before = series_break(row_series(records, by_anchor, ids_by_path), date, seed)
-    hold(break_links(broken, seed))
-    modelled = model_after(notes, nodes, set(inside), date, before)
-    consequences = sorted(broken + modelled, key=lambda row: (row["kind"], row["doc"]))
+    series = row_series(records, by_anchor, ids_by_path)
+    money = money_carried(records, ids_by_path)
 
-    # The models are held after the reach rule has run. A model is in the set for the number it
-    # still repeats, not for owning it, and the reach rule reads ownership off the set as it
-    # stands: holding DR-005 first put its $1,480m in the set before reach judged it, and the
-    # figure then reached DR-034, which the matter does not own.
-    hold(reach_links(shared, set(inside), order, written, naming, figures))
-    hold(model_links(modelled, notes, set(inside)))
-    hold(compare_links(set(inside), nodes, notes, sections, ids_by_path))
-    hold(covenant_links(core, notes, set(inside), order, written))
+    def matter_at(seed: list[str], room: list[str]) -> dict:
+        """The matter one seed finds inside the documents left to it: its set, the link every
+        document came by, its date, its version pairs and its consequences."""
+        left = set(room)
+        via: dict[str, dict] = {head: {"from": [], "kind": "seed", "values": []} for head in seed}
+        inside = set(seed)
 
-    lift = max(scores.values(), default=0.0)
-    for doc in inside:
-        scores[doc] = round(scores[doc] + lift, 6)
-    ordered = sorted(order, key=lambda doc: (doc not in inside, -scores[doc], doc))
-    ranked = [
-        {"doc": doc, "score": scores[doc], "via": via.get(doc), "why": why.get(doc, [])}
-        for doc in ordered
-    ]
+        def hold(links: dict[str, dict]) -> None:
+            """Puts every document a rule found into the set, leaving the links already there."""
+            for doc, link in links.items():
+                if doc not in via and doc in left:
+                    via[doc] = link
+                    inside.add(doc)
 
-    matter = {
-        "cluster": sorted(inside),
-        "consequences": consequences,
-        "date": date,
-        "id": 1,
-        "ranked": ranked,
-        "seed": seed,
-        "versions": versions,
-    }
+        hold(shared_links(seed, shared, room))
+        core = sorted(inside)
+
+        date = matter_date(seed, core, dated)
+        versions = [
+            pair for pair in version_pairs(records, ids_by_path, nodes, set(inside))
+            if set(pair["docs"]) <= left
+        ]
+        hold(version_links(versions, set(inside)))
+
+        broken, before = series_break(series, date, seed)
+        broken = [row for row in broken if row["doc"] in left]
+        hold(break_links(broken, seed))
+        modelled = [
+            row for row in model_after(notes, nodes, set(inside), date, before)
+            if row["doc"] in left
+        ]
+        consequences = sorted(broken + modelled, key=lambda row: (row["kind"], row["doc"]))
+
+        # The models are held after the reach rule has run. A model is in the set for the number
+        # it still repeats, not for owning it, and the reach rule reads ownership off the set as
+        # it stands: holding DR-005 first put its $1,480m in the set before reach judged it, and
+        # the figure then reached DR-034, which the matter does not own.
+        hold(reach_links(shared, set(inside), room, written, naming, figures))
+        hold(model_links(modelled, notes, set(inside)))
+        hold(compare_links(set(inside), nodes, notes, sections, ids_by_path))
+        hold(covenant_links(core, notes, set(inside), room, written))
+        hold(window_links(window_edges(edges, date, room), shared, set(inside), room))
+
+        return {
+            "cluster": sorted(inside),
+            "consequences": consequences,
+            "date": date,
+            "seed": seed,
+            "versions": versions,
+            "via": via,
+        }
+
+    pull = seed_pull(edges, order)
+
+    def best_matter(room: list[str]) -> dict | None:
+        """The matter of a room: the one its strongest seeds find that has the most consequence.
+
+        Every candidate is built and they are ranked together, so the matter is not the cluster
+        around the room's strongest document but the cluster the room says the most about.
+        """
+        found = [matter_at([head], room) for head in seed_candidates(edges, room)]
+        found.sort(
+            key=lambda matter: (
+                [-part for part in consequence_rank(matter, money)],
+                [-pull[head] for head in matter["seed"]],
+                matter["seed"],
+            )
+        )
+        return found[0] if found else None
+
+    matters = []
+    room = list(order)
+    while room:
+        matter = best_matter(room)
+        if matter is None or (matters and not stands_beside(matters[0], matter, len(order))):
+            break
+        matters.append(matter)
+        room = [doc for doc in room if doc not in set(matter["cluster"])]
+        if len(matters) >= MATTER_LIMIT or len(room) < 2:
+            break
+
+    for number, matter in enumerate(matters, start=1):
+        via = matter.pop("via")
+        inside = set(matter["cluster"])
+        scores = score_documents(linked, matter["seed"], order)
+        why = reasons(edges, scores)
+        lift = max(scores.values(), default=0.0)
+        for doc in inside:
+            scores[doc] = round(scores[doc] + lift, 6)
+        ordered = sorted(order, key=lambda doc: (doc not in inside, -scores[doc], doc))
+        matter["id"] = number
+        matter["ranked"] = [
+            {"doc": doc, "score": scores[doc], "via": via.get(doc), "why": why.get(doc, [])}
+            for doc in ordered
+        ]
+
     return {
         "documents": documents,
         "edges": [
@@ -1427,7 +1702,7 @@ def build_map(sample_dir: Path, run_dir: Path) -> dict:
             }
             for edge in edges
         ],
-        "matters": [matter],
+        "matters": matters,
         "sample": key.sample,
     }
 
