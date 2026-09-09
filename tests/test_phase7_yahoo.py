@@ -64,8 +64,8 @@ DIGESTS_PATH = ROOT / "tests" / "phase7-yahoo-digests.json"
 # carry, each with the phase that owns it and the one sentence that says why, put to the
 # founder in the pull request of #125. A known miss is not asserted; it is counted in the
 # readout, and a fact every one of whose documents is a known miss is excused with it. The
-# fix belongs to the phase named (RULES.md gate 2), never here. The five notes GLM 5.3 Flash
-# dropped at the 6000 token cap on the first pass were re-noted at 16000 on the founder's word.
+# fix belongs to the phase named (RULES.md gate 2), never here. The three phase 2 misses of the
+# run of 2026-09-09 were fixed by #131: a document over 20,000 characters is noted in pieces.
 COVER = (
     "phase 3's, noted and out of the cluster: an 8-K cover page sharing the file number and "
     "the employer number with the other cover pages and nothing with the deal"
@@ -89,18 +89,6 @@ KNOWN_FACT_MISSES: dict[str, str] = {
     "employer-identification-number": (
         "phase 4's, the 10-K cover page is in the set and the dossier writes no row for an "
         "employer number"
-    ),
-    "committee-finding-on-2014-knowledge": (
-        "phase 2's, the 10-K item 7 note kept 115 items and not the sentence on what the "
-        "information security team knew in 2014"
-    ),
-    "known-in-2014-against-told-in-2016": (
-        "phase 2's, the knew-when side is the committee finding the 10-K item 7 note did not "
-        "quote"
-    ),
-    "shared-liability-announced": (
-        "phase 2's, the press release note quoted the 50 percent sentence beside it and not "
-        "the sentence that says the liabilities are shared"
     ),
     "reorganization-amendment-share": (
         "phase 4's, the note quotes the fifty percent share and the set cut the document"
