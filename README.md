@@ -7,7 +7,5 @@ different names, and write a cited findings report with a number.
 - `PLAN.md` is the plan of record.
 - `RULES.md` is the one page that governs work here.
 - `samples/` holds the four test corpora and their keys.
-- `reference/` holds the RLM's winning trail, the source transcript, the RLM skill, and the
-  register of what the first build got wrong.
 
 Status: phase 7 done, phase 2 restated by #131. Spend: $18.95 of $50.

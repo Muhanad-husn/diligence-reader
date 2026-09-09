@@ -19,11 +19,9 @@ phase that must carry it) and writes each sample a brief in the shape of sample 
   notice missed, advertiser covenants, engagement metrics down while the synergy model assumes
   them flat. Right answer: reprice by about $400m (range $375m to $525m) or an equivalent
   escrow and indemnity. Fourteen required documents; five decoys.
-- Winner: `atlas/winner/` holds the 98.5-point RLM report, its three intermediate files, its
-  nine-step trail with stdout, and the evaluator's verdict on the three baseline runs.
 - Upstream: brainqub3/synthetic-dataRoom at fe26a96a, MIT. `atlas/fetch.sh` is the first
-  build's sparse fetch of `data_room/` alone; the key and winner files were copied from the same
-  clone on 2026-09-05.
+  build's sparse fetch of `data_room/` alone; the key files were copied from the same clone on
+  2026-09-05.
 
 ## 2. `northwind` (Northwind Logistics Software, acquirer Summit Industrial)
 

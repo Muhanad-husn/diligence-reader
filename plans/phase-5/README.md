@@ -23,9 +23,8 @@ have no rubric: their bar is recall and the verifier. The kill line of `RULES.md
 watched at slice 03: sample 1 under 70 after $25 spent means the method is wrong. $1.51 of
 the $50 is spent as this plan is written.
 
-A number behind the bar: the 98.5-point RLM report in `samples/atlas/winner/report.md`
-measures 32.08 on the same recall, because it paraphrases where the key wants the room's own
-words. The dossier carries every planted fact verbatim, so the writer is told to quote, not
+A number behind the bar: the first build's 98.5-point RLM report measures 32.08 on the same
+recall, because it paraphrases where the key wants the room's own words. The dossier carries every planted fact verbatim, so the writer is told to quote, not
 to summarise. If sample 1's recall is under 100 after slice 01's two attempts, the founder
 sets the bar under `RULES.md` gate 3; the test is not loosened by the builder.
 

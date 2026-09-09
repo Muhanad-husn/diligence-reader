@@ -51,14 +51,13 @@ hook lists the open issues and pull requests.
 
 **Money.** `LEDGER.md` is the only record of spend and the code writes it. Before any gateway
 call, print the input token count and the price. The phase caps and the $50 total are in
-`PLAN.md`; the code refuses past them. The RLM comparison in phase 7 runs on the Claude Code
-subscription, never through the gateway.
+`PLAN.md`; the code refuses past them.
 
 **Keys.** `samples/README.md` names each sample's key, brief and planted facts. Nothing is
-"found" unless a test reads it out of the artefact against that key. The `atlas` key was the
-answer key of the first build's sealed folder; it is open now, and every rule in this
-repository is written after having read it. That is stated once here and is not a concern:
-the generalisation test is samples 2, 3 and 4, not blindness to sample 1.
+"found" unless a test reads it out of the artefact against that key. The `atlas` key was open
+before this build started, and every rule in this repository is written after having read it.
+That is stated once here and is not a concern: the generalisation test is samples 2, 3 and 4,
+not blindness to sample 1.
 
 **Runs.** Artefacts go under `runs/<sample>/` and are never committed. A long run is launched
 detached (PowerShell `Start-Process`), and progress is read from the artefact, not the shell.

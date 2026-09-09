@@ -1,5 +1,0 @@
-num doc headers: 0
-total docs: 0
-largest: []
-smallest: []
-total body chars: 0

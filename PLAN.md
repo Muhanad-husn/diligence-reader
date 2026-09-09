@@ -1,16 +1,15 @@
 # RLM: the rebuild plan
 
 Written 2026-09-05. This is the plan of record. It replaces everything in the first build; that
-build's lessons are in `reference/design-mistake-register-first-build.md` and are not repeated
-here except where they became a rule.
+build's lessons are not repeated here except where they became a rule.
 
 ## 1. What is being built
 
 A tool that does what the recursive language model (RLM) did on the Project Atlas data room,
 with the same shape and three properties the RLM lacks: reproducible in the middle, cheap, and
-runnable on other document sets. The RLM's own winning run is the specification of the shape
-(`reference/winner-trail.md`); this plan replaces its improvised parts with fixed ones and keeps
-the model where the model is the only thing that works.
+runnable on other document sets. The RLM's own winning run is the specification of the shape;
+this plan replaces its improvised parts with fixed ones and keeps the model where the model is
+the only thing that works.
 
 **The final deliverable of the method** is one document: a findings report in the five sections
 the task brief asks for (recommendation with a number, findings ranked by materiality with
@@ -63,7 +62,7 @@ the gap is fixed in its own phase and every later phase reruns.
 | 4 Dossier | `runs/<sample>/dossier.md` | Every planted fact present with the right anchor and number. No decoy in the matter's document set, and every planted document ranked above every decoy. Read by the founder once as a reader. Byte-identical | none | $0 |
 | 5 Report | `runs/<sample>/report.md`, `verify.json`, `grade.json` | Verifier passes. Score at or above the bar. Two writes, spread printed. Bake-off over the five models. A room holding a second matter writes it under a heading of its own, above the lesser issues, since #121 | bake-off | $9, $8 plus $1 borrowed from the reserve on 2026-09-09 to rewrite the three gate samples' reports, lost with #119's worktree; the reason is at the head of `LEDGER.md` |
 | 6 Widen | same artefacts under `runs/<sample>-<knob>/` | Phases 1 to 5 hold when a knob is turned on the fixture: names spelled inconsistently, the matter named nowhere and linked only by dates and numbers, a second matter, twice the documents. Each knob is one generated variant of sample 1 with its own key. A failure names the phase that dropped the fact. Closed 2026-09-09: `control` holds; `names` was dropped by phase 3, whose map linked documents by the surface of a name, fixed by #113; `unnamed`, `second` and `twice` were dropped by phase 3, whose map read the room from one seed and returned one matter, fixed by #115. Five known misses stand, each a knob taking away what tied a document to the matter | as chosen in 2 and 5 | $15 |
-| 7 Compare | `runs/atlas-rlm/`, `runs/yahoo/` | The RLM skill run on sample 1 from Claude Code (subscription, no gateway spend): its score, spread and time beside ours. Then our tool once on sample 4 against the public record | as chosen | $4 |
+| 7 Compare | `runs/yahoo/` | Our tool once on sample 4, an open corpus with no planted facts, against the public record | as chosen | $4 |
 
 Reserve: $14 of the $50, $15 less the $1 phase 5 borrowed on 2026-09-09. Nothing borrows from
 it without the reason written in `LEDGER.md` first.
@@ -91,22 +90,18 @@ rubric are on sample 1's variants; its dollars are every phase 6 row of `LEDGER.
 | 4 Dossier | Phase 4 | done | 100 / 100 / 100 | 0 | 0 / 0 / 0 | 2026-09-07 |
 | 5 Report | Phase 5 | done | 100 / 100 / 100, rubric 100 | 8.28 | 0 / 0 / 0 | 2026-09-08 |
 | 6 Widen | Phase 6 | done | recall 100 / 100 / 97.9 / 98.5 / 98.1, rubric 100 / 94 / 98 / 99 / 100 | 7.78 | 0 / 6 / 2 / 1 / 1 | 2026-09-09 |
-| 7 Compare | Phase 7 | done | sample 4 recall 86.4 | 0.26 | RLM 2, ours 0 | 2026-09-09 |
+| 7 Compare | Phase 7 | done | sample 4 recall 86.4 | 0.26 | one run | 2026-09-09 |
 
 Phase 5's row was restated on 2026-09-09 by the phase 6 gate, which rewrote the three gate
 samples' reports after PR #119 changed the map under them: rubric 90 to 100, spread 4 / 0 / 0
 to 0 / 0 / 0, and dollars 1.78 to every phase 5 row of `LEDGER.md`. The date it closed stands.
 
-Phase 7's score is recall on sample 4 alone: its key has no rubric. Its spread column is the
-RLM's two-run spread on sample 1 beside ours, from section 4b.
+Phase 7's score is recall on sample 4 alone: its key has no rubric. Sample 4 ran once, so its
+spread column reads one run.
 
-## 4b. Comparison
+## 4b. Sample 4
 
-The RLM skill and our tool on sample 1, and our tool once on sample 4. The RLM ran from Claude
-Code on the subscription, Sonnet 5 as the leaf, on `reference/rlm-skill/skill/` unchanged; its
-seconds are the two passes' wall time from its own manifests and its dollars are zero by that
-route. Ours is the pinned phase 5 run. The RLM's recall is low because the grader's carry rule
-reads our citation shape; its rubric score is the number to compare. Sample 4 has no rubric,
+Our tool once on sample 4, the open corpus, against the public record. Sample 4 has no rubric,
 so its score is recall, 19 of 22 facts; the three misses are phase 4's, named in PR #129.
 Its seconds are blank: the notes ran in two passes and the run kept no one wall time.
 Restated 2026-09-09 with #131: phase 2 notes a document over 20,000 characters in pieces, and
@@ -122,11 +117,9 @@ answer by another document. Every fact that bears on the answer is in the report
 three would take a phase 4 issue and a rerun of samples 1 to 4, about $1, to move the number
 and change no conclusion, so no issue is filed for them and the row stands.
 
-| Sample | Tool | Score a | Score b | Spread | Recall | Seconds | Dollars |
-|---|---|---|---|---|---|---|---|
-| 1 `atlas` | RLM skill | 82 | 84 | 2 | 34.0 | 990 | 0 |
-| 1 `atlas` | ours | 100 | 100 | 0 | 100 | 750 | 3.68 |
-| 4 `yahoo` | ours | 86.4 | | | 86.4 | | 0.26 |
+| Sample | Recall | Seconds | Dollars |
+|---|---|---|---|
+| 4 `yahoo` | 86.4 | | 0.26 |
 
 **How a phase becomes issues.** The founder types `/aeo:sprint-plan` for the phase. The plan is
 sliced into three to six issues, each a vertical piece that leaves an artefact a test checks
@@ -246,7 +239,6 @@ RULES.md         one page: the gates, and the two rules that stop the loop
 LEDGER.md        dollars, written by code
 CLAUDE.md        what a session in this folder must know
 samples/         the four samples, their keys, their briefs
-reference/       the winner's trail, the transcript, the first build's register, the RLM skill
 src/rlm/         the tool; one module per stage
 tests/           one test file per phase, parametrised over the three samples
 runs/            artefacts, never committed
