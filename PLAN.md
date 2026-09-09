@@ -91,11 +91,31 @@ rubric are on sample 1's variants; its dollars are every phase 6 row of `LEDGER.
 | 4 Dossier | Phase 4 | done | 100 / 100 / 100 | 0 | 0 / 0 / 0 | 2026-09-07 |
 | 5 Report | Phase 5 | done | 100 / 100 / 100, rubric 100 | 8.28 | 0 / 0 / 0 | 2026-09-08 |
 | 6 Widen | Phase 6 | done | recall 100 / 100 / 97.9 / 98.5 / 98.1, rubric 100 / 94 / 98 / 99 / 100 | 7.78 | 0 / 6 / 2 / 1 / 1 | 2026-09-09 |
-| 7 Compare | Phase 7 | not started | | | | |
+| 7 Compare | Phase 7 | done | sample 4 recall 72.7 | 0.26 | RLM 2, ours 0 | 2026-09-09 |
 
 Phase 5's row was restated on 2026-09-09 by the phase 6 gate, which rewrote the three gate
 samples' reports after PR #119 changed the map under them: rubric 90 to 100, spread 4 / 0 / 0
 to 0 / 0 / 0, and dollars 1.78 to every phase 5 row of `LEDGER.md`. The date it closed stands.
+
+Phase 7's score is recall on sample 4 alone: its key has no rubric. Its spread column is the
+RLM's two-run spread on sample 1 beside ours, from section 4b.
+
+## 4b. Comparison
+
+The RLM skill and our tool on sample 1, and our tool once on sample 4. The RLM ran from Claude
+Code on the subscription, Sonnet 5 as the leaf, on `reference/rlm-skill/skill/` unchanged; its
+seconds are the two passes' wall time from its own manifests and its dollars are zero by that
+route. Ours is the pinned phase 5 run. The RLM's recall is low because the grader's carry rule
+reads our citation shape; its rubric score is the number to compare. Sample 4 has no rubric,
+so its score is recall, 16 of 22 facts; the six misses are named in PR #129, three phase 2's
+and three phase 4's. Its seconds are blank: the notes ran in two passes and the run kept no
+one wall time.
+
+| Sample | Tool | Score a | Score b | Spread | Recall | Seconds | Dollars |
+|---|---|---|---|---|---|---|---|
+| 1 `atlas` | RLM skill | 82 | 84 | 2 | 34.0 | 990 | 0 |
+| 1 `atlas` | ours | 100 | 100 | 0 | 100 | 750 | 3.68 |
+| 4 `yahoo` | ours | 72.7 | | | 72.7 | | 0.26 |
 
 **How a phase becomes issues.** The founder types `/aeo:sprint-plan` for the phase. The plan is
 sliced into three to six issues, each a vertical piece that leaves an artefact a test checks
