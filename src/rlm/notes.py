@@ -831,6 +831,7 @@ def note_and_write(
     gateway: Gateway,
     batch: Batch,
     named: Sequence[str] = (),
+    max_output_tokens: int = MAX_OUTPUT_TOKENS,
 ) -> tuple[str, dict | None, list[dict]]:
     """Notes one document, prices its calls, keeps each reply and writes the note.
 
@@ -843,7 +844,7 @@ def note_and_write(
     completions: list[Completion] = []
 
     def call(messages: list[dict]) -> Completion:
-        completion = gateway.complete(model, messages, max_tokens=MAX_OUTPUT_TOKENS)
+        completion = gateway.complete(model, messages, max_tokens=max_output_tokens)
         batch.record(completion)
         completions.append(completion)
         write_raw(out_dir, doc_id, len(completions), completion.text)
@@ -940,6 +941,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "of phase 6's cap",
     )
     parser.add_argument("--out", default=None)
+    parser.add_argument(
+        "--max-output-tokens",
+        dest="max_output_tokens",
+        type=int,
+        default=MAX_OUTPUT_TOKENS,
+        help="the completion cap of one call, raised for a section the model cannot note "
+        "under the default",
+    )
     return parser.parse_args(argv)
 
 
@@ -999,7 +1008,7 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
         estimate_tokens("\n".join(message["content"] for message in build_messages(sections_by_doc[doc])))
         for _, doc in prompts
     )
-    estimated_out = MAX_OUTPUT_TOKENS * len(prompts)
+    estimated_out = args.max_output_tokens * len(prompts)
 
     # A partial pass merges into what a prior pass wrote, so the usage of the documents this
     # call is about to replace is read before note_and_write overwrites their note files.
@@ -1037,6 +1046,7 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
                     gateway,
                     batch,
                     named_by_doc[doc],
+                    args.max_output_tokens,
                 )
                 for doc_id, doc in prompts
             ]

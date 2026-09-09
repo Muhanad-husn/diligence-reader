@@ -60,50 +60,50 @@ RUN_DOLLARS = 2.0
 PINNED_FILES = ("report.md", "verify.json", "grade.json")
 DIGESTS_PATH = ROOT / "tests" / "phase7-yahoo-digests.json"
 
-# The documents a stage dropped on the one run of 2026-09-09 and the facts the report does not
+# The documents a stage dropped on the run of 2026-09-09 and the facts the report does not
 # carry, each with the phase that owns it and the one sentence that says why, put to the
 # founder in the pull request of #125. A known miss is not asserted; it is counted in the
 # readout, and a fact every one of whose documents is a known miss is excused with it. The
-# fix belongs to the phase named (RULES.md gate 2), never here.
-LENGTH = (
-    "phase 2's, the note was dropped: GLM 5.3 Flash finished on length at 6000 completion "
-    "tokens on both draws of a section over 25000 characters"
-)
+# fix belongs to the phase named (RULES.md gate 2), never here. The five notes GLM 5.3 Flash
+# dropped at the 6000 token cap on the first pass were re-noted at 16000 on the founder's word.
 COVER = (
-    "phase 3's, noted and out of the cluster: a cover page sharing the file number and the "
-    "employer number with the other cover pages and nothing with the deal"
+    "phase 3's, noted and out of the cluster: an 8-K cover page sharing the file number and "
+    "the employer number with the other cover pages and nothing with the deal"
 )
-BREACH = (
-    "phase 3's, noted and out of the cluster: the breach announcement names no deal value, "
-    "and the map's named-link set did not tie it to the sale"
-)
+CUT = "phase 4's, in the cluster and cut from the set: its values are all carried by the set"
 KNOWN_MISSES: dict[str, str] = {
-    "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md": LENGTH,
-    "documents/DEFM14A-2017-04-24/10-summary.md": LENGTH,
-    "documents/DEFM14A-2017-04-24/21-proposal-1-the-sale-transaction-continued-3.md": LENGTH,
-    "documents/DEFM14A-2017-04-24/49-commitments-and-contingencies.md": LENGTH,
-    "documents/8-K-2017-02-21-amendment/17-witnesseth.md": (
-        "phase 2's, the note was dropped: GLM 5.3 Flash finished on length at 6000 completion "
-        "tokens on both draws of the reorganization amendment"
-    ),
-    "documents/8-K-2016-09-22-2014-security-incident/08-front-matter.md": BREACH,
-    "documents/8-K-2016-12-14-2013-security-incident/08-front-matter.md": BREACH,
     "documents/8-K-2016-07-25-stock-purchase-agreement/03-current-report.md": COVER,
     "documents/8-K-2017-02-21-amendment/03-current-report.md": COVER,
-    "documents/10-K-2016/02-securities-and-exchange-commission.md": COVER,
-    "documents/8-K-2016-07-25-stock-purchase-agreement/04-item-1-01-entry-into-a-material-definitive-agreement.md": (
-        "phase 4's, in the cluster and cut from the set: the original 8-K item shares its "
-        "values with the purchase agreement beside it, which the set kept"
+    "documents/8-K-2016-07-25-stock-purchase-agreement/04-item-1-01-entry-into-a-material-definitive-agreement.md": CUT,
+    "documents/DEFM14A-2017-04-24/10-summary.md": CUT,
+    "documents/8-K-2017-02-21-amendment/17-witnesseth.md": (
+        "phase 4's, in the cluster and cut from the set: the reorganization amendment's one "
+        "value of its own, the fifty percent share, is a quote and not a number"
     ),
 }
 KNOWN_FACT_MISSES: dict[str, str] = {
+    "commission-file-number": (
+        "phase 4's, the 10-K cover page is in the set and the dossier writes no row for a "
+        "file number"
+    ),
+    "employer-identification-number": (
+        "phase 4's, the 10-K cover page is in the set and the dossier writes no row for an "
+        "employer number"
+    ),
+    "committee-finding-on-2014-knowledge": (
+        "phase 2's, the 10-K item 7 note kept 115 items and not the sentence on what the "
+        "information security team knew in 2014"
+    ),
+    "known-in-2014-against-told-in-2016": (
+        "phase 2's, the knew-when side is the committee finding the 10-K item 7 note did not "
+        "quote"
+    ),
     "shared-liability-announced": (
         "phase 2's, the press release note quoted the 50 percent sentence beside it and not "
         "the sentence that says the liabilities are shared"
     ),
-    "price-before-against-price-after": (
-        "phase 5's, the dossier carries both prices and the narrative wrote the revised "
-        "price alone, leaving the original in the evidence schedule"
+    "reorganization-amendment-share": (
+        "phase 4's, the note quotes the fifty percent share and the set cut the document"
     ),
 }
 
@@ -372,6 +372,17 @@ def headings(text):
 
 def normalise(line):
     return line.replace("’", "'").replace("—", ",")
+
+
+# ---------------------------------------------------------------- the output cap knob
+
+
+def test_notes_output_cap_defaults_to_its_own_constant():
+    """--max-output-tokens left off is the phase 2 cap, and 16000 is what the re-note used."""
+    from rlm import notes as noter
+
+    assert noter.parse_args(["s", "r"]).max_output_tokens == noter.MAX_OUTPUT_TOKENS == 6000
+    assert noter.parse_args(["s", "r", "--max-output-tokens", "16000"]).max_output_tokens == 16000
 
 
 # ---------------------------------------------------------------- one run of the chain
