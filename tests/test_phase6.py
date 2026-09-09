@@ -65,6 +65,11 @@ FACTS = 53
 # The bar the rubric is read against, phase 5's own.
 RUBRIC_BAR = test_phase5.RUBRIC_BAR
 
+# How many matters each variant's room holds. Every knob but the second one writes a room with
+# sample 1's one matter in it, however many documents it adds; the second knob adds sample 2's
+# eleven contracts, which are a matter of their own.
+MATTERS = {"atlas-second": 2}
+
 SKIP_NO_PIN = "runs/atlas/sections.jsonl absent; run phase 1 ingest first"
 SKIP_NO_CONTROL = "samples/atlas-control has not been generated yet"
 
@@ -564,12 +569,25 @@ def test_phase_2_holds_on_the_variant(sample, key, notes, sections_by_doc, run_d
 
 
 def test_phase_3_holds_on_the_variant(sample, key, mapped):
-    """The first matter's cluster holds every planted document and every required document."""
+    """The first matter is sample 1's, and the required documents are held across the matters.
+
+    The first matter's cluster holds every planted document of the key's phase 3 document fact,
+    which on every variant is sample 1's own matter, and carries no decoy. A variant that adds a
+    second matter adds its required documents to the map as a second matter, so the required
+    documents are read across the matters the map returns rather than out of the first one.
+    """
     ran(sample, 3)
     test_phase3.test_map_first_matter_cluster_holds_the_planted_documents(mapped, key)
-    cluster = set(mapped.document["matters"][0]["cluster"])
+    matters = mapped.document["matters"]
+    assert len(matters) == MATTERS.get(sample, 1), len(matters)
+    first = set(matters[0]["cluster"])
+    decoys = {decoy.document for decoy in key.decoys}
+    assert not decoys & first, sorted(decoys & first)
+    across: set[str] = set()
+    for matter in matters:
+        across |= set(matter["cluster"])
     required = set(key.required_documents)
-    assert required <= cluster, sorted(required - cluster)
+    assert required <= across, sorted(required - across)
     holds(sample, 3)
 
 

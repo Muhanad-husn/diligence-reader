@@ -464,6 +464,17 @@ def test_map_first_matter_cluster_holds_the_planted_documents(mapped, key):
     assert planted <= cluster, sorted(planted - cluster)
 
 
+def test_map_returns_one_matter_on_a_room_that_holds_one(mapped):
+    """`matters` is a ranked list, and a room with one matter in it returns a list of one.
+
+    The list is ordered by consequence, so where a room holds two matters the larger leads. All
+    three samples hold one matter each, and none of them is read as two.
+    """
+    matters = mapped.document["matters"]
+    assert len(matters) == 1, len(matters)
+    assert [matter["id"] for matter in matters] == [1]
+
+
 # The most documents the first matter's set may hold, where a sample has been given a bound.
 # Sample 1's planted cluster is fourteen documents; a set of fifty is the room read as one matter.
 # The cap moved from 49 to 50 when model_links read the figure its model was found on: DR-021,

@@ -616,6 +616,31 @@ def test_the_readme_names_the_knob_and_counts_the_sections_it_dropped():
 # ---------------------------------------------------------------- the chain
 
 
+def test_the_map_takes_sample_ones_matter_and_no_clone():
+    """The clones are a dense cluster with no consequence, and the map does not take them.
+
+    A hundred clones written by two passes share suffixed identifiers with each other, so they
+    link harder than sample 1's incident trail does. They carry none of the planted truth, so
+    the room holds one matter and it is sample 1's: the map returns one matter, its cluster
+    holds sample 1's fourteen required documents, and no clone is in it.
+    """
+    needs_twice()
+    path = ROOT / "runs" / TWICE / "map.json"
+    if not path.exists():
+        pytest.skip("the map has not run on the twice variant yet")
+    document = json.loads(path.read_text(encoding="utf-8"))
+    source = load_key(SOURCE_DIR)
+
+    matters = document["matters"]
+    assert len(matters) == 1, len(matters)
+
+    cluster = set(matters[0]["cluster"])
+    wanted = set(source.required_documents)
+    assert wanted <= cluster, sorted(wanted - cluster)
+    cloned = {clone for clone, _, _ in clones()}
+    assert not cloned & cluster, sorted(cloned & cluster)
+
+
 def test_the_first_finding_cites_sample_ones_matter():
     """The report leads with sample 1's matter: the first finding cites only documents of
     sample 1's hundred, and at least one of sample 1's fourteen required documents."""

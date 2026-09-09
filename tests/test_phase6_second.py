@@ -381,6 +381,37 @@ def test_the_readme_names_the_knob_and_tables_the_eleven_documents():
 # ---------------------------------------------------------------- the chain
 
 
+def test_the_map_holds_both_matters_with_sample_ones_first():
+    """The room holds two matters and the map keeps both, sample 1's leading.
+
+    The first matter is sample 1's: it holds sample 1's fourteen required documents and none of
+    the six decoys. The second is sample 2's: it holds sample 2's ten. A room with one matter
+    returns one matter, so a second entry here is the variant's own second matter and nothing
+    else.
+    """
+    needs_second()
+    path = ROOT / "runs" / SECOND / "map.json"
+    if not path.exists():
+        pytest.skip("the map has not run on the second variant yet")
+    document = json.loads(path.read_text(encoding="utf-8"))
+    source = load_key(SOURCE_DIR)
+    key = load_key(SECOND_DIR)
+
+    matters = document["matters"]
+    assert len(matters) == 2, len(matters)
+
+    first = set(matters[0]["cluster"])
+    wanted = set(source.required_documents)
+    assert wanted <= first, sorted(wanted - first)
+    decoys = {decoy.document for decoy in key.decoys}
+    assert not decoys & first, sorted(decoys & first)
+
+    second = set(matters[1]["cluster"])
+    added = set(key.required_documents) - wanted
+    assert len(added) == SECOND_REQUIRED, sorted(added)
+    assert added <= second, sorted(added - second)
+
+
 def test_the_first_finding_cites_sample_ones_matter():
     """The report leads with sample 1's matter: the first finding cites only documents of
     sample 1's hundred, and at least one of sample 1's fourteen required documents."""
