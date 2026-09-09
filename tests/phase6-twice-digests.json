@@ -1,9 +1,7 @@
 {
   "atlas-twice": {
-    "dossier.md": "525cccb2f42e3d9291bf8fa9b63a4924dac8c0488d2df2f237ad2aaacf20ab10",
-    "grade.json": "42f60e96245d2c543d75251fad9159a67f474401f593dc27958b8d184f0de21d",
     "index.jsonl": "8b86d718f0f478f22322de3efd33545d45135b36cab6321b772b79439e709828",
-    "map.json": "1aaa865627cd55602ad127ee884e255532a48df9acd74ff957e7a21c4562bcbb",
+    "sections.jsonl": "6f5c99fc8bfc6aabe775fb982568c3899a6c9551f420425e4ca5eb18ea28e550",
     "notes-verify.jsonl": "08ef19890429ea0c61b727bc57881cdd2512a2eb856dcef93d5cbdabe83e2166",
     "notes/DR-001.json": "1051c912cdc44fca5cd30d7569c1b6d9a37a68adf6bc28b9946c0152ea061a12",
     "notes/DR-002.json": "e4ea5f6a06a3a23ec62d4a9986ff819341cc9141f90b1f965893cc878d2d4cb7",
@@ -204,8 +202,10 @@
     "notes/DR-298.json": "566c3d75d404ca248cb1ca4b3d288b184a02bec79994665602e4430fe2dcead1",
     "notes/DR-299.json": "6785bfda0f682074abd369abc5669b124ad41df232e3df8a9e418a0afe38fd17",
     "notes/DR-300.json": "7092e36026116eb1ecea95b34ab252a8b97d37e8db1e2a5fcba940182b69cc18",
-    "report.md": "8f8f3608606f291b631d8af7b13258246b536e064fdc8772b027b196febea841",
-    "sections.jsonl": "6f5c99fc8bfc6aabe775fb982568c3899a6c9551f420425e4ca5eb18ea28e550",
-    "verify.json": "512bc7418038db138da6cb9cd9fe8d9b9b958737a420f24f7f637dfeb5645198"
+    "map.json": "1aaa865627cd55602ad127ee884e255532a48df9acd74ff957e7a21c4562bcbb",
+    "dossier.md": "525cccb2f42e3d9291bf8fa9b63a4924dac8c0488d2df2f237ad2aaacf20ab10",
+    "report.md": "e63676d2be8de9e596f981aa99594d5e0dd138ebbee61fc36cf3699c775fc512",
+    "verify.json": "c72e6601807d4eafec8a9c89c4df85017b6f626e777774a09200204500f578f6",
+    "grade.json": "bca6eee09184c10843688bd3c3d3230e585acf65f4f481fc2df2e29ea2e4735d"
   }
 }
