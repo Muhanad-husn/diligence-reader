@@ -310,7 +310,11 @@ def known_anchors(run_dir):
 
 
 def sections_of(text: str) -> dict[str, list[str]]:
-    """The lines under each `### ` heading of the first matter, by heading."""
+    """The lines under each `### ` heading of the text given, by heading.
+
+    Where the text holds more than one matter the headings repeat and the lines gather under one
+    key, so a caller that means one matter's rows passes that matter's text in.
+    """
     found: dict[str, list[str]] = {}
     heading = None
     for line in text.splitlines():
@@ -349,10 +353,25 @@ def rows_of(text: str) -> list[Row]:
     return found
 
 
+def first_matter(text: str) -> str:
+    """The dossier's first matter, which is the matter the report is written about.
+
+    A dossier writes one `## Matter ` block per matter the map ranked. Every rule about the
+    matter's own set is a rule about the first, so a room holding a second, smaller matter does
+    not put that matter's documents into the set the checks below read.
+    """
+    start = text.find("## Matter ")
+    if start < 0:
+        return text
+    nxt = text.find("\n## Matter ", start + 1)
+    return text[start:] if nxt < 0 else text[start:nxt]
+
+
 def document_rows(text: str) -> list[tuple[int, str]]:
-    """The Documents section read back as (rank, document id) pairs, in file order."""
+    """The first matter's Documents section read back as (rank, document id) pairs, in file
+    order."""
     found = []
-    for line in sections_of(text).get("Documents", []):
+    for line in sections_of(first_matter(text)).get("Documents", []):
         rank, _, rest = line[2:].partition(". ")
         found.append((int(rank), rest.split(" | ", 1)[0]))
     return found
