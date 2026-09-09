@@ -10,7 +10,7 @@
 
 ## Mechanism
 
-Parsers as measured in the first build and recorded in `reference/parser-selection-first-build.md`, adopted rather than re-measured. `pdftext` pinned to an exact version for PDF text; `pypdf` as an independent cross-check that writes a `warning` and a count on a disagreeing page and never repairs it; `pdfplumber` for the 95 ruled tables across 52 of the 61 PDFs, one of which is the `Action | Owner | Timing` table in the disclosure committee minutes; `openpyxl` with `data_only=True` for workbooks, one section per row, no header inference; the standard library for CSV, text, markdown, EML and MBOX. Records sorted by `doc` then `ordinal`, JSON keys sorted, which is what makes two runs byte identical. No model call, no gateway call, no network. Shapes are in the plan file.
+Parsers as measured in the first build, adopted rather than re-measured. `pdftext` pinned to an exact version for PDF text; `pypdf` as an independent cross-check that writes a `warning` and a count on a disagreeing page and never repairs it; `pdfplumber` for the 95 ruled tables across 52 of the 61 PDFs, one of which is the `Action | Owner | Timing` table in the disclosure committee minutes; `openpyxl` with `data_only=True` for workbooks, one section per row, no header inference; the standard library for CSV, text, markdown, EML and MBOX. Records sorted by `doc` then `ordinal`, JSON keys sorted, which is what makes two runs byte identical. No model call, no gateway call, no network. Shapes are in the plan file.
 
 ## Acceptance criterion
 

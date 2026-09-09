@@ -24,8 +24,7 @@ this sample yet".
 ## Mechanism
 
 - No skill, plugin or MCP fits. This is a parser, and the parser choice was measured in the
-  first build over all 61 PDFs; the numbers and the reasoning are in
-  `reference/parser-selection-first-build.md` and are adopted here rather than re-measured.
+  first build over all 61 PDFs; those numbers are adopted here rather than re-measured.
 - PDF text: `pdftext`, pinned to an exact version in `pyproject.toml`. It is the only library
   measured that both maps the bullet glyph to U+2022 and keeps the metadata block's label and
   value on one line, at 2.7 seconds for the corpus.

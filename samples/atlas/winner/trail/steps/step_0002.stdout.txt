@@ -1,5 +1,0 @@
-' | XLSX | Master index of all data room documents with ID, title, folder, owner, date, type and a neutral description.\r\nDR-002 | Project Atlas — Process Letter | Index and Process | Canton Street Capital | 5 December 2025 | PDF | Auction process letter: timeline, indicative-offer'
------ count of 'DR-0' headers via simpler search -----
-200
------ eq lines -----
-num '=' lines: 202 sample len: 90

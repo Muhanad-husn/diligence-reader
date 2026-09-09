@@ -1,3 +1,0 @@
-prompt chars: 100975
-output chars: 38816
-saved incident_synthesis.md
