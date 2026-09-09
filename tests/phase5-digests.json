@@ -1,17 +1,17 @@
 {
   "atlas": {
-    "grade.json": "ac204d6a23e201d4f9d2b344ff7384f2de03142569eadbb1fa1e286cc50aabcd",
-    "report.md": "9785a2f81d77e36528112076c5b868e26c71582a55491a416755df1ebfa2a88d",
-    "verify.json": "84b48206d22ba9b698eb2d66108e7a20d403ededde9539dc05501f94b985a026"
+    "grade.json": "f9a67833a3e20004bcbce77ff43433f9f0fbfc4ce08266e7836a42e45bba6421",
+    "report.md": "784ad721f41c78928945877d3ade3ed5f0d3aa666bae16df06477b0fc45aa6d6",
+    "verify.json": "817b17638ac772dd71a866c2a77226477483daaa332a9e9b823c9126fc02a74d"
   },
   "northstar-dental": {
-    "grade.json": "7dab658c43c43eccb4baaea88b3921911fb78c1f0f0c92a82b2952bc268f2b38",
-    "report.md": "3b65ec62420e9aca00c287317bf6216265c5c2f0b3f9a6313e4d1b8d945806a4",
-    "verify.json": "f50c5ac14ed2473efe1cc5e195734c5c5d64e301bd16d2a0818e088eba9b8709"
+    "grade.json": "311b434d3e5e27811ecce9adabed8bcb565e0f754f55e81084e897d94153b7ac",
+    "report.md": "57cec75c638008d1fef668648ce50907c21ffbaa1f3ed615ca9956a99aa8f2e9",
+    "verify.json": "61bb94ca540d45e18db15d7980bd398c35609afa1a1e822de425212b874ac3ed"
   },
   "northwind": {
-    "grade.json": "d02a6ea2f327c1855ce237fa870b5a3946700c0abccd487a0898374cd3b243b1",
-    "report.md": "717d984c761304b196944b134204b5540992567cd64f5fe304d9b608329e7958",
-    "verify.json": "dd9c670ab914fe062f33f00617cb4f5f592cc9be0826fb2fb6aa99dc3732dc7b"
+    "grade.json": "be7865b7fb5af5859d60c1c0a8e08c7fe573415fad784db405b77b22859d1968",
+    "report.md": "6516f5958a34063cc970e71dcbf5f78131d7f1ebfab2847556f460e071776737",
+    "verify.json": "63f965c24f687ba09d6f4aaf5d9613cc967c2d2018aa5153f890973502c5225a"
   }
 }

@@ -616,6 +616,39 @@ def test_the_readme_names_the_knob_and_counts_the_sections_it_dropped():
 # ---------------------------------------------------------------- the chain
 
 
+def test_the_map_takes_sample_ones_matter_and_not_the_sister_entitys():
+    """The clones are a dense cluster with no consequence, and the map does not take them.
+
+    A hundred clones written by two passes share suffixed identifiers with each other, so they
+    link harder than sample 1's incident trail does. They carry none of the planted truth, so
+    the room holds one matter and it is sample 1's: the map returns one matter and its cluster
+    holds sample 1's required documents but for a known miss.
+
+    Clones do reach the cluster. `VPAuth` is written by twelve documents of sample 1 and twelve
+    of the sister entity, the knob's name table does not replace it, and both rooms' notes flag
+    it as what their worry is about, so no cut drops it in this room without losing DR-074 in
+    the gate room. What the matter may not be is the sister entity's: sample 1's documents
+    outnumber the clones in it, and no finding of the report cites a clone, which the test below
+    asks.
+    """
+    needs_twice()
+    path = ROOT / "runs" / TWICE / "map.json"
+    if not path.exists():
+        pytest.skip("the map has not run on the twice variant yet")
+    document = json.loads(path.read_text(encoding="utf-8"))
+    source = load_key(SOURCE_DIR)
+
+    matters = document["matters"]
+    assert len(matters) == 1, len(matters)
+
+    cluster = set(matters[0]["cluster"])
+    wanted = set(source.required_documents)
+    known = set(test_phase6.KNOWN_MISSES.get(TWICE, {}))
+    assert wanted - known <= cluster, sorted(wanted - known - cluster)
+    cloned = {clone for clone, _, _ in clones()}
+    assert len(cluster - cloned) > len(cluster & cloned), sorted(cluster & cloned)
+
+
 def test_the_first_finding_cites_sample_ones_matter():
     """The report leads with sample 1's matter: the first finding cites only documents of
     sample 1's hundred, and at least one of sample 1's fourteen required documents."""
