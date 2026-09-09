@@ -1,0 +1,286 @@
+{
+  "sample": "yahoo",
+  "brief": "brief.md",
+  "documents": {
+    "documents/8-K-2016-07-25-stock-purchase-agreement/03-current-report.md": "documents/8-K-2016-07-25-stock-purchase-agreement/03-current-report.md",
+    "documents/8-K-2016-07-25-stock-purchase-agreement/04-item-1-01-entry-into-a-material-definitive-agreement.md": "documents/8-K-2016-07-25-stock-purchase-agreement/04-item-1-01-entry-into-a-material-definitive-agreement.md",
+    "documents/8-K-2016-07-25-stock-purchase-agreement/17-purchase-and-sale-of-shares-closing.md": "documents/8-K-2016-07-25-stock-purchase-agreement/17-purchase-and-sale-of-shares-closing.md",
+    "documents/8-K-2016-09-22-2014-security-incident/08-front-matter.md": "documents/8-K-2016-09-22-2014-security-incident/08-front-matter.md",
+    "documents/8-K-2016-12-14-2013-security-incident/08-front-matter.md": "documents/8-K-2016-12-14-2013-security-incident/08-front-matter.md",
+    "documents/8-K-2017-02-21-amendment/03-current-report.md": "documents/8-K-2017-02-21-amendment/03-current-report.md",
+    "documents/8-K-2017-02-21-amendment/04-item-1-01-entry-into-a-material-definitive-agreement.md": "documents/8-K-2017-02-21-amendment/04-item-1-01-entry-into-a-material-definitive-agreement.md",
+    "documents/8-K-2017-02-21-amendment/12-witnesseth.md": "documents/8-K-2017-02-21-amendment/12-witnesseth.md",
+    "documents/8-K-2017-02-21-amendment/17-witnesseth.md": "documents/8-K-2017-02-21-amendment/17-witnesseth.md",
+    "documents/DEFA14A-2017-02-21-press-release/02-for-immediate-release.md": "documents/DEFA14A-2017-02-21-press-release/02-for-immediate-release.md",
+    "documents/10-K-2016/02-securities-and-exchange-commission.md": "documents/10-K-2016/02-securities-and-exchange-commission.md",
+    "documents/10-K-2016/11-item-1a-risk-factors.md": "documents/10-K-2016/11-item-1a-risk-factors.md",
+    "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md": "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md",
+    "documents/DEFM14A-2017-04-24/10-summary.md": "documents/DEFM14A-2017-04-24/10-summary.md",
+    "documents/DEFM14A-2017-04-24/21-proposal-1-the-sale-transaction-continued-3.md": "documents/DEFM14A-2017-04-24/21-proposal-1-the-sale-transaction-continued-3.md",
+    "documents/DEFM14A-2017-04-24/49-commitments-and-contingencies.md": "documents/DEFM14A-2017-04-24/49-commitments-and-contingencies.md"
+  },
+  "required_documents": [
+    "documents/8-K-2016-07-25-stock-purchase-agreement/04-item-1-01-entry-into-a-material-definitive-agreement.md",
+    "documents/8-K-2016-07-25-stock-purchase-agreement/17-purchase-and-sale-of-shares-closing.md",
+    "documents/8-K-2016-09-22-2014-security-incident/08-front-matter.md",
+    "documents/8-K-2016-12-14-2013-security-incident/08-front-matter.md",
+    "documents/8-K-2017-02-21-amendment/04-item-1-01-entry-into-a-material-definitive-agreement.md",
+    "documents/8-K-2017-02-21-amendment/12-witnesseth.md",
+    "documents/8-K-2017-02-21-amendment/17-witnesseth.md",
+    "documents/DEFA14A-2017-02-21-press-release/02-for-immediate-release.md",
+    "documents/10-K-2016/11-item-1a-risk-factors.md",
+    "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md",
+    "documents/DEFM14A-2017-04-24/10-summary.md",
+    "documents/DEFM14A-2017-04-24/21-proposal-1-the-sale-transaction-continued-3.md",
+    "documents/DEFM14A-2017-04-24/49-commitments-and-contingencies.md"
+  ],
+  "decoys": [],
+  "facts": [
+    {
+      "id": "price-cut",
+      "kind": "number",
+      "value": "$350,000,000",
+      "documents": [
+        "documents/8-K-2017-02-21-amendment/04-item-1-01-entry-into-a-material-definitive-agreement.md",
+        "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "revised-price",
+      "kind": "number",
+      "value": "$4,475,800,000",
+      "documents": [
+        "documents/8-K-2017-02-21-amendment/04-item-1-01-entry-into-a-material-definitive-agreement.md",
+        "documents/8-K-2017-02-21-amendment/12-witnesseth.md",
+        "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md",
+        "documents/DEFM14A-2017-04-24/10-summary.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "original-price",
+      "kind": "number",
+      "value": "$4,825,800,000",
+      "documents": [
+        "documents/8-K-2016-07-25-stock-purchase-agreement/04-item-1-01-entry-into-a-material-definitive-agreement.md",
+        "documents/8-K-2016-07-25-stock-purchase-agreement/17-purchase-and-sale-of-shares-closing.md",
+        "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "accounts-2014",
+      "kind": "number",
+      "value": "500 million user accounts",
+      "documents": [
+        "documents/8-K-2016-09-22-2014-security-incident/08-front-matter.md",
+        "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md",
+        "documents/DEFM14A-2017-04-24/49-commitments-and-contingencies.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "accounts-2013",
+      "kind": "number",
+      "value": "more than one billion user accounts",
+      "documents": [
+        "documents/8-K-2016-12-14-2013-security-incident/08-front-matter.md",
+        "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md",
+        "documents/DEFM14A-2017-04-24/49-commitments-and-contingencies.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "accounts-cookie-forging",
+      "kind": "number",
+      "value": "32 million user accounts",
+      "documents": [
+        "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md",
+        "documents/DEFM14A-2017-04-24/49-commitments-and-contingencies.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "liability-split",
+      "kind": "number",
+      "value": "50 percent",
+      "documents": [
+        "documents/8-K-2017-02-21-amendment/04-item-1-01-entry-into-a-material-definitive-agreement.md",
+        "documents/DEFA14A-2017-02-21-press-release/02-for-immediate-release.md",
+        "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "termination-fee",
+      "kind": "number",
+      "value": "$134,274,000",
+      "documents": [
+        "documents/8-K-2017-02-21-amendment/04-item-1-01-entry-into-a-material-definitive-agreement.md",
+        "documents/8-K-2017-02-21-amendment/12-witnesseth.md",
+        "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md",
+        "documents/DEFM14A-2017-04-24/10-summary.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "signing-date",
+      "kind": "date",
+      "value": "July 23, 2016",
+      "documents": [
+        "documents/8-K-2016-07-25-stock-purchase-agreement/04-item-1-01-entry-into-a-material-definitive-agreement.md",
+        "documents/8-K-2017-02-21-amendment/04-item-1-01-entry-into-a-material-definitive-agreement.md",
+        "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "amendment-date",
+      "kind": "date",
+      "value": "February 20, 2017",
+      "documents": [
+        "documents/8-K-2017-02-21-amendment/04-item-1-01-entry-into-a-material-definitive-agreement.md",
+        "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md",
+        "documents/DEFM14A-2017-04-24/10-summary.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "disclosure-2014-incident",
+      "kind": "date",
+      "value": "September 22, 2016",
+      "documents": [
+        "documents/8-K-2016-09-22-2014-security-incident/08-front-matter.md",
+        "documents/8-K-2016-12-14-2013-security-incident/08-front-matter.md",
+        "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md",
+        "documents/DEFM14A-2017-04-24/49-commitments-and-contingencies.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "disclosure-2013-incident",
+      "kind": "date",
+      "value": "December 14, 2016",
+      "documents": [
+        "documents/8-K-2016-12-14-2013-security-incident/08-front-matter.md",
+        "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md",
+        "documents/DEFM14A-2017-04-24/49-commitments-and-contingencies.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "outside-date",
+      "kind": "date",
+      "value": "July 24, 2017",
+      "documents": [
+        "documents/8-K-2017-02-21-amendment/04-item-1-01-entry-into-a-material-definitive-agreement.md",
+        "documents/8-K-2017-02-21-amendment/12-witnesseth.md",
+        "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md",
+        "documents/DEFM14A-2017-04-24/10-summary.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "commission-file-number",
+      "kind": "identifier",
+      "value": "000-28018",
+      "documents": [
+        "documents/8-K-2016-07-25-stock-purchase-agreement/03-current-report.md",
+        "documents/8-K-2017-02-21-amendment/03-current-report.md",
+        "documents/10-K-2016/02-securities-and-exchange-commission.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "employer-identification-number",
+      "kind": "identifier",
+      "value": "77-0398689",
+      "documents": [
+        "documents/8-K-2016-07-25-stock-purchase-agreement/03-current-report.md",
+        "documents/8-K-2017-02-21-amendment/03-current-report.md",
+        "documents/10-K-2016/02-securities-and-exchange-commission.md"
+      ],
+      "phase": 1
+    },
+    {
+      "id": "committee-finding-on-2014-knowledge",
+      "kind": "quote",
+      "value": "information security team had contemporaneous knowledge of the 2014 compromise of user accounts, as well as incidents by the same attacker involving cookie forging in 2015 and 2016",
+      "documents": [
+        "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "shared-liability-announced",
+      "kind": "quote",
+      "value": "Verizon and Yahoo will share certain legal and regulatory liabilities arising from certain data breaches incurred by Yahoo.",
+      "documents": [
+        "documents/DEFA14A-2017-02-21-press-release/02-for-immediate-release.md"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "sec-and-shareholder-matters-retained",
+      "kind": "quote",
+      "value": "Liabilities arising from shareholder lawsuits and SEC investigations will continue to be the responsibility of Yahoo.",
+      "documents": [
+        "documents/DEFA14A-2017-02-21-press-release/02-for-immediate-release.md"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "reorganization-amendment-share",
+      "kind": "quote",
+      "value": "fifty percent (50%) of any User Security Liabilities other than Pre-Closing User Security Liabilities",
+      "documents": [
+        "documents/8-K-2017-02-21-amendment/17-witnesseth.md"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "incidents-disregarded-for-closing-conditions",
+      "kind": "quote",
+      "value": "certain data security incidents to which Yahoo has been subject will be disregarded",
+      "documents": [
+        "documents/8-K-2017-02-21-amendment/04-item-1-01-entry-into-a-material-definitive-agreement.md"
+      ],
+      "phase": 2
+    },
+    {
+      "id": "price-before-against-price-after",
+      "kind": "comparison",
+      "value": "$4,825,800,000",
+      "documents": [
+        "documents/8-K-2016-07-25-stock-purchase-agreement/04-item-1-01-entry-into-a-material-definitive-agreement.md",
+        "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md",
+        "documents/DEFM14A-2017-04-24/21-proposal-1-the-sale-transaction-continued-3.md"
+      ],
+      "phase": 4
+    },
+    {
+      "id": "known-in-2014-against-told-in-2016",
+      "kind": "comparison",
+      "value": "September 22, 2016",
+      "documents": [
+        "documents/8-K-2016-09-22-2014-security-incident/08-front-matter.md",
+        "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md",
+        "documents/DEFM14A-2017-04-24/21-proposal-1-the-sale-transaction-continued-3.md"
+      ],
+      "phase": 4
+    }
+  ],
+  "answer": {
+    "action": "reprice, cutting the consideration by the amount the parties agreed and sharing the breach liabilities",
+    "number": 350.0,
+    "low": 350.0,
+    "high": 350.0,
+    "unit": "USD millions"
+  },
+  "rubric": [],
+  "bar": {
+    "perfect": 100,
+    "wrong_under": 40
+  }
+}
