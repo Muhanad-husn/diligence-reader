@@ -133,6 +133,14 @@ def test_corpus_is_the_same_string_when_it_is_built_twice_from_the_same_sections
     assert compare.build_corpus(DOCUMENTS, SECTIONS) == compare.build_corpus(DOCUMENTS, SECTIONS)
 
 
+def test_corpus_writes_a_mail_documents_carriage_returns_as_newlines():
+    """The corpus is one LF text file, so a section carrying \\r\\n is written with \\n."""
+    sections = [{"doc": DOCUMENTS["DR-001"], "ordinal": 1, "text": "one\r\ntwo\r\n"}]
+    text = compare.build_corpus(DOCUMENTS, sections)
+    assert "\r" not in text
+    assert "one\ntwo\n" in text
+
+
 def test_corpus_drops_a_section_of_a_document_the_key_does_not_name():
     """A section whose document is not in the key has no header to sit under, so it is left out."""
     sections = SECTIONS + [{"doc": "notes/scratch.txt", "ordinal": 1, "text": "scratch"}]
@@ -254,17 +262,18 @@ def test_corpus_carries_every_document_of_the_room_under_its_own_header():
 
 
 def test_corpus_carries_every_section_text_of_the_pinned_run():
-    """Every section the pinned ingest wrote is in the corpus."""
+    """Every section the pinned ingest wrote is in the corpus, by the corpus's own body rule."""
     if not _corpus_path().exists():
         pytest.skip(SKIP_NO_CORPUS)
     if not (OURS_RUN_DIR / "sections.jsonl").exists():
         pytest.skip(SKIP_NO_PINNED_RUN)
     text = _corpus_path().read_text(encoding="utf-8")
     sections = compare.read_jsonl(OURS_RUN_DIR / "sections.jsonl")
+    assert sections
     for section in sections:
-        body = section["text"].strip()
-        if body:
-            assert body in text, section["anchor"]
+        written = compare.body(section["text"])
+        if written:
+            assert written in text, section["anchor"]
 
 
 # ---------------------------------------------------------------- compare.json and manifest.json
