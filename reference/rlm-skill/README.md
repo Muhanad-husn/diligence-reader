@@ -1,3 +1,8 @@
+> Note for this repository. `skill/` is the upstream `.claude/skills/rlm` directory at
+> commit `0039c005c990daeffef818e5e090279b7ac20874`, unchanged. Nothing in it is edited
+> here. `python -m rlm.compare prepare` copies it into the checkout's `.claude/skills/rlm/`
+> so that `/rlm` can be run on a corpus this repository builds.
+
 # Claude Code RLM
 
 A minimal implementation of Recursive Language Models (RLM) using Claude Code as the scaffold. Implemented by [Brainqub3](https://brainqub3.com/).
