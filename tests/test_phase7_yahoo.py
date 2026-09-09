@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from rlm.grade import COMPARISON_JOIN
 from rlm.key import KINDS, load_key
 from rlm.yahoo import (
     FILINGS,
@@ -255,11 +256,16 @@ def test_key_required_documents_are_named(key):
 
 
 def test_every_fact_value_is_in_every_document_it_names(key):
+    """A comparison fact is two spans joined by " against ", the join rlm.grade splits on, and
+    each side has to be in every document the fact names. Every other kind is one span."""
     documents_or_skip()
     for fact in key.facts:
+        sides = fact.value.split(COMPARISON_JOIN) if fact.kind == "comparison" else [fact.value]
+        assert len(sides) == (2 if fact.kind == "comparison" else 1), fact.id
         for doc in fact.documents:
             text = (SAMPLE / key.documents[doc]).read_text(encoding="utf-8")
-            assert fact.value in text, f"{fact.id} not in {doc}"
+            for side in sides:
+                assert side in text, f"{fact.id} side {side!r} not in {doc}"
 
 
 def test_key_is_valid_json_with_sorted_shape():

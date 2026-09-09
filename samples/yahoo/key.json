@@ -251,9 +251,8 @@
     {
       "id": "price-before-against-price-after",
       "kind": "comparison",
-      "value": "$4,825,800,000",
+      "value": "$4,825,800,000 against $4,475,800,000",
       "documents": [
-        "documents/8-K-2016-07-25-stock-purchase-agreement/04-item-1-01-entry-into-a-material-definitive-agreement.md",
         "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md",
         "documents/DEFM14A-2017-04-24/21-proposal-1-the-sale-transaction-continued-3.md"
       ],
@@ -262,11 +261,9 @@
     {
       "id": "known-in-2014-against-told-in-2016",
       "kind": "comparison",
-      "value": "September 22, 2016",
+      "value": "contemporaneous knowledge of the 2014 compromise of user accounts against September 22, 2016",
       "documents": [
-        "documents/8-K-2016-09-22-2014-security-incident/08-front-matter.md",
-        "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md",
-        "documents/DEFM14A-2017-04-24/21-proposal-1-the-sale-transaction-continued-3.md"
+        "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md"
       ],
       "phase": 4
     }
