@@ -113,6 +113,15 @@ Restated 2026-09-09 with #131: phase 2 notes a document over 20,000 characters i
 the chain reran from the notes on; the rerun cost $0.29, booked to phase 2. The row read
 recall 72.7, 16 of 22, before it.
 
+**Sample 4 stops at 86.4, founder's decision 2026-09-09.** The three facts the report does not
+carry are the commission file number and the employer identification number on the 10-K cover
+page, and the fifty percent share in the reorganization amendment. The first two are lookup
+identifiers; no reader of the report acts on them. The third is the liability split, which the
+report states from the stock purchase agreement and the press release, so the fact is in the
+answer by another document. Every fact that bears on the answer is in the report. Closing the
+three would take a phase 4 issue and a rerun of samples 1 to 4, about $1, to move the number
+and change no conclusion, so no issue is filed for them and the row stands.
+
 | Sample | Tool | Score a | Score b | Spread | Recall | Seconds | Dollars |
 |---|---|---|---|---|---|---|---|
 | 1 `atlas` | RLM skill | 82 | 84 | 2 | 34.0 | 990 | 0 |
