@@ -306,7 +306,12 @@ def main(argv: list[str]) -> int:
         print(f"{refusal}, nothing written")
         return 2
 
-    variant = module.build(source)
+    try:
+        variant = module.build(source)
+    except ValueError as refusal:
+        print(f"{refusal}, nothing written")
+        return 2
+
     target = Path(args.target)
     write_variant(source, variant, target)
     sections = sum(len(document.texts) for document in variant.documents)

@@ -226,3 +226,7 @@ Ceiling $50. Written by the code that makes gateway calls; a line added by hand 
 | 2026-09-09 | atlas-second | 6 | z-ai/glm-5.3-flash | 61245 | 39439 | 0.0145 | 37.9871 |
 | 2026-09-09 | atlas-second | 6 | z-ai/glm-5.3 | 45572 | 6865 | 0.0940 | 37.8931 |
 | 2026-09-09 | atlas-second | 6 | z-ai/glm-5.3 | 47892 | 13079 | 0.1246 | 37.7685 |
+| 2026-09-09 | atlas-twice | 6 | z-ai/glm-5.3-flash | 1156839 | 834809 | 0.2955 | 37.4730 |
+| 2026-09-09 | atlas-twice | 6 | z-ai/glm-5.3-flash | 10378 | 7091 | 0.0026 | 37.4704 |
+| 2026-09-09 | atlas-twice | 6 | z-ai/glm-5.3 | 54401 | 13642 | 0.1362 | 37.3342 |
+| 2026-09-09 | atlas-twice | 6 | z-ai/glm-5.3 | 54272 | 14054 | 0.1378 | 37.1964 |
