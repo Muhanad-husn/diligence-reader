@@ -5,6 +5,22 @@ completion to OpenRouter with temperature 0, a fixed seed, JSON output mode, the
 object REASONING gives its model, and the providers of IGNORED_PROVIDERS left out of the
 routing. Nothing else opens a socket.
 
+An empty content is not a reply, and neither is a reply the model was cut off in the middle of.
+The failure the ignore list is for reaches the routing from any provider that is not yet on it:
+the whole max_tokens budget goes on reasoning, and what comes back is a null content with a
+finish reason of length, or the few sentences the budget had left over stopping mid sentence on
+the same finish reason. Either way the call pays in full and there is no report in it. complete
+refuses both. Where a draw carries no content, or stops on the length finish reason, it sends
+the request once more so the router picks again, and where the second draw does the same it
+raises NoReply naming the model, the provider each draw named, the finish reason, the
+completion tokens and the characters the gateway returned. Both draws' tokens go onto the
+completion the second draw returns, so the ledger books what was paid either way. z-ai/glm-5.3
+did this to the writer on 2026-09-09: two re-asks came back at nothing at all, one first draw
+came back at 652 characters of 24000 completion tokens, and complete handed all three on as
+though they were answers, so a schedule with no report on it was written to disk and graded.
+A report that is genuinely too long is not what this catches: every pass that came back whole
+sits well under the cap, pass a of atlas at 13627 completion tokens of 24000.
+
 Money is a ceiling the code enforces. A batch of calls runs inside Ledger.batch, which prints
 the estimated tokens and the price before anything is sent, refuses when the estimate would
 take the phase past its cap or the total past the $50 ceiling, and on a clean exit appends one
@@ -76,6 +92,16 @@ REASONING: dict[str, dict] = {
 # with no note at all, three runs in a row.
 IGNORED_PROVIDERS = ("Wafer",)
 
+# The finish reason a draw carries when it ran out of the max_tokens budget. The reply then
+# stops wherever the budget ran out, which is usually mid sentence, and on a provider that
+# ignores the reasoning object it stops after a few hundred characters of a paid full budget.
+CUT_OFF = "length"
+
+# How many times one request is drawn before an answer with no reply in it is given up on. The
+# second draw is what the router sends somewhere else; a third would pay a third time for the
+# same answer.
+MAX_DRAWS = 2
+
 # The total ceiling and the per phase caps, from PLAN.md section 6.
 TOTAL_CEILING = 50.0
 PHASE_CAPS: dict[int, float] = {0: 0.0, 1: 0.0, 2: 8.0, 3: 0.0, 4: 0.0, 5: 8.0, 6: 15.0, 7: 4.0}
@@ -92,6 +118,10 @@ class CapExceeded(Exception):
     """Raised before a request when its estimate would pass a phase cap or the total ceiling."""
 
 
+class NoReply(Exception):
+    """Raised when two draws of one request both came back with no reply in them."""
+
+
 @dataclass(frozen=True)
 class Completion:
     """One model reply: its text, the gateway's reported usage, the wall seconds and the model."""
@@ -106,6 +136,23 @@ class Completion:
 def estimate_tokens(text: str) -> int:
     """Estimates the tokens of a string as its characters divided by four, rounded up."""
     return math.ceil(len(text) / 4)
+
+
+def refused_draw(
+    provider: str | None, finish_reason: str | None, tokens_out: int, characters: int
+) -> str:
+    """One refused answer written out: who served it, why it stopped, what it billed and how
+    much text it returned.
+
+    A body that names no provider and a body that gives no finish reason are written as that,
+    because what the gateway did not say is not guessed at here.
+    """
+    returned = f"{characters} characters" if characters else "no content"
+    return (
+        f"{provider or 'no provider named'} finished on "
+        f"{finish_reason or 'no finish reason'} after {tokens_out} completion tokens "
+        f"and returned {returned}"
+    )
 
 
 def price(model: str, tokens_in: int, tokens_out: int) -> float:
@@ -163,14 +210,30 @@ class Gateway:
             )
         return found
 
+    def _send(self, body: dict) -> tuple[dict, float]:
+        """Posts one chat completion and returns the answered body and the wall seconds.
+
+        Raises httpx.HTTPStatusError when the gateway answers outside the 2xx range.
+        """
+        started = time.monotonic()
+        response = self._client.post(
+            f"{self.base_url}/chat/completions",
+            json=body,
+            headers={"Authorization": f"Bearer {self.api_key}"},
+        )
+        response.raise_for_status()
+        return response.json(), time.monotonic() - started
+
     def complete(
         self, model: str, messages: list[dict], max_tokens: int, json: bool = True
     ) -> Completion:
         """Sends one chat completion and returns its text with the reported usage.
 
         The body asks for a JSON object unless json is false, which is how a call that wants
-        prose back is made. Raises httpx.HTTPStatusError when the gateway answers outside the
-        2xx range.
+        prose back is made. An answer carrying no content, and an answer cut off by the
+        max_tokens budget, are not replies: either is sent again once, and two of them raise
+        NoReply. The completion carries the tokens of every draw it took. Raises
+        httpx.HTTPStatusError when the gateway answers outside the 2xx range.
         """
         body = {
             "model": model,
@@ -183,22 +246,35 @@ class Gateway:
         }
         if json:
             body["response_format"] = {"type": "json_object"}
-        started = time.monotonic()
-        response = self._client.post(
-            f"{self.base_url}/chat/completions",
-            json=body,
-            headers={"Authorization": f"Bearer {self.api_key}"},
-        )
-        response.raise_for_status()
-        seconds = time.monotonic() - started
-        data = response.json()
-        usage = data.get("usage") or {}
-        return Completion(
-            text=data["choices"][0]["message"].get("content") or "",
-            tokens_in=int(usage.get("prompt_tokens", 0)),
-            tokens_out=int(usage.get("completion_tokens", 0)),
-            seconds=seconds,
-            model=model,
+        seconds = 0.0
+        tokens_in = 0
+        tokens_out = 0
+        refused: list[str] = []
+        for _ in range(MAX_DRAWS):
+            data, took = self._send(body)
+            seconds += took
+            usage = data.get("usage") or {}
+            drawn_out = int(usage.get("completion_tokens", 0))
+            tokens_in += int(usage.get("prompt_tokens", 0))
+            tokens_out += drawn_out
+            choice = (data.get("choices") or [{}])[0]
+            text = (choice.get("message") or {}).get("content") or ""
+            finish_reason = choice.get("finish_reason")
+            if text and finish_reason != CUT_OFF:
+                return Completion(
+                    text=text,
+                    tokens_in=tokens_in,
+                    tokens_out=tokens_out,
+                    seconds=seconds,
+                    model=model,
+                )
+            # OpenRouter names the provider that served the call at the top of the body, so
+            # the message can say which one answered with no reply in it.
+            refused.append(
+                refused_draw(data.get("provider"), finish_reason, drawn_out, len(text))
+            )
+        raise NoReply(
+            f"{model} returned no reply on {len(refused)} draws: " + ", then ".join(refused)
         )
 
 

@@ -26,6 +26,7 @@ from rlm.gateway import (
     TOTAL_CEILING,
     CapExceeded,
     Completion,
+    NoReply,
     Gateway,
     Ledger,
     estimate_tokens,
@@ -279,17 +280,88 @@ def test_gateway_complete_leaves_out_the_providers_that_ignore_the_reasoning_obj
         assert body["provider"] == {"ignore": list(IGNORED_PROVIDERS)}, model
 
 
-def test_gateway_complete_reads_a_null_content_as_empty_text():
-    body = reply("placeholder", tokens_in=500, tokens_out=6000)
-    body["choices"][0]["message"]["content"] = None
-    transport = FakeTransport([body])
+def cut_off_reply(
+    provider: str | None = "Wafer",
+    tokens_in: int = 500,
+    tokens_out: int = 6000,
+    content: str | None = None,
+) -> dict:
+    """One canned body of the failure this guards: the budget spent and the reply cut off.
+
+    content None is the null content the gateway returns when the whole budget went on
+    reasoning; a string is the few sentences a draw had budget left to write.
+    """
+    body = reply(content or "placeholder", tokens_in=tokens_in, tokens_out=tokens_out)
+    body["choices"][0]["message"]["content"] = content
+    body["choices"][0]["finish_reason"] = "length"
+    if provider is not None:
+        body["provider"] = provider
+    return body
+
+
+def test_gateway_complete_draws_again_when_the_content_comes_back_empty():
+    """An empty content is not a reply, so the request goes once more and both draws are paid."""
+    transport = FakeTransport(
+        [cut_off_reply(), reply('{"what": "x"}', tokens_in=500, tokens_out=40)]
+    )
     gateway = Gateway(api_key="test-key", transport=transport)
 
     completion = gateway.complete(MODEL, [{"role": "user", "content": "u"}], max_tokens=6000)
 
-    assert completion.text == ""
-    assert completion.tokens_in == 500
-    assert completion.tokens_out == 6000
+    assert len(transport.requests) == 2
+    assert transport.requests[1].content == transport.requests[0].content
+    assert completion.text == '{"what": "x"}'
+    assert completion.tokens_in == 1000
+    assert completion.tokens_out == 6040
+
+
+def test_gateway_complete_draws_again_when_the_reply_was_cut_off_at_the_budget():
+    """A draw that stops on the length finish reason spent the budget and wrote no report, so
+    it is refused the way an empty one is however much text came back with it."""
+    transport = FakeTransport(
+        [
+            cut_off_reply(tokens_out=24000, content="## Executive summary, then it stopped"),
+            reply('{"what": "x"}', tokens_in=500, tokens_out=40),
+        ]
+    )
+    gateway = Gateway(api_key="test-key", transport=transport)
+
+    completion = gateway.complete(MODEL, [{"role": "user", "content": "u"}], max_tokens=24000)
+
+    assert len(transport.requests) == 2
+    assert completion.text == '{"what": "x"}'
+    assert completion.tokens_out == 24040
+
+
+def test_gateway_complete_refuses_two_draws_with_no_reply_and_names_what_it_saw():
+    """Two refused draws raise, naming the model, the providers, the finish reason, the
+    completion tokens and the text, so a run fails instead of shipping half a report."""
+    transport = FakeTransport(
+        [
+            cut_off_reply(),
+            cut_off_reply(provider="Kestrel", tokens_out=24000, content="## Executive summary"),
+        ]
+    )
+    gateway = Gateway(api_key="test-key", transport=transport)
+
+    with pytest.raises(NoReply) as raised:
+        gateway.complete(MODEL, [{"role": "user", "content": "u"}], max_tokens=24000)
+
+    said = str(raised.value)
+    assert len(transport.requests) == 2
+    for named in (MODEL, "Wafer", "Kestrel", "length", "6000", "24000", "no content", "20 characters"):
+        assert named in said, named
+
+
+def test_gateway_complete_says_so_where_the_body_names_no_provider():
+    """A body carrying no provider is written as that and no field is guessed at."""
+    transport = FakeTransport([cut_off_reply(provider=None), cut_off_reply(provider=None)])
+    gateway = Gateway(api_key="test-key", transport=transport)
+
+    with pytest.raises(NoReply) as raised:
+        gateway.complete(MODEL, [{"role": "user", "content": "u"}], max_tokens=6000)
+
+    assert "no provider named" in str(raised.value)
 
 
 def test_gateway_complete_raises_on_a_non_200_reply():
