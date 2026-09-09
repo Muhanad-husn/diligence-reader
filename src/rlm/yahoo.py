@@ -189,13 +189,20 @@ def heading_of(line: str) -> str | None:
 
 
 def markdown_of(html: str) -> str:
-    """Converts one filing document from HTML to markdown."""
+    """Converts one filing document from HTML to markdown.
+
+    A filing writes many of its spaces as non-breaking spaces, so a figure reads as a price
+    joined to its unit by a character no later stage can quote. They become ordinary spaces
+    here, and every line ends with a single newline. The words, the quotation marks and the
+    dashes of the filing are left as they are.
+    """
     reader = html2text.HTML2Text()
     reader.body_width = 0
     reader.ignore_images = True
     reader.ignore_links = True
     reader.unicode_snob = True
-    return reader.handle(html)
+    text = reader.handle(html)
+    return text.replace("\r\n", "\n").replace("\r", "\n").replace("\N{NO-BREAK SPACE}", " ")
 
 
 def has_text(text: str, heading: str) -> bool:

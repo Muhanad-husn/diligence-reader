@@ -140,6 +140,12 @@ def test_markdown_of_drops_tags_and_keeps_the_words():
     assert "<p>" not in text
 
 
+def test_markdown_of_turns_non_breaking_spaces_into_spaces():
+    text = markdown_of("<html><body><p>reduced by $350&#160;million.</p></body></html>")
+    assert "$350 million." in text
+    assert "\xa0" not in text
+
+
 def test_write_parts_writes_the_same_bytes_twice(tmp_path):
     parts = [Part(heading="ITEM 1. BUSINESS", text="**ITEM 1. BUSINESS**\n\nbody\n")]
     first = write_parts(tmp_path / "a", parts)
