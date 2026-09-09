@@ -60,11 +60,52 @@ RUN_DOLLARS = 2.0
 PINNED_FILES = ("report.md", "verify.json", "grade.json")
 DIGESTS_PATH = ROOT / "tests" / "phase7-yahoo-digests.json"
 
-# The documents the map leaves out of the matter and the facts the report does not carry, each
-# with the one sentence that says why, put to the founder in the pull request. Empty until a
-# run shows a miss; a fact every one of whose documents is a known miss is excused with it.
-KNOWN_MISSES: dict[str, str] = {}
-KNOWN_FACT_MISSES: dict[str, str] = {}
+# The documents a stage dropped on the one run of 2026-09-09 and the facts the report does not
+# carry, each with the phase that owns it and the one sentence that says why, put to the
+# founder in the pull request of #125. A known miss is not asserted; it is counted in the
+# readout, and a fact every one of whose documents is a known miss is excused with it. The
+# fix belongs to the phase named (RULES.md gate 2), never here.
+LENGTH = (
+    "phase 2's, the note was dropped: GLM 5.3 Flash finished on length at 6000 completion "
+    "tokens on both draws of a section over 25000 characters"
+)
+COVER = (
+    "phase 3's, noted and out of the cluster: a cover page sharing the file number and the "
+    "employer number with the other cover pages and nothing with the deal"
+)
+BREACH = (
+    "phase 3's, noted and out of the cluster: the breach announcement names no deal value, "
+    "and the map's named-link set did not tie it to the sale"
+)
+KNOWN_MISSES: dict[str, str] = {
+    "documents/10-K-2016/20-item-7-management-s-discussion-and-analysis-of-financial-con.md": LENGTH,
+    "documents/DEFM14A-2017-04-24/10-summary.md": LENGTH,
+    "documents/DEFM14A-2017-04-24/21-proposal-1-the-sale-transaction-continued-3.md": LENGTH,
+    "documents/DEFM14A-2017-04-24/49-commitments-and-contingencies.md": LENGTH,
+    "documents/8-K-2017-02-21-amendment/17-witnesseth.md": (
+        "phase 2's, the note was dropped: GLM 5.3 Flash finished on length at 6000 completion "
+        "tokens on both draws of the reorganization amendment"
+    ),
+    "documents/8-K-2016-09-22-2014-security-incident/08-front-matter.md": BREACH,
+    "documents/8-K-2016-12-14-2013-security-incident/08-front-matter.md": BREACH,
+    "documents/8-K-2016-07-25-stock-purchase-agreement/03-current-report.md": COVER,
+    "documents/8-K-2017-02-21-amendment/03-current-report.md": COVER,
+    "documents/10-K-2016/02-securities-and-exchange-commission.md": COVER,
+    "documents/8-K-2016-07-25-stock-purchase-agreement/04-item-1-01-entry-into-a-material-definitive-agreement.md": (
+        "phase 4's, in the cluster and cut from the set: the original 8-K item shares its "
+        "values with the purchase agreement beside it, which the set kept"
+    ),
+}
+KNOWN_FACT_MISSES: dict[str, str] = {
+    "shared-liability-announced": (
+        "phase 2's, the press release note quoted the 50 percent sentence beside it and not "
+        "the sentence that says the liabilities are shared"
+    ),
+    "price-before-against-price-after": (
+        "phase 5's, the dossier carries both prices and the narrative wrote the revised "
+        "price alone, leaving the original in the evidence schedule"
+    ),
+}
 
 
 def documents_or_skip():
@@ -487,9 +528,11 @@ def test_phase_1_holds_on_yahoo(sample_dir, key, records, indexed):
 def test_phase_2_holds_on_yahoo(key, notes, sections_by_doc):
     """Every note is well shaped, every quote verifies, and every phase 2 fact is quoted."""
     _RAN.add(2)
+    known = excused(key)
+    kept = replace(key, facts=tuple(fact for fact in key.facts if fact.id not in known))
     test_phase2.assert_notes_well_shaped(notes, key)
     test_phase2.assert_notes_quotes_verified(notes, sections_by_doc)
-    test_phase2.test_one_document_carries_its_planted_quotes(notes, key)
+    test_phase2.test_one_document_carries_its_planted_quotes(notes, kept)
     test_phase2.test_seed_document_flags_name_every_planted_identifier(
         notes, key, RUN_DIR, YAHOO
     )
@@ -533,8 +576,9 @@ def test_phase_4_holds_on_yahoo(key, dossiered, known_anchors, index_surfaces):
 
 
 def test_phase_5_holds_on_yahoo(key, report, verified, graded):
-    """Recall is 100 but for an excused fact, the verifier passes, and the grade holds recall
-    over the key and no rubric, because the key has none."""
+    """Recall is 100 but for a known miss, the verifier passes, and the grade holds recall over
+    the key and no rubric, because the key has none. Every known miss is counted in the
+    readout, and a miss that comes right is taken off the list."""
     _RAN.add(5)
     recall, _, missed = measure_recall(key, report.text)
     known = excused(key)
