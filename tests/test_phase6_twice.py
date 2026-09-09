@@ -4,9 +4,9 @@ control writes them, and a hundred clones of a sister entity under
 `data_room/09_Sister_Entity/` with the ids DR-201 to DR-300.
 
 The clones carry none of the planted truth. Pass A clones the 81 documents that are neither
-required nor decoys, with the names of column A, dates two years back, amounts times 1.37 and
+required nor decoys, with the names of column A, dates two years back, amounts times 1.46 and
 identifiers suffixed `-SE`. Pass B clones the 19 largest of those 81 a second time, with the
-names of column B, dates five years back, amounts times 0.61 and identifiers suffixed `-SG`, so
+names of column B, dates five years back, amounts times 0.64 and identifiers suffixed `-SG`, so
 that 19 near duplicates do not stand in the room as a cluster of their own.
 
 The folder, the ids, the two passes' constants, the names table and the counts the chain has to
@@ -58,12 +58,12 @@ FACTS = 53
 
 # Pass A: the 81, ids DR-201 to DR-281.
 SHIFT_YEARS = 2
-FACTOR = 1.37
+FACTOR = 1.46
 SUFFIX = "-SE"
 
 # Pass B: the 19 largest of the 81 a second time, ids DR-282 to DR-300.
 SECOND_SHIFT_YEARS = 5
-SECOND_FACTOR = 0.61
+SECOND_FACTOR = 0.64
 SECOND_SUFFIX = "-SG"
 
 # The two passes read by number, pass A first.
