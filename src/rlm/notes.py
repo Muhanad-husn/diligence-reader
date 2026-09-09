@@ -43,6 +43,15 @@ JSON object, or that has no what or none of the four lists, is asked again with 
 names, and a second reply that fails the same way drops the note whole. There is no third call.
 A document the key names but sections.jsonl does not carry is dropped without a call.
 
+A document whose text is longer than PIECE_LIMIT characters is split at section boundaries into
+pieces, each under the limit, and noted one piece at a time: each piece is its own call (or two,
+on a re-ask), asked only for the named values that read inside its own text, since a piece
+cannot quote a value it does not carry. The merged note's what is the first piece's whose note
+is not None, and each quoted field is the pieces' verified items joined in piece order; a piece
+whose note is dropped whole loses only its own items, and a document with no piece noted at all
+gives a note of None. The harvest that follows still runs over the whole document's sections,
+exactly as it does for a document short enough for one call.
+
 Every reply text is written verbatim to runs/<sample>/notes-raw/<document>.<attempt>.txt, so a
 pass can be read back without calling the model again.
 
@@ -122,6 +131,11 @@ REPLY_LISTS = QUOTED_FIELDS
 
 # The hard output cap of one note, and the estimate of its cost before the call.
 MAX_OUTPUT_TOKENS = 6000
+
+# The document_text length above which a document is split into pieces at section boundaries
+# and noted one piece at a time (#131: item 7 of the yahoo 10-K is 40,000 characters and one
+# call filled its completion cap before the committee's sentence came out).
+PIECE_LIMIT = 20000
 
 _WHITESPACE = re.compile(r"\s+")
 _CURLY = {"“": '"', "”": '"', "‘": "'", "’": "'"}
@@ -326,6 +340,31 @@ def note_name(doc_id: str) -> str:
 def document_text(sections: list[dict]) -> str:
     """The document as the model sees it: section text in ordinal order, one per line."""
     return "\n".join(section["text"] for section in sections)
+
+
+def split_sections(sections: list[dict], limit: int = PIECE_LIMIT) -> list[list[dict]]:
+    """Splits one document's sections into pieces of at most limit characters, cut at section
+    boundaries and greedy in ordinal order.
+
+    A section is never split or reordered: a piece is a contiguous run of the document's own
+    sections. A section that alone is longer than limit is a piece of its own, next to whichever
+    it does not fit. A document whose own document_text is at most limit is one piece.
+    """
+    pieces: list[list[dict]] = []
+    current: list[dict] = []
+    length = 0
+    for section in sections:
+        added = len(section["text"]) if not current else len(section["text"]) + 1
+        if current and length + added > limit:
+            pieces.append(current)
+            current = [section]
+            length = len(section["text"])
+        else:
+            current.append(section)
+            length += added
+    if current:
+        pieces.append(current)
+    return pieces
 
 
 def build_messages(sections: list[dict]) -> list[dict]:
@@ -754,13 +793,61 @@ def add_harvest(doc: str, note: dict, sections: list[dict]) -> list[dict]:
     return [log_record(record) for record in dropped]
 
 
+def piece_named_values(piece: list[dict], named: Sequence[str]) -> list[str]:
+    """named restricted to the values whose folded form reads inside this piece's own text.
+
+    A piece is asked only for the named values it carries: one it does not carry can never be
+    quoted from it, and asking anyway would call it back a second time for nothing.
+    """
+    text = fold(document_text(piece))
+    return [value for value in named if fold(value) and fold(value) in text]
+
+
 def note_document(
     doc: str, model: str, pass_name: str, sections: list[dict], call, named: Sequence[str] = ()
 ) -> tuple[dict | None, list[dict]]:
-    """Notes one document from the model, then harvests the figures the model did not write."""
-    note, records = model_note(doc, model, pass_name, sections, call, named)
-    if note is None:
+    """Notes one document from the model, then harvests the figures the model did not write.
+
+    A document whose text is over PIECE_LIMIT characters is split into pieces by split_sections
+    and each piece noted on its own, with model_note run separately per piece and only the named
+    values that piece carries. The merged note's what is the first piece's whose note is not
+    None; each quoted field is the pieces' items merged, piece by piece, in piece order; the
+    records are the pieces' records concatenated in piece order; and a document with no piece
+    noted at all gives a note of None. A document at or under PIECE_LIMIT keeps the single-call
+    path. Either way the harvest runs once, over the whole document's sections.
+    """
+    if len(document_text(sections)) <= PIECE_LIMIT:
+        note, records = model_note(doc, model, pass_name, sections, call, named)
+        if note is None:
+            return None, records
+        return note, records + add_harvest(doc, note, sections)
+
+    records: list[dict] = []
+    piece_notes: list[dict] = []
+    for piece in split_sections(sections):
+        piece_note, piece_records = model_note(
+            doc, model, pass_name, piece, call, piece_named_values(piece, named)
+        )
+        records.extend(piece_records)
+        if piece_note is not None:
+            piece_notes.append(piece_note)
+
+    if not piece_notes:
         return None, records
+
+    note = {
+        "doc": doc,
+        "model": model,
+        "pass": pass_name,
+        "what": piece_notes[0]["what"],
+        "usage": {},
+    }
+    for field in QUOTED_FIELDS:
+        merged: list[dict] = []
+        for piece_note in piece_notes:
+            merged = merge_items(merged, piece_note[field])
+        note[field] = merged
+
     return note, records + add_harvest(doc, note, sections)
 
 
