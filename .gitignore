@@ -7,3 +7,4 @@ __pycache__/
 *.egg-info/
 samples/*/_dd/
 samples/yahoo/documents/
+.claude/skills/
