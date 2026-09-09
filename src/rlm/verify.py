@@ -1,6 +1,6 @@
 """Reads a written report back against the room it was written from, and says where it fails.
 
-Four checks run on the five sections the model wrote. The schedule under `## Evidence` is
+Five checks run on the five sections the model wrote. The schedule under `## Evidence` is
 built by code out of the dossier and is not read here.
 
 check_citations asks that every citation parses with rlm.sections.parse_anchor, that the
@@ -41,7 +41,13 @@ dossier's first matter and the lesser documents are its Lesser matters rows outs
 The first finding has to cite a document of the set, and no finding citing only lesser
 documents may come before the first that cites the set.
 
-verify runs the four and returns the failures, the counts and whether the report passes.
+check_sections asks that the report carries a section the model wrote at all. A reply that came
+back empty leaves report.md opening straight at `## Evidence`, and the four checks above pass
+it: there is no sentence to fail and the schedule's own citations all resolve. A schedule with
+no report on it is a failure of the whole report and not of a line, so the check names the line
+the report opens on and says which five headings are missing.
+
+verify runs the five and returns the failures, the counts and whether the report passes.
 main prints that readout and exits 1 when it does not pass. Nothing here reads an answer key,
 opens a socket or makes a model call.
 """
@@ -62,6 +68,7 @@ from rlm.write import (
     CALCULATION,
     CITATION_TEXT,
     EVIDENCE_HEADING,
+    HEADINGS,
     _CITATION,
     body_lines,
     citations,
@@ -75,8 +82,12 @@ from rlm.write import (
 # The heading of the section whose order is checked.
 FINDINGS_HEADING = "Findings ranked by materiality"
 
-# The four checks, in the order the readout prints them.
-CHECKS = ("citations", "numbers", "certainty", "order")
+# The five checks, in the order the readout prints them. The four that were here first keep
+# the places they have always printed in, and the sections check follows them.
+CHECKS = ("citations", "numbers", "certainty", "order", "sections")
+
+# The five sections the model writes, which is HEADINGS without the schedule the code adds.
+WRITTEN_HEADINGS = HEADINGS[:-1]
 
 # The certainty ladder, rising. A sentence carries the rung of the highest word it holds, and a
 # sentence holding none of them is rung 0.
@@ -313,7 +324,7 @@ def rung_name(level: int) -> str:
     return CERTAINTY[level - 1][0] if level else "no certainty word"
 
 
-# ---------------------------------------------------------------- the four checks
+# ---------------------------------------------------------------- the five checks
 
 
 def check_citations(
@@ -451,6 +462,28 @@ def check_order(report: str, dossier: str) -> list[dict]:
     return found
 
 
+def first_line(report: str) -> str:
+    """The first line of the report that says anything, or an empty string for an empty file."""
+    for line in report.splitlines():
+        if line.strip():
+            return line.strip()
+    return ""
+
+
+def check_sections(report: str) -> list[dict]:
+    """The report carries a section the model wrote, and is not the schedule on its own."""
+    if narrative_blocks(report):
+        return []
+    return [
+        failure(
+            "sections",
+            first_line(report),
+            "the report is the schedule alone and carries none of the five sections: "
+            + ", ".join(WRITTEN_HEADINGS),
+        )
+    ]
+
+
 def verify(
     report: str,
     sections: list[dict],
@@ -458,12 +491,13 @@ def verify(
     dossier: str,
     mapping: dict[str, str] | None = None,
 ) -> dict:
-    """Runs the four checks over one report and returns the failures, the counts and the verdict."""
+    """Runs the five checks over one report and returns the failures, the counts and the verdict."""
     failures = []
     failures.extend(check_citations(report, sections, index, mapping))
     failures.extend(check_numbers(report, sections, dossier))
     failures.extend(check_certainty(report, sections))
     failures.extend(check_order(report, dossier))
+    failures.extend(check_sections(report))
     return {"failures": failures, "passes": not failures, "counts": counts_of(failures)}
 
 

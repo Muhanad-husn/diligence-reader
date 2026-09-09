@@ -9,10 +9,20 @@ is the user message; the dossier itself is never sent, and the model sees no ans
 because nothing here reads one. The reply is the five sections the brief asks for, every
 sentence of them ending in a citation `[<doc> | <anchor>]` copied off a digest row.
 
+A room may hold a second matter, and the map ranks the matters it finds. The digest then
+writes each matter after the first as its own block, under the dossier's own heading for it
+and a line saying that it is smaller and belongs under the first matter inside the same five
+sections. A further matter has a room of its own, FURTHER_ROWS, so the first matter loses no
+row to it and the report still leads with what the map ranked first, and it carries no lesser
+matters, because the room's smaller things were written once already under the first matter.
+A dossier of one matter has no further matter, so its digest is the file it was.
+
 build_evidence then writes the sixth section, `## Evidence`, out of the dossier in code and
 with no model in it: every document of the matter with its own timeline, names, figures and
 blind models, then every comparison, then the lesser matters, one line each ending in that
-row's own citation. That schedule is what the reader checks the five sections against, and it
+row's own citation. A further matter takes a block of its own after the first, on the same
+rule, so its words stand in the artefact and not only in whichever sentences one draw found
+room for. That schedule is what the reader checks the five sections against, and it
 is why recall is a property of the artefact rather than of a draw. A schedule too long to read
 gives up its figures that are not money and then its shortest timeline lines, in that order,
 and never a name, a comparison, a lesser matter or a model.
@@ -185,6 +195,23 @@ DIGEST_ROWS = 150
 # are sized against.
 LESSER_ROWS = 6
 
+# The most rows a matter after the first may put into a digest. A room usually holds one
+# matter and then this number is never used. Where it holds two, the second is written under
+# the first and is not the report's subject, so it takes about a third of the first matter's
+# room: enough for every comparison it carries, one row for each of its names, one timeline row
+# for each document it is made of and a few of its largest figures. It is charged on top of
+# DIGEST_ROWS rather than out of it, because the first matter is what the report leads with and
+# a row taken off it is a finding the report cannot write.
+FURTHER_ROWS = 45
+
+# The line the digest writes under a further matter's heading, so that a reply reading the
+# digest knows those rows are a second matter and where they belong in the report.
+FURTHER_NOTE = (
+    "A second matter of the same room, smaller than the matter above. Write its rows in the "
+    "same five sections, after the first matter's rows and ranked under them, and do not mix "
+    "them into the first matter's findings."
+)
+
 # The most words a row's quote may run to before the digest passes it over. A dossier row can
 # be a whole spreadsheet line, a dozen cells joined by pipes, and a report asked to quote one
 # of those whole either spends a paragraph on it or quietly shortens it. Where a section has
@@ -232,6 +259,32 @@ def first_matter(dossier: str) -> str:
         return dossier
     nxt = dossier.find("\n## Matter ", start + 1)
     return dossier[start:] if nxt < 0 else dossier[start:nxt]
+
+
+def further_matters(dossier: str) -> list[str]:
+    """The text of each matter after the first, in the order the dossier ranks them.
+
+    A dossier of one matter gives an empty list, which is what keeps every one matter sample's
+    digest and schedule the files they are.
+    """
+    first = dossier.find("## Matter ")
+    if first < 0:
+        return []
+    found = []
+    start = dossier.find("\n## Matter ", first + 1)
+    while start >= 0:
+        nxt = dossier.find("\n## Matter ", start + 1)
+        found.append(dossier[start + 1 :] if nxt < 0 else dossier[start + 1 : nxt])
+        start = nxt
+    return found
+
+
+def matter_heading(matter: str) -> str:
+    """The `## Matter <n>` line a matter opens with, without its marks."""
+    for line in matter.splitlines():
+        if line.startswith("## "):
+            return line[3:].strip()
+    return ""
 
 
 def dossier_sections(dossier: str) -> dict[str, list[str]]:
@@ -523,26 +576,85 @@ def digest_sections(dossier: str) -> dict[str, list[str]]:
     }
 
 
+def further_sections(matter: str, cap: int = FURTHER_ROWS) -> dict[str, list[str]]:
+    """The rows the digest keeps for a matter after the first, by the heading they came from.
+
+    A further matter is read the way the first one is, with two differences. It has a room of
+    its own, FURTHER_ROWS, so the first matter loses no row to it. And it carries no lesser
+    matters: the room's smaller things were written once already, under the first matter, and
+    a further matter's own room is spent on the rows that say what it is. Every comparison it
+    holds and one row for each of its names go in whole, as they do above, and what is left
+    goes to its dated turning points and then its largest figures.
+    """
+    sections = dossier_sections(matter)
+    names = named_rows(sections.get("Names", []))
+    weight = document_weight(sections)
+    models = sections.get("Models blind to it", [])
+    comparisons = quotable_first(sections.get("Comparisons", []))
+    room = max(0, cap - len(names) - len(models) - len(comparisons))
+    timeline = timeline_rows(
+        sections.get("Timeline", []),
+        weight,
+        min(room, max(len(weight), min(TIMELINE_ROWS, room * 2 // 3))),
+    )
+    figure_room = max(0, room - len(timeline))
+    money_cap = min(MONEY_FIGURE_ROWS, figure_room)
+    figures = figure_rows(
+        sections.get("Figures", []),
+        weight,
+        money_cap,
+        min(TERM_FIGURE_ROWS, figure_room - money_cap),
+    )
+    return {
+        "Timeline": timeline,
+        "Names": names,
+        "Figures": figures,
+        "Models blind to it": models,
+        "Comparisons": comparisons,
+    }
+
+
+def digest_matters(dossier: str) -> list[tuple[str, dict[str, list[str]]]]:
+    """The rows the digest keeps for each matter, as the matter's heading and its sections.
+
+    The first entry is the first matter and its heading is empty, because the digest opens on
+    it and names nothing. Every entry after it is a further matter under its own heading.
+    """
+    found = [("", digest_sections(dossier))]
+    for matter in further_matters(dossier):
+        found.append((matter_heading(matter), further_sections(matter)))
+    return found
+
+
 def build_digest(dossier: str) -> list[str]:
     """Every row the digest keeps, in the order the digest writes them."""
-    chosen = digest_sections(dossier)
     found = []
-    for name in DIGEST_SECTIONS:
-        found.extend(chosen.get(name, []))
+    for _, chosen in digest_matters(dossier):
+        for name in DIGEST_SECTIONS:
+            found.extend(chosen.get(name, []))
     return found
 
 
 def digest_markdown(dossier: str) -> str:
-    """The digest as a markdown file, its rows under the headings the dossier gave them."""
-    chosen = digest_sections(dossier)
+    """The digest as a markdown file, its rows under the headings the dossier gave them.
+
+    A room holding a second matter writes it after the first, under the heading the dossier
+    gave it and a line saying where it belongs in the report.
+    """
     lines = ["# Digest", ""]
-    for name in DIGEST_SECTIONS:
-        if not chosen.get(name):
-            continue
-        lines.append(f"### {name}")
-        lines.append("")
-        lines.extend(chosen[name])
-        lines.append("")
+    for heading, chosen in digest_matters(dossier):
+        if heading:
+            lines.append(f"## {heading}")
+            lines.append("")
+            lines.append(FURTHER_NOTE)
+            lines.append("")
+        for name in DIGEST_SECTIONS:
+            if not chosen.get(name):
+                continue
+            lines.append(f"### {name}")
+            lines.append("")
+            lines.extend(chosen[name])
+            lines.append("")
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
@@ -600,8 +712,8 @@ def is_money_figure(row: str) -> bool:
     return money_of(row_fields(row)[0]) is not None
 
 
-def build_evidence(dossier: str, cut: int = 0) -> str:
-    """The schedule of what the room says, written from the dossier by code and by nothing else.
+def evidence_block(dossier: str, cut: int = 0) -> list[str]:
+    """The schedule lines of one matter, in the order the schedule writes them.
 
     Every document of the matter takes a heading and, under it, its timeline, the names read
     out of it, its figures and any model blind to the matter built on it, one line each ending
@@ -657,6 +769,27 @@ def build_evidence(dossier: str, cut: int = 0) -> str:
         lines.extend(evidence_line(row) for row in lesser)
         lines.append("")
 
+    return lines
+
+
+def build_evidence(dossier: str, cut: int = 0) -> str:
+    """The schedule of what the room says, written from the dossier by code and by nothing else.
+
+    The first matter's block opens the schedule. A room holding a second matter writes it after
+    that block, under its own heading, so that the words of the further matter stand in the
+    artefact and not only in whichever sentences one draw found room for. A room of one matter
+    writes one block and the schedule is the file it is.
+    """
+    lines = evidence_block(dossier, cut)
+    for matter in further_matters(dossier):
+        block = evidence_block(matter, cut)
+        if not block:
+            continue
+        # A third level heading, like every other heading of the schedule: the report reads a
+        # second level heading as a section of its own and the schedule is one section.
+        lines.append(f"### {matter_heading(matter)}")
+        lines.append("")
+        lines.extend(block)
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
@@ -1171,6 +1304,13 @@ def main(
                     f"verify {sample_dir.name}: second reply cut short, "
                     "report.md is the first reply"
                 )
+        if any(item["check"] == "sections" for item in rounds[kept - 1]):
+            # Both draws came back with no narrative, so report.md is the schedule and nothing
+            # else. It is written and it is graded, and this line and verify.json say what it is.
+            print(
+                f"verify {sample_dir.name}: no report was written, "
+                "report.md carries the schedule alone"
+            )
         report = build(replies[kept - 1])
         write_report(out_dir, report)
         evidence_lines = [line for line in evidence.splitlines() if line.startswith("- ")]
