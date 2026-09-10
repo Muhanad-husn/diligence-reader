@@ -1,7 +1,7 @@
 [project]
-name = "rlm"
+name = "diligence-reader"
 version = "0.0.0"
-description = "Reproducible, cheap, general replacement for a recursive language model on a diligence data room"
+description = "Reads an acquisition data room and writes a cited, verified findings report; a fixed rebuild of a recursive language model run"
 requires-python = "==3.13.*"
 dependencies = [
     "pdftext==0.7.1",
@@ -12,6 +12,9 @@ dependencies = [
     "pyyaml>=6,<7",
     "html2text==2025.4.15",
 ]
+
+license = "Apache-2.0"
+readme = "README.md"
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]

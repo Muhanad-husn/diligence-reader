@@ -1,0 +1,16 @@
+diligence-reader
+Copyright 2026 Muhanad Abulhusn (MergeSeat)
+
+This product includes software and data developed by third parties:
+
+- brainqub3/synthetic-dataRoom (MIT). The Project Atlas data room, answer key and rubric
+  under samples/atlas/. Copyright John Adeojo / Brainqub3.
+- zoharbabin/due-diligence-agents (Apache License 2.0). The Northwind sample under
+  samples/northwind/. Copyright Zohar Babin.
+- The-Life/synthetic-dataroom-generator (MIT). The Northstar Dental sample under
+  samples/northstar-dental/.
+- SEC EDGAR filings (public domain) for samples/yahoo/, fetched at run time and not
+  distributed here.
+
+The recursive language model run this project rebuilds is John Adeojo's
+(brainqub3/claude_code_RLM).

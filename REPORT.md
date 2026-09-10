@@ -2,10 +2,12 @@
 
 *Project report, 10 September 2026*
 
-A recursive language model wrote a strong diligence report on one data room, once, for a
-price nobody could state, in a way nobody could repeat. In five days and $18.95 we built a
-fixed program that does the same job on that room and three others, scores higher, costs
-cents a run, and gives the same answer twice.
+John Adeojo showed that a recursive language model can read a 100-document diligence data
+room and write a strong findings report. That result set the bar and the shape of the task.
+In five days and $18.95 we took the shape of his winning run and rebuilt it as a fixed
+program: it does the same job on that room and three others, scores at least as high under
+one grader, costs cents a run, and gives the same answer twice. This report is about what
+the rebuild adds, not about what the RLM got wrong.
 
 | | |
 |---|---|
@@ -38,23 +40,29 @@ program at inference time: it reads the room with leaf calls, decides what to re
 consolidates, and writes. His published run scored 98.5 on his own rubric. It is a real
 result and the report it produced is good.
 
-The question we set ourselves was not whether the RLM can do the task. It can. The question
-was what the result is worth as a tool, and that turns on three properties the RLM lacks:
+The question we set ourselves was not whether the RLM can do the task. It can, and John's
+run is the proof. The question was what it would take to turn that result into a tool a deal
+team could run every week, and that turns on three properties an improvised program does not
+set out to have:
 
-- **Reproducible in the middle.** The program is improvised per run. Reading the trail of
-  the 98.5 run shows a leaf pass over all 100 documents, then a list of 25 document ids
-  typed by the orchestrator from what it read, then two synthesis passes and a write.
-  Nothing between the raw files and the report is a fixed function; a second run is a
-  different program.
+- **Reproducible in the middle.** The RLM writes its program per run, by design. Reading
+  the trail of the 98.5 run shows a leaf pass over all 100 documents, then a list of 25
+  document ids chosen by the orchestrator from what it read, then two synthesis passes and
+  a write. Nothing between the raw files and the report is a fixed function, so a second
+  run is a different program. That is the RLM's flexibility, and also what makes a
+  difference between two runs hard to trace.
 - **Cheap and priced.** The run took 32 minutes and roughly $3 to $5 of leaf tokens on a
-  frontier model, with no ledger and no price known before a call was made.
-- **Runnable elsewhere.** One run on one room with one key. Nothing showed the method
-  transferred to a room with a different shape, a different planted truth, or no planted
-  truth at all.
+  frontier model. The demonstration did not need a ledger, so it did not keep one; a tool
+  does.
+- **Runnable elsewhere.** One run on one room with one key, which is what a demonstration
+  is. Whether the method transfers to a room with a different shape, a different planted
+  truth, or no planted truth at all was an open question, not a failing.
 
 Underneath these sits a fourth point the rubric does not measure: nothing in the RLM
-verified a sentence against its source. A report can score 98.5 and still paraphrase, round,
-and raise a "probable" to a "confirmed". A buyer's counsel cannot use that.
+checks a written sentence against its source, because nothing in its design asked it to. A
+report can score 98.5 and still paraphrase, round, or raise a "probable" to a "confirmed".
+For a buyer's counsel that check is the difference between a good read and a usable one,
+and it is the main thing the rebuild adds.
 
 ## 2. How we challenged it
 
@@ -113,13 +121,14 @@ grader we grade ourselves with.
 | RLM skill, Sonnet 5 leaf | 82 | 84 | 2 | 990 | 0 (subscription) |
 | Ours, GLM 5.3 Flash + GLM 5.3 | 100 | 100 | 0 | 750 | about 0.30 per run |
 
-The published 98.5 and the 82 to 84 we measured are the same method under two graders and
-two days. What we can say from our own measurement is this: under one grader, on one
-corpus, our fixed program scores 16 to 18 points higher, with no spread, in three quarters
-of the time, on models that cost a fraction of the leaf the RLM used. The RLM's
-planted-fact recall under our code grader is 34, ours is 100. That gap is mostly citation
-shape, but it is also the point: the RLM paraphrases where the key wants the room's own
-words.
+The published 98.5 and the 82 to 84 we measured are the same method under two graders, two
+leaf models and two days, so the two figures are not comparable with each other and we do
+not compare them. What we can say from our own measurement is this: under one grader, on
+one corpus, our fixed program scores 16 to 18 points higher than the RLM skill as shipped,
+with no spread, in three quarters of the time, on models that cost a fraction of the leaf
+the RLM used. The RLM's planted-fact recall under our code grader is 34, ours is 100. Most
+of that gap is citation shape: our grader wants the room's own words at an anchor, and the
+RLM was never asked to quote. The rest is the verifier.
 
 ### Generality
 
@@ -172,11 +181,13 @@ ask and learned anyway.
    cannot replace. Our notes stage is that pass, under a schema, verified.
 5. **Determinism made the debugging possible.** Five stages are byte-identical over two
    runs and pinned by digest. When a fact went missing it was traced to a phase in minutes,
-   because every other phase could be ruled out by its hash. The RLM has no equivalent; its
-   middle cannot be diffed.
+   because every other phase could be ruled out by its hash. An improvised program gives up
+   that diff in exchange for adapting to the room; for a demonstration that is the right
+   trade, for a tool it is not.
 6. **Spread is a number, not a hope.** Every run is written twice and the difference is
    printed beside the score. On the three gate samples it is zero. The RLM's two runs
-   differed by two rubric points and by their entire program.
+   differed by two rubric points, which is a small spread for a program written fresh each
+   time, and by their entire program.
 7. **The discipline cost less than the loop it prevented.** The key-first,
    one-phase-at-a-time rule looks slow. It closed eight phases in five days on $18.95, with
    every dollar attributable to a sample, a phase and a model.
@@ -193,9 +204,17 @@ ask and learned anyway.
 - **The writer needs a Pro-tier model.** GLM 5.3 is the only writer that passed the verifier
   on all three samples. The notes run on Flash; the write does not, yet.
 
+## 6. Credit
+
+The task, the room, the key, the rubric and the winning shape are John Adeojo's
+(brainqub3/synthetic-dataRoom and brainqub3/claude_code_RLM). The rebuild keeps his leaf
+pass, his report structure and his rubric, and would not exist without the published run to
+measure against. Where this report says the RLM lacks something, it means the demonstration
+did not set out to have it, not that the method cannot.
+
 ---
 
-Repository `Muhanad-husn/RLM`, 134 issues and pull requests, 2026-09-05 to 2026-09-09. Spend
+Repository `Muhanad-husn/diligence-reader`, 134 issues and pull requests, 2026-09-05 to 2026-09-09. Spend
 from `LEDGER.md`, scores from `PLAN.md` section 4a and the phase 7 comparison. Source rooms:
 brainqub3/synthetic-dataRoom (MIT), zoharbabin/due-diligence-agents (Apache-2.0),
 The-Life/synthetic-dataroom-generator (MIT), SEC EDGAR.
