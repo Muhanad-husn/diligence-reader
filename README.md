@@ -5,6 +5,8 @@ matter that connects across the documents under different names, weighed against
 seller disclosed and reserved, a recommendation with a number, and every sentence cited to
 the page it came from and checked against it by code.
 
+Project page: [muhanad-husn.github.io/diligence-reader](https://muhanad-husn.github.io/diligence-reader/)
+
 It is a fixed rebuild of the recursive language model (RLM) run that John Adeojo published
 on his Project Atlas data room ([brainqub3/claude_code_RLM](https://github.com/brainqub3/claude_code_RLM),
 [brainqub3/synthetic-dataRoom](https://github.com/brainqub3/synthetic-dataRoom)). The RLM
