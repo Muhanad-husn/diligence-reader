@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>diligence-reader</title>
+<meta name="description" content="Reads the whole acquisition data room. Writes the findings report, every sentence cited and checked against its source.">
+<style>
+  :root {
+    --bg: #0a0a13;
+    --ink: #f3f1fb;
+    --body: #e8e4fa;
+    --sec: #bdb7d6;
+    --mute: #8f86bd;
+    --accent: #8b5cf6;
+    --accent-hi: #a78bfa;
+    --rule: rgba(221, 216, 242, 0.1);
+    --rule-hi: rgba(221, 216, 242, 0.18);
+    --rule-lo: rgba(221, 216, 242, 0.08);
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @font-face { font-family: "Inter"; font-style: normal; font-weight: 300; font-display: swap; src: url(fonts/inter-latin-300.woff2) format("woff2"); }
+  @font-face { font-family: "Inter"; font-style: normal; font-weight: 400; font-display: swap; src: url(fonts/inter-latin-400.woff2) format("woff2"); }
+  @font-face { font-family: "Inter"; font-style: normal; font-weight: 500; font-display: swap; src: url(fonts/inter-latin-500.woff2) format("woff2"); }
+  @keyframes msDrift1 { 0%,100% { transform: translate3d(-6%, -4%, 0) scale(1); } 50% { transform: translate3d(8%, 6%, 0) scale(1.14); } }
+  @keyframes msDrift2 { 0%,100% { transform: translate3d(6%, 5%, 0) scale(1.08); } 50% { transform: translate3d(-7%, -6%, 0) scale(0.94); } }
+  @keyframes msDrift3 { 0%,100% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(-10%, 4%, 0) scale(1.2); } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    position: relative;
+    background: var(--bg);
+    color: var(--body);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    padding: 0;
+    overflow-x: hidden;
+  }
+  .hero { position: relative; overflow: hidden; padding: 0 24px 72px; background: radial-gradient(120% 90% at 50% -10%, #1b1746 0%, #12122c 42%, #0a0a13 78%); }
+  .hero .wrap { position: relative; }
+  .orb { position: absolute; border-radius: 50%; pointer-events: none; }
+  .orb-1 { top: -28%; left: 8%; width: 780px; height: 780px; filter: blur(90px); opacity: 0.62; background: radial-gradient(circle at 50% 50%, rgba(139,92,246,0.85), rgba(139,92,246,0) 62%); animation: msDrift1 22s ease-in-out infinite; }
+  .orb-2 { top: -14%; right: -6%; width: 720px; height: 720px; filter: blur(100px); opacity: 0.55; background: radial-gradient(circle at 50% 50%, rgba(56,80,220,0.9), rgba(56,80,220,0) 62%); animation: msDrift2 27s ease-in-out infinite; }
+  .orb-3 { bottom: -34%; left: 36%; width: 820px; height: 620px; filter: blur(110px); opacity: 0.45; background: radial-gradient(circle at 50% 50%, rgba(196,181,253,0.6), rgba(196,181,253,0) 64%); animation: msDrift3 31s ease-in-out infinite; }
+  .sheen { position: absolute; inset: 0; background: radial-gradient(90% 60% at 50% 0%, rgba(255,255,255,0.10), rgba(255,255,255,0) 60%); pointer-events: none; }
+  .watermark { position: absolute; top: 50%; right: 6%; transform: translateY(-50%); width: min(46vw, 560px); opacity: 0.09; pointer-events: none; user-select: none; }
+  .band { margin-top: 96px; padding: 96px 24px; border-top:1px solid rgba(167,139,250,0.14);  border-bottom:1px solid rgba(167,139,250,0.14);  background:linear-gradient(180deg, rgba(24,22,58,0.72), rgba(12,12,26,0.72));  }
+  .plain { padding: 96px 24px 0; }
+  .foot-orb { position: absolute; bottom: -30%; left: 20%; width: 900px; height: 640px; border-radius: 50%; filter: blur(100px); opacity: 0.5; background: radial-gradient(circle at 50% 50%, rgba(139,92,246,0.75), transparent 62%); animation: msDrift2 26s ease-in-out infinite; pointer-events: none; }
+  ::selection { background: rgba(139, 92, 246, 0.32); }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  .prose { max-width: 760px; }
+
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(139, 92, 246, 0.4); }
+  a:hover { color: var(--accent-hi); border-bottom-color: var(--accent-hi); }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+  header { padding: 140px 0 0; max-width: 760px; }
+  h1 { margin: 0; font-size: clamp(38px, 6.5vw, 58px); font-weight: 300; letter-spacing: -0.025em; line-height: 1.04; color: var(--ink); }
+  .sub { margin: 16px 0 0; font-size: 15px; line-height: 1.7; color: var(--sec); max-width: 640px; text-wrap: pretty; }
+  .quiet { margin: 22px 0 0; font-size: 14px; line-height: 1.6; color: var(--mute); }
+  .lede { margin: 26px 0 0; font-size: 19px; font-weight: 300; line-height: 1.6; max-width: 620px; text-wrap: pretty; }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 38px; }
+  .btn { display: inline-block; padding: 11px 20px; font-size: 14px; font-weight: 500; letter-spacing: 0.01em; border-radius: 3px; background: transparent; border-bottom-width: 1px; }
+  .btn-primary { color: var(--ink); border: 1px solid var(--accent); }
+  .btn-primary:hover { color: var(--accent-hi); border-color: var(--accent-hi); }
+  .btn-secondary { color: var(--sec); border: 1px solid rgba(221, 216, 242, 0.16); }
+  .btn-secondary:hover { color: var(--ink); border-color: rgba(221, 216, 242, 0.34); }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: 28px 32px; margin-top: 64px; padding-top: 34px; border-top: 1px solid var(--rule); }
+  .stat-n { font-size: 24px; font-weight: 400; color: var(--ink); letter-spacing: -0.01em; }
+  .stat-l { margin-top: 8px; font-size: 13px; line-height: 1.5; color: var(--mute); }
+
+
+  .label { font-size: 11px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
+  .label span { padding-right: 10px; }
+  p { text-wrap: pretty; }
+  .p1 { margin: 28px 0 0; font-size: 17px; line-height: 1.75; color: var(--body); }
+  .p2 { margin: 22px 0 0; font-size: 17px; line-height: 1.75; color: var(--sec); }
+
+  .stages { margin-top: 40px; }
+  .stage { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 0 22px; }
+  .spine { display: flex; flex-direction: column; align-items: center; }
+  .node { width: 9px; height: 9px; border-radius: 50%; border: 1px solid rgba(221, 216, 242, 0.4); }
+  .node-model { background: rgba(221, 216, 242, 0.4); }
+  .node-verify { width: 11px; height: 11px; border-color: var(--accent); background: var(--accent); }
+  .line { width: 1px; flex: 1; background: rgba(221, 216, 242, 0.13); }
+  .line-verify { background: rgba(139, 92, 246, 0.45); }
+  .stage-body { padding: 0 0 34px; }
+  .stage:last-child .stage-body { padding-bottom: 0; }
+  .stage-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 14px; }
+  .stage-num { font-size: 12px; color: var(--mute); font-variant-numeric: tabular-nums; }
+  .stage-name { font-size: 19px; font-weight: 400; color: var(--ink); letter-spacing: -0.01em; }
+  .kind { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); border: 1px solid rgba(221, 216, 242, 0.16); border-radius: 2px; padding: 3px 7px; }
+  .kind-model { color: var(--sec); border-color: rgba(221, 216, 242, 0.3); }
+  .kind-verify { color: var(--accent); border-color: var(--accent); }
+  .stage-note { margin: 11px 0 0; font-size: 15px; line-height: 1.7; color: var(--sec); max-width: 640px; }
+  .stage-verify .stage-name { font-size: 22px; }
+  .stage-verify .stage-num { color: var(--accent); }
+  .stage-verify .stage-note { font-size: 16px; color: var(--body); }
+
+  .table-scroll { margin-top: 36px; overflow-x: auto; }
+  table { width: 100%; min-width: 600px; border-collapse: collapse; font-size: 15px; }
+  th { text-align: left; padding: 0 20px 12px 0; font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); border-bottom: 1px solid var(--rule-hi); }
+  th:last-child, td:last-child { padding-right: 0; }
+  td { padding: 18px 20px 18px 0; border-bottom: 1px solid var(--rule-lo); line-height: 1.6; vertical-align: top; color: var(--sec); }
+  .c-sample { color: var(--ink); font-family: var(--mono); font-size: 14px; white-space: nowrap; }
+  .c-result { color: var(--body); font-variant-numeric: tabular-nums; }
+  .note { margin: 22px 0 0; font-size: 14px; line-height: 1.7; color: var(--mute); max-width: 700px; }
+
+  pre { margin: 34px 0 0; padding: 26px 24px; background: #07070e; border: 1px solid var(--rule); border-radius: 4px; overflow-x: auto; font-family: var(--mono); font-size: 13.5px; line-height: 2; color: var(--body); }
+  .after-code { margin: 22px 0 0; font-size: 15px; line-height: 1.7; color: var(--sec); }
+
+  .rules { margin-top: 36px; }
+  .rule-item { padding: 20px 0; border-top: 1px solid var(--rule); }
+  .rule-item:last-child { border-bottom: 1px solid var(--rule); }
+  .rule-title { font-size: 17px; color: var(--ink); }
+  .rule-note { margin: 8px 0 0; font-size: 15px; line-height: 1.7; color: var(--sec); max-width: 640px; }
+
+  .mark { position: absolute; z-index: 2; top: 26px; right: 28px; display: flex; align-items: center; gap: 10px; opacity: 0.6; border: 0; color: var(--sec); font-size: 14px; font-weight: 500; letter-spacing: 0.01em; }
+  .mark:hover { opacity: 1; color: var(--ink); }
+  .mark img { width: 28px; height: 28px; object-fit: contain; display: block; }
+  .kicker { font-size: 13px; letter-spacing: 0.02em; color: var(--mute); margin-bottom: 22px; }
+  h2 { margin: 14px 0 0; font-size: clamp(24px, 3.2vw, 30px); font-weight: 300; letter-spacing: -0.02em; line-height: 1.2; color: var(--ink); text-wrap: pretty; }
+  .colophon { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 28px; margin-top: 34px; padding-top: 22px; border-top: 1px solid var(--rule); font-size: 13px; color: var(--mute); }
+  .colophon nav { display: flex; flex-wrap: wrap; gap: 10px 22px; }
+  .colophon a { color: var(--sec); border-bottom-color: rgba(221, 216, 242, 0.25); }
+  .colophon a:hover { color: var(--ink); }
+
+  .links { display: flex; flex-wrap: wrap; gap: 10px 28px; margin-top: 20px; font-size: 15px; }
+
+  footer { position: relative; overflow: hidden; margin-top: 104px; padding: 88px 24px 56px; border-top: 1px solid rgba(167,139,250,0.16); background: radial-gradient(110% 130% at 50% 120%, #2a2270 0%, #16143a 40%, #0a0a13 76%); }
+  footer .wrap { position: relative; }
+  footer p { margin: 0; font-size: 14px; line-height: 1.75; color: var(--mute); }
+  footer p + p { margin-top: 14px; }
+
+  @media (max-width: 640px) {
+    header { padding-top: 96px; }
+    .plain { padding-top: 72px; }
+    .band { margin-top: 72px; padding-top: 72px; padding-bottom: 72px; }
+  }
+</style>
+</head>
+<body>
+<a class="mark" href="https://mergeseat.com" aria-label="MergeSeat"><img src="assets/mergeseat-mark.png" alt=""><span>MergeSeat</span></a>
+<section class="hero">
+  <div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div><div class="sheen"></div>
+  <img class="watermark" src="assets/mergeseat-mark-512.png" alt="" aria-hidden="true">
+  <div class="wrap">
+
+  <header>
+    <div class="kicker">Open source · Apache 2.0 · a MergeSeat build</div>
+    <h1>diligence-reader</h1>
+    <p class="lede">Reads the whole acquisition data room. Writes the findings report, every sentence cited and checked against its source.</p>
+    <p class="sub">A recommendation with a number, findings ranked by money at stake, the material matter quantified with a deal action, the lesser issues, the open items.</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="https://github.com/Muhanad-husn/diligence-reader/blob/main/REPORT.md">Read a report</a>
+      <a class="btn btn-secondary" href="#work-with-us">Work with us</a>
+    </div>
+    <p class="quiet"><a href="https://github.com/Muhanad-husn/diligence-reader">View on GitHub</a></p>
+  </header>
+
+  <div class="stats">
+    <div><div class="stat-n">100 / 100</div><div class="stat-l">Rubric score on Project Atlas, two runs, spread 0</div></div>
+    <div><div class="stat-n">82 / 84</div><div class="stat-l">The RLM skill as shipped, same corpus, same grader</div></div>
+    <div><div class="stat-n">about $0.30</div><div class="stat-l">One end-to-end run of the 100-document room</div></div>
+    <div><div class="stat-n">$18.95</div><div class="stat-l">The whole build, 5 to 9 September 2026</div></div>
+  </div>
+
+  </div>
+</section>
+
+<div style="position:relative">
+  <canvas id="graph" aria-hidden="true" style="position:absolute; inset:0; width:100%; height:100%; display:block; pointer-events:none; opacity:0.85"></canvas>
+
+  <section class="plain">
+  <div class="wrap"><div class="prose">
+    <div class="label"><span>01</span>What you get</div>
+    <h2>The room in, the report out.</h2>
+    <p class="p1">You hand over the room as the seller left it, in whatever formats: PDF, spreadsheets, email, exports.</p>
+    <p class="p2">You get back a five-section findings report. Every sentence carries a citation to the page it came from. Every citation, figure and certainty word has been checked against that page by code before the report reaches you.</p>
+    <p class="p2">Model cost for a hundred-document room is about thirty cents. The tool gives the same answer if you run it twice. What it does not do is replace your judgement; it reads the whole room so your people start from a map instead of a pile, and it refuses to hand you a sentence it could not verify.</p>
+  </div></div>
+  </section>
+
+  <section class="band">
+  <div class="wrap">
+    <div class="label"><span>02</span>How it works</div>
+    <h2>Seven stages. Two call a model.</h2>
+    <div class="stages">
+
+      <div class="stage">
+        <div class="spine"><div class="node"></div><div class="line"></div></div>
+        <div class="stage-body">
+          <div class="stage-head"><span class="stage-num">1</span><span class="stage-name">Ingest</span><span class="kind">code</span></div>
+          <p class="stage-note">Files in seven formats into sections with anchors, plus an index of dates, amounts, names, identifiers, status words, versions.</p>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="spine"><div class="node node-model"></div><div class="line"></div></div>
+        <div class="stage-body">
+          <div class="stage-head"><span class="stage-num">2</span><span class="stage-name">Notes</span><span class="kind kind-model">model, one call per document</span></div>
+          <p class="stage-note">A note under a fixed schema. Every quote and figure is checked against the source by code.</p>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="spine"><div class="node"></div><div class="line"></div></div>
+        <div class="stage-body">
+          <div class="stage-head"><span class="stage-num">3</span><span class="stage-name">Map</span><span class="kind">code</span></div>
+          <p class="stage-note">A document graph over shared identifiers, cross-references, dates and versions. The matter shows up as a cluster.</p>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="spine"><div class="node"></div><div class="line"></div></div>
+        <div class="stage-body">
+          <div class="stage-head"><span class="stage-num">4</span><span class="stage-name">Dossier</span><span class="kind">code</span></div>
+          <p class="stage-note">Per matter: the timeline, every name each function gave it, figures with sources, draft against final, reserve against estimate.</p>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="spine"><div class="node node-model"></div><div class="line"></div></div>
+        <div class="stage-body">
+          <div class="stage-head"><span class="stage-num">5</span><span class="stage-name">Write</span><span class="kind kind-model">model, one call</span></div>
+          <p class="stage-note">The five-section report from the dossier alone. Every sentence cites. Certainty words are copied, never raised.</p>
+        </div>
+      </div>
+
+      <div class="stage stage-verify">
+        <div class="spine"><div class="node node-verify"></div><div class="line line-verify"></div></div>
+        <div class="stage-body">
+          <div class="stage-head"><span class="stage-num">6</span><span class="stage-name">Verify</span><span class="kind kind-verify">code</span></div>
+          <p class="stage-note">Every citation resolves, every number exists in its source, no certainty word climbed, decoys ranked below the matter. Failures go back to the writer once.</p>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="spine"><div class="node"></div></div>
+        <div class="stage-body">
+          <div class="stage-head"><span class="stage-num">7</span><span class="stage-name">Grade</span><span class="kind">code plus a subagent</span></div>
+          <p class="stage-note">Recall against the key, rubric score, spread between two runs.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  </section>
+
+  <section class="plain" id="work-with-us">
+  <div class="wrap"><div class="prose">
+    <div class="label"><span>03</span>Work with us</div>
+    <h2>Run on your room, or built inside your walls.</h2>
+    <p class="p1">We run it on your room and you get the report.</p>
+    <p class="p2">Or we rebuild it inside your walls: the same seven stages on your own document types, your own checks and your own answer keys, so that nothing leaves them.</p>
+    <p class="p2" style="margin-top: 26px; font-size: 15px;"><a href="mailto:founder@mergeseat.com">Message me</a></p>
+  </div></div>
+  </section>
+
+  <section class="plain">
+  <div class="wrap">
+    <div class="label"><span>04</span>Results</div>
+    <h2>Four corpora, one key each.</h2>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Sample</th><th>What it tests</th><th>Result</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="c-sample">atlas</td>
+            <td>100 documents, one matter across six functions, five decoys, a rubric</td>
+            <td class="c-result">recall 100, rubric 100, spread 0</td>
+          </tr>
+          <tr>
+            <td class="c-sample">northwind</td>
+            <td>Eleven contracts, a change-of-control cliff on a 30.1% customer, a decoy on the same template</td>
+            <td class="c-result">recall 100</td>
+          </tr>
+          <tr>
+            <td class="c-sample">northstar-dental</td>
+            <td>A numeric contradiction: 18.0% claimed, 11.7% in the workbook</td>
+            <td class="c-result">recall 100</td>
+          </tr>
+          <tr>
+            <td class="c-sample">yahoo</td>
+            <td>Real SEC filings, Verizon and Yahoo 2016 to 2017, no planted facts</td>
+            <td class="c-result">recall 86.4</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Five generated variants of atlas (misspelled names, an unnamed matter, a second matter, a doubled room, a control) score 94 to 100.</p>
+  </div>
+  </section>
+
+  <section class="band">
+  <div class="wrap"><div class="prose">
+    <div class="label"><span>05</span>Run it</div>
+    <h2>Five commands. The price prints first.</h2>
+<pre><code>git clone https://github.com/Muhanad-husn/diligence-reader.git
+cd diligence-reader
+
+pip install -e ".[dev]"
+export OPENROUTER_API_KEY=...
+
+python -m rlm.ingest  samples/atlas runs/atlas
+python -m rlm.notes   samples/atlas runs/atlas
+python -m rlm.map     samples/atlas runs/atlas
+python -m rlm.dossier samples/atlas runs/atlas
+python -m rlm.write   samples/atlas runs/atlas --passes 2</code></pre>
+    <p class="after-code">The tool counts the input tokens and prints the price before any model call, and refuses past the ceiling. Every dollar is in LEDGER.md.</p>
+  </div></div>
+  </section>
+
+  <section class="plain">
+  <div class="wrap"><div class="prose">
+    <div class="label"><span>06</span>Why it was built this way</div>
+    <h2>The rules the build kept.</h2>
+    <div class="rules">
+      <div class="rule-item">
+        <div class="rule-title">The key is the only test.</div>
+        <p class="rule-note">A phase passes when its artefact carries every planted fact on all three gate samples, with no code change between them.</p>
+      </div>
+      <div class="rule-item">
+        <div class="rule-title">One artefact per phase, in order.</div>
+        <p class="rule-note">A fact dropped later is traced to the phase that dropped it and fixed there. Every later phase reruns.</p>
+      </div>
+      <div class="rule-item">
+        <div class="rule-title">Money is enforced by code.</div>
+        <p class="rule-note">LEDGER.md is written by the code that makes the call. Past a phase cap or the $50 total, the call refuses.</p>
+      </div>
+      <div class="rule-item">
+        <div class="rule-title">Cheapest model that passes.</div>
+        <p class="rule-note">Five candidates, a bake-off per model-calling phase, no preference, only the table.</p>
+      </div>
+    </div>
+  </div></div>
+  </section>
+
+  <section class="plain">
+  <div class="wrap"><div class="prose">
+    <div class="label"><span>07</span>Credit</div>
+    <h2>Built against a published run.</h2>
+    <p class="p1">It is a fixed rebuild of a recursive language model run that John Adeojo published on his Project Atlas data room. His RLM improvises its program on every run. This tool keeps the shape of his winning run and replaces every improvised step with one that is the same every time. Seven stages: two call a model, the other five are code that produces the same bytes on every run.</p>
+    <p class="p2">The task, the room, the key, the rubric and the winning shape are John Adeojo's (brainqub3). The rebuild would not exist without a published run to measure against.</p>
+    <div class="links">
+      <a href="https://github.com/brainqub3/synthetic-dataRoom">brainqub3/synthetic-dataRoom</a>
+      <a href="https://github.com/brainqub3/claude_code_RLM">brainqub3/claude_code_RLM</a>
+    </div>
+  </div></div>
+  </section>
+
+</div>
+
+  <footer>
+    <div class="foot-orb"></div>
+    <div class="wrap"><div class="prose">
+    <p>Apache License 2.0. Built by <a href="https://mergeseat.com">MergeSeat</a>, a one-person software shop whose line is that machine output is only usable if you can check it and refuse it.</p>
+    <p>Writing: <a href="https://muhanadabulhusn.substack.com">The model was never the hard part</a></p>
+    <div class="colophon">
+      <span>MergeSeat · AI systems engineering · Netherlands</span>
+      <nav>
+        <a href="https://mergeseat.com/work.html">Work with us</a>
+        <a href="https://github.com/Muhanad-husn/diligence-reader">Code</a>
+        <a href="mailto:founder@mergeseat.com">Contact</a>
+      </nav>
+    </div>
+    </div></div>
+  </footer>
+
+<script>
+(function () {
+  var cv = document.getElementById('graph');
+  if (!cv || !cv.parentElement || !cv.getContext) return;
+  var ctx = cv.getContext('2d');
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var w = 0, h = 0, nodes = [], raf = 0;
+  var link = 168;
+  function seed() {
+    var target = Math.max(28, Math.min(90, Math.round((w * h) / 26000)));
+    nodes = [];
+    for (var i = 0; i < target; i++) {
+      nodes.push({ x: Math.random() * w, y: Math.random() * h, vx: (Math.random() - 0.5) * 0.16, vy: (Math.random() - 0.5) * 0.16, r: 1 + Math.random() * 1.8, hot: Math.random() < 0.18 });
+    }
+  }
+  function frame() {
+    ctx.clearRect(0, 0, w, h);
+    for (var k = 0; k < nodes.length; k++) {
+      var n = nodes[k];
+      n.x += n.vx; n.y += n.vy;
+      if (n.x < 0 || n.x > w) n.vx *= -1;
+      if (n.y < 0 || n.y > h) n.vy *= -1;
+    }
+    for (var i = 0; i < nodes.length; i++) {
+      for (var j = i + 1; j < nodes.length; j++) {
+        var a = nodes[i], b = nodes[j];
+        var d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (d < link) {
+          ctx.strokeStyle = 'rgba(150,116,246,' + ((1 - d / link) * 0.24).toFixed(3) + ')';
+          ctx.lineWidth = 0.7;
+          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        }
+      }
+    }
+    for (var m = 0; m < nodes.length; m++) {
+      var p = nodes[m];
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.hot ? 'rgba(214,204,255,0.75)' : 'rgba(139,120,220,0.42)';
+      ctx.fill();
+      if (p.hot) {
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(167,139,250,0.07)';
+        ctx.fill();
+      }
+    }
+  }
+  function loop() { frame(); raf = requestAnimationFrame(loop); }
+  function resize() {
+    var box = cv.parentElement.getBoundingClientRect();
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = Math.max(1, box.width); h = Math.max(1, box.height);
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    seed();
+    if (reduce) frame();
+  }
+  resize();
+  if ('ResizeObserver' in window) new ResizeObserver(resize).observe(cv.parentElement);
+  else window.addEventListener('resize', resize);
+  if (!reduce) loop();
+  document.addEventListener('visibilitychange', function () {
+    if (reduce) return;
+    if (document.hidden) { cancelAnimationFrame(raf); raf = 0; }
+    else if (!raf) loop();
+  });
+})();
+</script>
+</body>
+</html>
