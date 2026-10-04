@@ -42,7 +42,7 @@ jobs:
           first=$(( $(date +%s) - BUILD_START ))
           echo "# a code-only change" >> app/__init__.py
           start=$(date +%s)
-          docker buildx build --progress=plain -f deploy/Dockerfile --target runtime . 2> rebuild.log
+          docker buildx build --progress=plain --cache-from type=gha,scope=image -f deploy/Dockerfile --target runtime . 2> rebuild.log
           second=$(( $(date +%s) - start ))
           rebuilt=$(python3 - <<'EOF'
           import re

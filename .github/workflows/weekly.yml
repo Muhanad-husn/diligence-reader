@@ -38,6 +38,7 @@ jobs:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v10.2.0
       - run: uv pip install --system -e ".[dev]"
+      - run: python -m playwright install chromium
       - run: pytest -q -W error::DeprecationWarning
 
   trivy:
