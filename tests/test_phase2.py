@@ -173,16 +173,16 @@ def test_gateway_estimate_tokens_is_characters_over_four_rounded_up():
 
 
 def test_gateway_price_table_is_plan_section_5():
-    """Per million tokens, prompt then completion, as PLAN.md section 5 reads on 2026-09-07."""
+    """Per million tokens, prompt then completion, as the live list reads on 2026-10-04."""
     assert PRICES == {
         "openai/gpt-5.6-luna": (0.200, 1.200),
-        "deepseek/deepseek-v4-flash-0731": (0.140, 0.280),
-        "deepseek/deepseek-v4-pro": (0.955, 1.911),
+        "deepseek/deepseek-v4-flash-0731": (0.0152, 1.280),
+        "deepseek/deepseek-v4-pro": (0.2088, 0.4176),
         "z-ai/glm-5.3": (1.400, 4.400),
-        "z-ai/glm-5.3-flash": (0.075, 0.250),
+        "z-ai/glm-5.3-flash": (0.150, 0.500),
     }
-    assert price(MODEL, 1_000_000, 1_000_000) == pytest.approx(0.420)
-    assert price(MODEL, 90_000, 60_000) == pytest.approx(0.0126 + 0.0168)
+    assert price(MODEL, 1_000_000, 1_000_000) == pytest.approx(1.2952)
+    assert price(MODEL, 90_000, 60_000) == pytest.approx(0.001368 + 0.0768)
     assert price("z-ai/glm-5.3", 0, 0) == 0.0
     with pytest.raises(KeyError):
         price("google/gemini", 1, 1)
@@ -192,6 +192,13 @@ def test_gateway_price_table_is_plan_section_5():
 def test_gateway_past_prices_keep_the_older_tables():
     """A ledger row written before a price moved still reconciles, so the old table is kept."""
     assert PAST_PRICES == (
+        {
+            "openai/gpt-5.6-luna": (0.200, 1.200),
+            "deepseek/deepseek-v4-flash-0731": (0.140, 0.280),
+            "deepseek/deepseek-v4-pro": (0.955, 1.911),
+            "z-ai/glm-5.3": (1.400, 4.400),
+            "z-ai/glm-5.3-flash": (0.075, 0.250),
+        },
         {
             "openai/gpt-5.6-luna": (0.200, 1.200),
             "deepseek/deepseek-v4-flash-0731": (0.050, 0.100),
@@ -207,7 +214,7 @@ def test_gateway_past_prices_keep_the_older_tables():
             "z-ai/glm-5.3-flash": (0.075, 0.250),
         },
     )
-    assert known_prices(MODEL) == [(0.140, 0.280), (0.050, 0.100), (0.065, 0.180)]
+    assert known_prices(MODEL) == [(0.0152, 1.280), (0.140, 0.280), (0.050, 0.100), (0.065, 0.180)]
     assert known_prices("z-ai/glm-5.3") == [(1.400, 4.400)]
     assert known_prices("openai/gpt-5.6-luna") == [(0.200, 1.200)]
     with pytest.raises(KeyError):
@@ -451,11 +458,11 @@ def test_gateway_batch_refuses_past_the_phase_cap_before_any_request(tmp_path):
     ledger = Ledger(path)
     transport = FakeTransport([reply("{}")])
     gateway = Gateway(api_key="k", transport=transport)
-    # $7.90 spent in phase 2; 4m tokens in at $0.140/m is $0.56 more, past the $8 cap.
-    assert ledger.spent(PHASE) + price(MODEL, 4_000_000, 0) > PHASE_CAP
+    # $7.90 spent in phase 2; 10m tokens in at $0.0152/m is $0.152 more, past the $8 cap.
+    assert ledger.spent(PHASE) + price(MODEL, 10_000_000, 0) > PHASE_CAP
 
     with pytest.raises(CapExceeded):
-        with ledger.batch("atlas", PHASE, MODEL, tokens_in=4_000_000, tokens_out=0) as batch:
+        with ledger.batch("atlas", PHASE, MODEL, tokens_in=10_000_000, tokens_out=0) as batch:
             batch.record(gateway.complete(MODEL, [{"role": "user", "content": "u"}], max_tokens=10))
 
     assert transport.requests == []
@@ -475,11 +482,11 @@ def test_gateway_batch_refuses_past_the_total_ceiling_before_any_request(tmp_pat
     ledger = Ledger(path)
     transport = FakeTransport([reply("{}")])
     gateway = Gateway(api_key="k", transport=transport)
-    # $0.05 left of the $50; 2m tokens in is $0.10, past the ceiling, though phase 2 has spent nothing.
+    # $0.05 left of the $50; 4m tokens in is $0.061, past the ceiling, though phase 2 has spent nothing.
     assert ledger.spent(PHASE) == 0.0
 
     with pytest.raises(CapExceeded):
-        with ledger.batch("atlas", PHASE, MODEL, tokens_in=2_000_000, tokens_out=0) as batch:
+        with ledger.batch("atlas", PHASE, MODEL, tokens_in=4_000_000, tokens_out=0) as batch:
             batch.record(gateway.complete(MODEL, [{"role": "user", "content": "u"}], max_tokens=10))
 
     assert transport.requests == []
@@ -2862,8 +2869,8 @@ def test_bakeoff_gateway_models_reads_the_price_list():
     """One GET of the gateway's model list, priced per million tokens."""
     payload = {
         "data": [
-            {"id": DS_FLASH, "pricing": {"prompt": "0.00000014", "completion": "0.00000028"}},
-            {"id": DS_PRO, "pricing": {"prompt": "0.00000095526", "completion": "0.00000191052"}},
+            {"id": DS_FLASH, "pricing": {"prompt": "0.0000000152", "completion": "0.00000128"}},
+            {"id": DS_PRO, "pricing": {"prompt": "0.0000002088", "completion": "0.0000004176"}},
             {"id": GLM, "pricing": {"prompt": "0.0000014", "completion": "0.0000044"}},
         ]
     }
@@ -2876,13 +2883,13 @@ def test_bakeoff_gateway_models_reads_the_price_list():
     gateway = Gateway(api_key="k", transport=httpx.MockTransport(handle))
     found = gateway.models()
 
-    assert found == {DS_FLASH: (0.14, 0.28), DS_PRO: (0.95526, 1.91052), GLM: (1.4, 4.4)}
+    assert found == {DS_FLASH: (0.0152, 1.28), DS_PRO: (0.2088, 0.4176), GLM: (1.4, 4.4)}
     assert len(seen) == 1
     assert seen[0].method == "GET"
     assert str(seen[0].url) == "https://openrouter.ai/api/v1/models"
     assert seen[0].headers["authorization"] == "Bearer k"
-    # Rounded to three decimals, the list is the table PRICES carries.
-    rounded = {model: (round(rate_in, 3), round(rate_out, 3)) for model, (rate_in, rate_out) in found.items()}
+    # Rounded to four decimals, the list is the table PRICES carries.
+    rounded = {model: (round(rate_in, 4), round(rate_out, 4)) for model, (rate_in, rate_out) in found.items()}
     assert rounded == {DS_FLASH: PRICES[DS_FLASH], DS_PRO: PRICES[DS_PRO], GLM: PRICES[GLM]}
 
 
@@ -2925,7 +2932,7 @@ def test_bakeoff_a_missed_probe_fact_stops_the_model_before_its_passes(tmp_path,
     assert row["agreement"] == "not run"
     assert row["recall"] == "not run"
     summary = json.loads((probe_dir / "notes-summary.json").read_text(encoding="utf-8"))
-    assert row["dollars"] == pytest.approx(summary["dollars"])
+    assert row["dollars"] == pytest.approx(summary["dollars"], abs=5e-7)
     assert row["seconds"] == pytest.approx(summary["seconds"])
     assert table["winner"] is None
     for model in (GLM_FLASH, LUNA, DS_PRO, GLM):
@@ -2989,7 +2996,7 @@ def test_bakeoff_two_passes_on_two_samples_fill_one_row_and_name_the_winner(tmp_
     assert table["samples"] == ["northwind", "northstar-dental"]
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", table["date"])
     assert set(table["prices"]) == set(PRICES)
-    assert table["prices"][GLM_FLASH] == [0.075, 0.250]
+    assert table["prices"][GLM_FLASH] == [0.150, 0.500]
     assert (runs_root / "northwind" / "bakeoff.json").read_text(encoding="utf-8").endswith("}\n")
 
     row = row_of(table, GLM_FLASH)
