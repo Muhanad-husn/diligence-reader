@@ -271,7 +271,7 @@ def room_zip(tmp_path: Path) -> Path:
 def paste_key(page: Page, key: str) -> None:
     page.fill("#key-input", key)
     page.click("#key-use")
-    expect(page.locator("#key-state")).to_contain_text("connected")
+    expect(page.locator("#key-state")).to_have_text("connected")
 
 
 def upload_and_confirm(page: Page, chooser: str, path: Path) -> None:
@@ -504,13 +504,13 @@ def test_sign_in_builds_a_pkce_request_and_exchanges_the_code(web, tmp_path):
         exchanged.update(route.request.post_data_json)
         route.fulfill(status=200, headers=CORS, json={"key": SIGNED_KEY, "user_id": "user-1"})
 
-    page.route("https://openrouter.ai/auth?**", fake_auth)
+    page.route(lambda url: url.startswith("https://openrouter.ai/auth?"), fake_auth)
     page.route("https://openrouter.ai/api/v1/auth/keys", fake_keys)
     page.goto(web.served.url)
 
     page.click("#sign-in")
 
-    expect(page.locator("#key-state")).to_contain_text("connected")
+    expect(page.locator("#key-state")).to_have_text("connected")
     assert asked["code_challenge_method"] == ["S256"]
     callback = urlparse(asked["callback_url"][0])
     assert (callback.scheme, callback.hostname, callback.port) == ("http", "localhost", web.served.port)
