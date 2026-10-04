@@ -1,0 +1,89 @@
+# Weekly upkeep, and on a pull request that changes this file. Four jobs, none needing a key or
+# spending a dollar: the task models are still listed at their prices, the tests pass with
+# DeprecationWarning as an error, the image has no fixable high or critical finding, and the
+# chart still installs on kind, which catches a retired Kubernetes API.
+name: weekly
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  pull_request:
+    paths:
+      - .github/workflows/weekly.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  modelcheck:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v10.2.0
+      - run: uv pip install --system -e .
+      - run: python -m rlm.modelcheck
+
+  # On Windows: the pinned digests were made there, and on Linux the PDF engines split some of
+  # sample 1's pages differently, which every test reading those digests would report.
+  pytest:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v10.2.0
+      - run: uv pip install --system -e ".[dev]"
+      - run: python -m playwright install chromium
+      - run: pytest -q -W error::DeprecationWarning
+
+  trivy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/Dockerfile
+          target: runtime
+          load: true
+          push: false
+          tags: diligence-reader:scan
+          cache-from: type=gha,scope=image
+      - uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: diligence-reader:scan
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+  kind:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/Dockerfile
+          target: runtime
+          load: true
+          push: false
+          tags: diligence-reader:dev
+          cache-from: type=gha,scope=image
+      - uses: helm/kind-action@v1.15.0
+        with:
+          cluster_name: weekly
+      - uses: azure/setup-helm@v5
+      - name: Install the chart on kind and wait for the API to roll out
+        run: |
+          kind load docker-image diligence-reader:dev --name weekly
+          helm install dr deploy/helm/diligence-reader \
+            --set image.repository=diligence-reader --set image.tag=dev --set image.pullPolicy=Never \
+            --wait --timeout 5m
+          kubectl rollout status deployment/dr-diligence-reader --timeout 120s

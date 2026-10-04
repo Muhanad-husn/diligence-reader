@@ -523,12 +523,17 @@ def test_the_runner_is_local_unless_named(monkeypatch):
 
 
 def test_the_kubernetes_runner_is_imported_only_when_named(monkeypatch):
-    import app.main  # noqa: F401
+    probe = "import sys, app.main; print('app.runner_k8s' in sys.modules)"
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(SRC), str(TESTS.parent)])}
+    env.pop("RLM_RUNNER", None)
+    done = subprocess.run(
+        [sys.executable, "-c", probe], env=env, capture_output=True, text=True, timeout=120
+    )
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.strip() == "False"
 
-    assert "app.runner_k8s" not in sys.modules
     monkeypatch.setenv("RLM_RUNNER", "kubernetes")
-    with pytest.raises(ModuleNotFoundError, match="app.runner_k8s"):
-        runner_from_env()
+    assert type(runner_from_env()).__name__ == "KubernetesRunner"
 
 
 def test_any_other_runner_is_refused(monkeypatch):

@@ -1,0 +1,34 @@
+# The image the API and every run Job use. The tag defaults to the chart's appVersion.
+image:
+  repository: ghcr.io/muhanad-husn/diligence-reader
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# The API holds each run's key and its Jobs in memory, so it runs as one replica.
+service:
+  type: ClusterIP
+  port: 8000
+
+# The runs folder, shared by the API and every run Job: a claim of the cluster's default
+# storage class unless existingClaim names one. Where a Job may land on another node than the
+# API, the claim needs ReadWriteMany.
+runs:
+  existingClaim: ""
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 10Gi
+
+# Extra environment for the API, name to value. RLM_PHASE=8 books this build's own gate runs.
+extraEnv: {}
+
+# Extra volumes and mounts, given to the API and to every run Job alike.
+extraVolumes: []
+extraVolumeMounts: []
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+
+resources: {}

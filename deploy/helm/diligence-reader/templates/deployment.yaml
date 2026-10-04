@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "diligence-reader.fullname" . }}
+  labels:
+    {{- include "diligence-reader.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "diligence-reader.selector" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "diligence-reader.labels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+    spec:
+      serviceAccountName: {{ include "diligence-reader.fullname" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        {{- include "diligence-reader.volumes" . | nindent 8 }}
+      containers:
+        - name: api
+          image: {{ include "diligence-reader.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: RLM_RUNNER
+              value: kubernetes
+            - name: RLM_RUNS
+              value: /app/runs
+            - name: RLM_K8S_IMAGE
+              value: {{ include "diligence-reader.image" . }}
+            - name: RLM_K8S_PULL_POLICY
+              value: {{ .Values.image.pullPolicy }}
+            - name: RLM_K8S_API_URL
+              value: {{ printf "http://%s:%v" (include "diligence-reader.fullname" .) .Values.service.port }}
+            - name: RLM_K8S_VOLUMES
+              value: {{ include "diligence-reader.volumes" . | fromYamlArray | toJson | quote }}
+            - name: RLM_K8S_VOLUME_MOUNTS
+              value: {{ include "diligence-reader.volumeMounts" . | fromYamlArray | toJson | quote }}
+            {{- range $name, $value := .Values.extraEnv }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
+            {{- end }}
+          volumeMounts:
+            {{- include "diligence-reader.volumeMounts" . | nindent 12 }}
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 20
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}

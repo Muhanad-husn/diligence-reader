@@ -58,15 +58,22 @@ import httpx
 # two GLM endpoints read what they read on 2026-09-06.
 PRICES: dict[str, tuple[float, float]] = {
     "openai/gpt-5.6-luna": (0.200, 1.200),
-    "deepseek/deepseek-v4-flash-0731": (0.140, 0.280),
-    "deepseek/deepseek-v4-pro": (0.955, 1.911),
+    "deepseek/deepseek-v4-flash-0731": (0.0152, 1.280),
+    "deepseek/deepseek-v4-pro": (0.2088, 0.4176),
     "z-ai/glm-5.3": (1.400, 4.400),
-    "z-ai/glm-5.3-flash": (0.075, 0.250),
+    "z-ai/glm-5.3-flash": (0.150, 0.500),
 }
 
 # The tables the repository has priced a call at before, newest first. A ledger row written
 # before a price moved reconciles at one of these, so it is kept here.
 PAST_PRICES: tuple[dict[str, tuple[float, float]], ...] = (
+    {
+        "openai/gpt-5.6-luna": (0.200, 1.200),
+        "deepseek/deepseek-v4-flash-0731": (0.140, 0.280),
+        "deepseek/deepseek-v4-pro": (0.955, 1.911),
+        "z-ai/glm-5.3": (1.400, 4.400),
+        "z-ai/glm-5.3-flash": (0.075, 0.250),
+    },
     {
         "openai/gpt-5.6-luna": (0.200, 1.200),
         "deepseek/deepseek-v4-flash-0731": (0.050, 0.100),
@@ -226,12 +233,11 @@ class Gateway:
         """Reads the gateway's model list into one rate per model, per million tokens.
 
         The list prices per token as a string; each rate is multiplied by a million and rounded
-        to six decimals. Raises httpx.HTTPStatusError when the gateway answers outside 2xx.
+        to six decimals. The list is free and needs no key: with an empty key no Authorization
+        header is sent. Raises httpx.HTTPStatusError when the gateway answers outside 2xx.
         """
-        response = self._client.get(
-            f"{self.base_url}/models",
-            headers={"Authorization": f"Bearer {self.api_key}"},
-        )
+        headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+        response = self._client.get(f"{self.base_url}/models", headers=headers)
         response.raise_for_status()
         found: dict[str, tuple[float, float]] = {}
         for entry in response.json().get("data", []):

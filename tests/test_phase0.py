@@ -3,6 +3,7 @@ document it names is a file in the sample. The grader tests check that the grade
 hand-written perfect report the key's perfect score and the wrong report less than its bar."""
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -145,6 +146,8 @@ def reports_dir(sample_dir):
 
 @pytest.mark.parametrize("name", ["perfect", "wrong"])
 def test_grade(name, key, sample, sample_dir, reports_dir, run_dir):
+    if load_key(sample_dir).rubric and shutil.which("claude") is None:
+        pytest.skip("the rubric is graded by the claude command line, which is not on PATH")
     ledger = ROOT / "LEDGER.md"
     before = ledger.read_bytes()
 

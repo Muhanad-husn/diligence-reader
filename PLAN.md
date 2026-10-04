@@ -182,25 +182,29 @@ planted fact out of the three export files, and writes the row in 4a.
 ## 5. Models
 
 Five candidates, chosen per task by the bake-off tables in phases 2 and 5, never by preference.
-Prices reread from the gateway on 2026-09-08, the day of the phase 5 bake-off, per million tokens,
-prompt then completion.
+Prices reread from the gateway on 2026-10-04, when the weekly model check found GLM 5.3 Flash
+doubled, per million tokens, prompt then completion. The table of 2026-09-08, the day of the
+phase 5 bake-off, is kept in `PAST_PRICES` in `src/rlm/gateway.py`.
 
 | Model | Id | In | Out |
 |---|---|---|---|
 | Luna | `openai/gpt-5.6-luna` | 0.200 | 1.200 |
-| DeepSeek V4 Flash | `deepseek/deepseek-v4-flash-0731` | 0.140 | 0.280 |
-| DeepSeek V4 Pro | `deepseek/deepseek-v4-pro` | 0.955 | 1.911 |
+| DeepSeek V4 Flash | `deepseek/deepseek-v4-flash-0731` | 0.0152 | 1.280 |
+| DeepSeek V4 Pro | `deepseek/deepseek-v4-pro` | 0.2088 | 0.4176 |
 | GLM 5.3 | `z-ai/glm-5.3` | 1.400 | 4.400 |
-| GLM 5.3 Flash | `z-ai/glm-5.3-flash` | 0.075 | 0.250 |
+| GLM 5.3 Flash | `z-ai/glm-5.3-flash` | 0.150 | 0.500 |
 
 No Gemini. No model from outside this table without the founder's word. Prices are reread and
-rewritten here the day a bake-off runs.
+rewritten here the day a bake-off runs, and the day the weekly model check finds a task model's
+price moved, since the estimate a user confirms is built from this table. A bake-off's winner
+stands at the prices of its day.
 
 What one full note pass on sample 1 cost at the prices of 2026-09-06 (about 90k tokens in, about
 60k out
 with a tight schema): DeepSeek Flash $0.01, GLM Flash $0.02, Luna $0.09, DeepSeek Pro $0.14,
 GLM 5.3 $0.39. A five-model bake-off on sample 1 is under $1. Samples 2 and 3 are under a cent
-each on any model.
+each on any model. At the prices of 2026-10-04 the same pass costs GLM Flash $0.04, DeepSeek Pro
+$0.04, DeepSeek Flash $0.08, Luna $0.09, GLM 5.3 $0.39.
 
 **Bake-off table, filled per phase, one row per model:** passes the gate (yes or no), dollars,
 two-run agreement on planted facts, seconds. The cheapest row that passes wins. A Flash model

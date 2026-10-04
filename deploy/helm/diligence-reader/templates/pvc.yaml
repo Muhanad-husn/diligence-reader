@@ -1,0 +1,17 @@
+{{- if not .Values.runs.existingClaim }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "diligence-reader.claim" . }}
+  labels:
+    {{- include "diligence-reader.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.runs.accessMode }}
+  {{- with .Values.runs.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.runs.size }}
+{{- end }}

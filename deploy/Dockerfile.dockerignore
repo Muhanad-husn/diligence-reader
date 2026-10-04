@@ -1,0 +1,13 @@
+# The build context is a whitelist: nothing reaches the image but the project file, the
+# package, the API and the web page. A folder named here that is not there is skipped, so the
+# build does not need web/ to exist. runs/, samples/, tests/, LEDGER.md and .env never reach it.
+*
+!pyproject.toml
+!README.md
+!LICENSE
+!NOTICE
+!src/rlm
+!app
+!web
+**/__pycache__
+**/*.py[cod]
