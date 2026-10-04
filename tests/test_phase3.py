@@ -36,6 +36,7 @@ from rlm.map import (
     REACH_SHARE,
     VIA_KINDS,
     build_edges,
+    build_map,
     figure_number,
     is_count,
     is_written,
@@ -462,6 +463,34 @@ def test_map_first_matter_cluster_holds_the_planted_documents(mapped, key):
     planted = planted_documents(key)
     cluster = set(matter["cluster"])
     assert planted <= cluster, sorted(planted - cluster)
+
+
+# A fresh run of northwind's notes from the phase 8 gate of issue 141, kept beside the pinned
+# runs. Its notes link the cap table more weakly than the pinned notes do.
+FRESH_NORTHWIND = "northwind-141-fresh"
+
+
+def test_map_keeps_the_cap_table_in_northwind_matter_on_fresh_notes(tmp_path):
+    """On the phase 8 gate's fresh northwind notes, the first matter's set holds the cap table.
+
+    The cap table is the one document carrying the key's captable-coc-confirmation quote, so a
+    set without it is a dossier and a report without the fact. The map is built into a
+    temporary directory from copies of the run's inputs; the run on disk is not written.
+    """
+    run_dir = ROOT / "runs" / FRESH_NORTHWIND
+    if not _inputs_ready(run_dir):
+        pytest.skip(f"runs/{FRESH_NORTHWIND} is not on this machine")
+    for name in INPUTS:
+        shutil.copy(run_dir / name, tmp_path / name)
+    shutil.copytree(run_dir / "notes", tmp_path / "notes")
+    sample_dir = ROOT / "samples" / "northwind"
+    cap_table = fact_documents(load_key(sample_dir), "captable-coc-confirmation")
+    assert len(cap_table) == 1
+
+    document = build_map(sample_dir, tmp_path)
+
+    matter = document["matters"][0]
+    assert cap_table[0] in matter["cluster"], (matter["seed"], matter["cluster"])
 
 
 def test_map_returns_one_matter_on_a_room_that_holds_one(mapped):
