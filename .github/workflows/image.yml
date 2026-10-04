@@ -37,6 +37,9 @@ jobs:
           cache-from: type=gha,scope=image
           cache-to: type=gha,mode=max,scope=image
 
+      # A run step gets no Actions cache token; this exposes it, so the rebuild reads the cache.
+      - uses: crazy-max/ghaction-github-runtime@v4
+
       - name: Rebuild after a code-only change
         run: |
           first=$(( $(date +%s) - BUILD_START ))
