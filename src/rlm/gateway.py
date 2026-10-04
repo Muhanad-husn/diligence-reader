@@ -107,8 +107,10 @@ REASONING: dict[str, dict] = {
 # returns nothing. Every call leaves these out. Wafer was found doing this to z-ai/glm-5.3-flash
 # on 2026-09-09, burning 6000 reasoning tokens on a prompt the other providers answer with 10
 # to 26; the same prompt had been answered a day earlier and the ten documents it hit came back
-# with no note at all, three runs in a row.
-IGNORED_PROVIDERS = ("Wafer",)
+# with no note at all, three runs in a row. GMICloud was found doing the same to
+# z-ai/glm-5.3-flash on 2026-10-04 in the phase 8 gate, twice on one atlas document (DR-029),
+# whose note was dropped and with it a planted fact.
+IGNORED_PROVIDERS = ("Wafer", "GMICloud")
 
 # The finish reason a draw carries when it ran out of the max_tokens budget. The reply then
 # stops wherever the budget ran out, which is usually mid sentence, and on a provider that

@@ -290,6 +290,19 @@ def test_gateway_complete_leaves_out_the_providers_that_ignore_the_reasoning_obj
         assert body["provider"] == {"ignore": list(IGNORED_PROVIDERS)}, model
 
 
+def test_gateway_complete_leaves_gmicloud_out_of_the_routing():
+    """GMICloud finished on length after 6000 reasoning tokens with no content, twice, on one
+    atlas document in the phase 8 gate, so its call is named in every body."""
+    assert "GMICloud" in IGNORED_PROVIDERS
+    transport = FakeTransport([reply('{"what": "x"}')])
+    gateway = Gateway(api_key="test-key", transport=transport)
+
+    gateway.complete("z-ai/glm-5.3-flash", [{"role": "user", "content": "u"}], max_tokens=100)
+
+    body = json.loads(transport.requests[0].content)
+    assert "GMICloud" in body["provider"]["ignore"]
+
+
 def cut_off_reply(
     provider: str | None = "Wafer",
     tokens_in: int = 500,

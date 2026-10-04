@@ -96,11 +96,20 @@ rubric are on sample 1's variants; its dollars are every phase 6 row of `LEDGER.
 | 5 Report | Phase 5 | done | 100 / 100 / 100, rubric 100 | 8.28 | 0 / 0 / 0 | 2026-09-08 |
 | 6 Widen | Phase 6 | done | recall 100 / 100 / 97.9 / 98.5 / 98.1, rubric 100 / 94 / 98 / 99 / 100 | 7.78 | 0 / 6 / 2 / 1 / 1 | 2026-09-09 |
 | 7 Compare | Phase 7 | done | sample 4 recall 86.4 | 0.26 | one run | 2026-09-09 |
-| 8 Product | Phase 8 | open | | | | |
+| 8 Product | Phase 8 | done | 100 / 87.5 / 100 | 2.51 | 1.9 / 6.3 / 0 | 2026-10-04 |
 
 Phase 5's row was restated on 2026-09-09 by the phase 6 gate, which rewrote the three gate
 samples' reports after PR #119 changed the map under them: rubric 90 to 100, spread 4 / 0 / 0
 to 0 / 0 / 0, and dollars 1.78 to every phase 5 row of `LEDGER.md`. The date it closed stands.
+
+Phase 8's score is planted-fact recall on the first of two runs per sample, each started from the web
+page in the Docker image. Northwind's 87.5 carries two known misses, both the map's on fresh notes:
+`tidewater-subprocessor-gap`, named since #144, and `captable-coc-confirmation`, found by the gate,
+where the map seeds at the Tidewater DPA and leaves the cap table out; the two rules tried that keep it
+moved six to eight pinned atlas maps. Its second run read 93.75, equal to the command line. Atlas's
+second run missed `price-reduction`, a figure the writer computes. The gate also left GMICloud out of
+the routing, after it twice spent a note's whole budget on reasoning and returned nothing, which cost a
+first atlas run one fact; its $0.40 is in the dollars.
 
 Phase 7's score is recall on sample 4 alone: its key has no rubric. Sample 4 ran once, so its
 spread column reads one run.
