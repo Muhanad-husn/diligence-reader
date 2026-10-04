@@ -9,3 +9,4 @@ samples/*/_dd/
 samples/yahoo/documents/
 .claude/rlm_runs/
 .claude/rlm_state/
+.claude/settings.local.json
