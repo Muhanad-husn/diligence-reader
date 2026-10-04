@@ -66,7 +66,7 @@ The web page on the user's machine.
 docker run -p 8000:8000 -v <runs>:/app/runs ghcr.io/muhanad-husn/diligence-reader
 ```
 
-Open http://localhost:8000, connect an OpenRouter key (sign in or paste one), upload a room as a folder or zip, read the estimate, confirm, watch progress, read the report and export Word, PDF or the evidence CSV. The key stays in the browser and goes with each run; it is not written to disk.
+Open http://localhost:8000, connect an OpenRouter key (sign in or paste one), upload a room as a folder or zip, read the estimate, confirm, watch progress, read the report and export Word, PDF or the evidence CSV. Stop ends a run in progress and Retry resumes it from the stage that stopped; uploading a new room while a run is going asks first. Past runs lists every run on the machine with its status and dollars, and New room on the report clears the page back to the upload and keeps the key. The key stays in the browser and goes with each run; it is not written to disk.
 
 **pipx**
 
