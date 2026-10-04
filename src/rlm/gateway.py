@@ -226,12 +226,11 @@ class Gateway:
         """Reads the gateway's model list into one rate per model, per million tokens.
 
         The list prices per token as a string; each rate is multiplied by a million and rounded
-        to six decimals. Raises httpx.HTTPStatusError when the gateway answers outside 2xx.
+        to six decimals. The list is free and needs no key: with an empty key no Authorization
+        header is sent. Raises httpx.HTTPStatusError when the gateway answers outside 2xx.
         """
-        response = self._client.get(
-            f"{self.base_url}/models",
-            headers={"Authorization": f"Bearer {self.api_key}"},
-        )
+        headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+        response = self._client.get(f"{self.base_url}/models", headers=headers)
         response.raise_for_status()
         found: dict[str, tuple[float, float]] = {}
         for entry in response.json().get("data", []):
