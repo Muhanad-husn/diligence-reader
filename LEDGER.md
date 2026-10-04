@@ -308,3 +308,7 @@ hand.
 | 2026-10-04 | northstar-dental | 8 | z-ai/glm-5.3 | 21554 | 8135 | 0.0660 | 30.5585 |
 | 2026-10-04 | northstar-dental | 8 | z-ai/glm-5.3-flash (run without --phase, which books nothing; added by hand from notes-summary.json) | 33966 | 19486 | 0.0074 | 30.5511 |
 | 2026-10-04 | northstar-dental | 8 | z-ai/glm-5.3 (run without --phase, which books nothing; added by hand from write-summary.json) | 21441 | 6501 | 0.0586 | 30.4925 |
+| 2026-10-04 | northwind | 8 | z-ai/glm-5.3-flash (API run; booked as room, sample named by hand) | 108489 | 81684 | 0.0286 | 30.4639 |
+| 2026-10-04 | northwind | 8 | z-ai/glm-5.3 (API run; booked as room, sample named by hand) | 38639 | 11420 | 0.1043 | 30.3596 |
+| 2026-10-04 | northstar-dental | 8 | z-ai/glm-5.3-flash (API run; booked as room, sample named by hand) | 37038 | 20677 | 0.0079 | 30.3517 |
+| 2026-10-04 | northstar-dental | 8 | z-ai/glm-5.3 (API run; booked as room, sample named by hand) | 21291 | 6371 | 0.0578 | 30.2939 |
