@@ -318,6 +318,16 @@ def test_a_confirmed_run_streams_every_stage_and_serves_the_report(api, tmp_path
     assert GOOD_KEY not in os.environ.values()
 
 
+def test_an_api_runs_summaries_name_the_run(api, tmp_path):
+    run_id = started(api, tmp_path, name="named-run")
+    assert run_id == "named-run"
+    assert read_events(api, run_id)[-1]["type"] == "RUN_FINISHED"
+
+    for summary in ("notes-summary.json", "write-summary.json"):
+        found = json.loads((api.runs / run_id / summary).read_text(encoding="utf-8"))
+        assert found["sample"] == run_id, summary
+
+
 def test_a_running_run_cannot_be_confirmed_twice(api, tmp_path):
     run_id = started(api, tmp_path)
 
