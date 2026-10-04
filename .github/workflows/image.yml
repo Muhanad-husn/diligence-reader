@@ -8,6 +8,8 @@ on:
       - "deploy/**"
       - "pyproject.toml"
       - "app/**"
+      - "web/**"
+      - "src/rlm/**"
 
 permissions:
   contents: read
