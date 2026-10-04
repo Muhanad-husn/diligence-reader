@@ -502,6 +502,82 @@ def test_stop_and_upload_stops_the_old_run_and_shows_the_new_estimate(web, tmp_p
     assert dialogs == []
 
 
+# ---------------------------------------------------------------- past runs and a new room
+
+
+def run_to_the_end(page: Page, chooser: str, path: Path) -> None:
+    upload_and_confirm(page, chooser, path)
+    expect_every_stage(page, "finished")
+    expect(page.locator("#report")).to_contain_text("Executive summary", timeout=RUN_TIMEOUT)
+
+
+def test_past_runs_lists_both_rooms_and_opening_the_first_shows_its_report(web, tmp_path):
+    page = web.page
+    page.goto(web.served.url)
+    expect(page.locator("#past-card")).to_contain_text("No runs yet.")
+    paste_key(page, GOOD_KEY)
+
+    run_to_the_end(page, "#room-folder", room_folder(tmp_path))
+    [first] = web.served.run_dirs()
+    run_to_the_end(page, "#room-zip", room_zip(tmp_path))
+    first_id = first.name
+    [second_id] = [path.name for path in web.served.run_dirs() if path.name != first_id]
+
+    expect(page.locator("#past-list li")).to_have_count(2)
+    expect(page.locator(f'#past-list li[data-id="{first_id}"]')).to_contain_text("done")
+    expect(page.locator(f'#past-list li[data-id="{second_id}"]')).to_contain_text("done")
+    expect(page.locator("#past-empty")).to_be_hidden()
+
+    page.locator(f'#past-list li[data-id="{first_id}"] button.open').click()
+
+    expect(page.locator("#report-card")).to_be_visible()
+    expect(page.locator("#report")).to_contain_text("Executive summary")
+    expect(page.locator("#run-id")).to_have_text(first_id)
+    for fmt, _ in EXPORTS:
+        href = page.locator(f'#exports a[data-format="{fmt}"]').get_attribute("href")
+        assert href == f"/runs/{first_id}/export/{fmt}"
+    web.assert_kept_in(GOOD_KEY)
+
+
+def test_new_room_clears_the_page_and_keeps_the_key(web, tmp_path):
+    page = web.page
+    page.goto(web.served.url)
+    paste_key(page, GOOD_KEY)
+    run_to_the_end(page, "#room-folder", room_folder(tmp_path))
+
+    page.click("#new-room")
+
+    for card in ("#report-card", "#progress-card", "#estimate-card", "#error"):
+        expect(page.locator(card)).to_be_hidden()
+    expect(page.locator("#key-state")).to_have_text("connected")
+    expect(page.locator("#room-card")).to_be_in_viewport()
+    assert page.evaluate("() => document.getElementById('room-folder').files.length") == 0
+
+    page.click("#upload")
+    expect(page.locator("#error")).to_contain_text("Choose a folder or a zip first.")
+
+
+def test_opening_a_stopped_run_shows_the_stopped_card_with_retry(web, tmp_path):
+    page = web.page
+    page.goto(web.served.url)
+    paste_key(page, SLOW_KEY)
+    upload_and_confirm(page, "#room-folder", room_folder(tmp_path))
+    [run_dir] = web.served.run_dirs()
+    page.click("#stop")
+    expect(page.locator("#error .code")).to_have_text("stopped", timeout=RUN_TIMEOUT)
+
+    page.reload()
+    row = page.locator(f'#past-list li[data-id="{run_dir.name}"]')
+    expect(row).to_contain_text("stopped")
+    expect(page.locator("#error")).to_be_hidden()
+    row.locator("button.open").click()
+
+    card = page.locator("#error")
+    expect(card).to_be_visible(timeout=RUN_TIMEOUT)
+    expect(card.locator(".code")).to_have_text("stopped")
+    expect(card.locator("#retry")).to_be_visible()
+
+
 # ---------------------------------------------------------------- the update notice
 
 

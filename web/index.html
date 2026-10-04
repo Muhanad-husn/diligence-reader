@@ -51,6 +51,19 @@
     </div>
   </section>
 
+  <section class="card" id="past-card">
+    <h2>Past runs</h2>
+    <p id="past-empty" class="muted">No runs yet.</p>
+    <ul id="past-list"></ul>
+    <div id="open-question" hidden>
+      <p>A run is going. Stop it and open the other run?</p>
+      <p class="row">
+        <button id="open-stop" type="button">Stop and open</button>
+        <button id="open-keep" type="button">Keep it running</button>
+      </p>
+    </div>
+  </section>
+
   <section class="card" id="estimate-card" hidden>
     <h2>3. The estimate</h2>
     <p>About <strong id="estimate-dollars"></strong> for <span id="estimate-tokens"></span> tokens
@@ -78,6 +91,7 @@
 
   <section class="card" id="report-card" hidden>
     <h2>5. The report</h2>
+    <p><button id="new-room" type="button">New room</button></p>
     <p id="exports" class="row">
       <a data-format="md" download>Markdown</a>
       <a data-format="docx" download>Word</a>

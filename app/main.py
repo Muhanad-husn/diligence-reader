@@ -19,6 +19,7 @@ import re
 import shutil
 import uuid
 import zipfile
+from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from fastapi import FastAPI, File, Form, Header, UploadFile
@@ -169,6 +170,51 @@ def create_app(
             raise
         keys[run_id] = key
         return {"id": run_id}
+
+    def summary(run_id: str, run_dir: Path) -> dict:
+        """One run for the list: its id, when it was created, its status and its dollars.
+
+        The status says what the event stream would say: running while the runner has the
+        process; done when run.json says so; stopped when the stop mark is there; uploaded when
+        run.json is not (the run was never confirmed); else failed, which includes a run.json
+        that says running with its process gone. Created is the modification time of the run's
+        room folder: the upload writes it once and no stage touches it again, where the run
+        folder's own times move with every stage and a creation time is not kept on Linux.
+        """
+        try:
+            state = cli.read_json(run_dir / cli.RUN_FILE)
+        except (ValueError, OSError):
+            state = None
+        if runner.status(run_id) == "running":
+            status = "running"
+        elif state and state.get("status") == "done":
+            status = "done"
+        elif events.stopped_mark(run_dir).exists():
+            status = "stopped"
+        elif state is None:
+            status = "uploaded"
+        else:
+            status = "failed"
+        room = room_of(run_dir)
+        made = (room if room.is_dir() else run_dir).stat().st_mtime
+        return {
+            "id": run_id,
+            "created": datetime.fromtimestamp(made, timezone.utc).isoformat(timespec="seconds"),
+            "status": status,
+            "dollars": float((state or {}).get("dollars") or 0),
+            "_made": made,
+        }
+
+    @app.get("/runs")
+    async def list_runs():
+        """Every run folder named by the run rule, newest first; no key and no document text."""
+        found = []
+        if runs_root.is_dir():
+            for path in runs_root.iterdir():
+                if path.is_dir() and NAME.match(path.name):
+                    found.append(summary(path.name, path))
+        found.sort(key=lambda row: (row["_made"], row["id"]), reverse=True)
+        return {"runs": [{k: v for k, v in row.items() if k != "_made"} for row in found]}
 
     @app.get("/runs/{run_id}")
     async def read_run(run_id: str):
