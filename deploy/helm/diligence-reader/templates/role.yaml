@@ -1,0 +1,11 @@
+# The API creates one Job per run, reads its status and deletes it after the run.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "diligence-reader.fullname" . }}
+  labels:
+    {{- include "diligence-reader.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "delete"]

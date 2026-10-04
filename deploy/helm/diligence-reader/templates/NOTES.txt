@@ -1,0 +1,7 @@
+The API is the service {{ include "diligence-reader.fullname" . }} on port {{ .Values.service.port }}.
+Reach it from this machine with:
+
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "diligence-reader.fullname" . }} 8000:{{ .Values.service.port }}
+
+Each run is one Job, deleted when the run ends. The OpenRouter key is sent with each run and
+handed to its Job once; it is never stored in a Secret, a ConfigMap or the Job.

@@ -1,0 +1,70 @@
+# Builds the image on a pull request that changes it, and publishes nothing. A second build after
+# a code-only change shows that every layer but the code is reused; both times go in the summary.
+name: image
+
+on:
+  pull_request:
+    paths:
+      - "deploy/**"
+      - "pyproject.toml"
+      - "app/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Note the start
+        run: echo "BUILD_START=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: Build the image, publishing nothing
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/Dockerfile
+          target: runtime
+          push: false
+          cache-from: type=gha,scope=image
+          cache-to: type=gha,mode=max,scope=image
+
+      - name: Rebuild after a code-only change
+        run: |
+          first=$(( $(date +%s) - BUILD_START ))
+          echo "# a code-only change" >> app/__init__.py
+          start=$(date +%s)
+          docker buildx build --progress=plain -f deploy/Dockerfile --target runtime . 2> rebuild.log
+          second=$(( $(date +%s) - start ))
+          rebuilt=$(python3 - <<'EOF'
+          import re
+          steps, cached = {}, set()
+          for line in open("rebuild.log", encoding="utf-8"):
+              line = line.strip()
+              match = re.match(r"^#(\d+) \[(?:[\w-]+ )?\d+/\d+\] (.+)$", line)
+              if match:
+                  steps[match.group(1)] = match.group(2)
+              elif re.match(r"^#\d+ CACHED$", line):
+                  cached.add(line.split()[0][1:])
+          print("; ".join(s for n, s in steps.items() if n not in cached and not s.startswith("FROM")))
+          EOF
+          )
+          {
+            echo "### Image build times"
+            echo "- First build: ${first}s (cold on a first run, from the Actions cache after)"
+            echo "- Rebuild after a code-only change: ${second}s"
+            echo "- Steps rebuilt: ${rebuilt}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "first ${first}s, code-only rebuild ${second}s, rebuilt: ${rebuilt}"
+          case "$rebuilt" in
+            "COPY . /app/") ;;
+            *) echo "a code-only change rebuilt more than the code layer"; exit 1 ;;
+          esac

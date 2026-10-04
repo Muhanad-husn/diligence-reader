@@ -1,0 +1,9 @@
+apiVersion: v2
+name: diligence-reader
+description: Reads an acquisition data room and writes a cited, verified findings report; each run is one Kubernetes Job.
+type: application
+version: 0.8.0
+appVersion: "0.8.0"
+home: https://github.com/Muhanad-husn/diligence-reader
+sources:
+  - https://github.com/Muhanad-husn/diligence-reader
