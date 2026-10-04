@@ -84,8 +84,8 @@ def room_entries(uploads: list[tuple[str, bytes]]) -> list[tuple[PurePosixPath, 
             raise Refused(400, "bad-zip", "the upload is not a zip that opens") from exc
         with archive:
             members = [info for info in archive.infolist() if not info.is_dir()]
-            entries = [(room_path(info.filename), b"") for info in members]
-            entries = [(path, archive.read(info)) for (path, _), info in zip(entries, members)]
+            paths = [room_path(info.filename) for info in members]
+            entries = [(path, archive.read(info)) for path, info in zip(paths, members)]
     else:
         entries = [(room_path(name), data) for name, data in uploads]
     if not entries:
