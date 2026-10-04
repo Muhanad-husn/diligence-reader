@@ -191,18 +191,123 @@
     try {
       const made = await json("POST", "/runs", form, true);
       startRun(made.id);
-      const estimate = await json("GET", "/runs/" + run.id + "/estimate");
-      $("estimate-dollars").textContent = "$" + estimate.dollars.toFixed(4);
-      $("estimate-tokens").textContent = estimate.tokens.toLocaleString("en");
-      $("estimate-notes-model").textContent = estimate.notes_model;
-      $("estimate-write-model").textContent = estimate.write_model;
-      $("estimate-card").hidden = false;
-      $("confirm").disabled = false;
+      refreshRuns();
+      await showEstimate(made.id);
     } catch (err) {
       showError(err.code || "unexpected", err.message, false);
     } finally {
       $("upload").disabled = false;
     }
+  }
+
+  // Reads the run's estimate and shows it with the Confirm button.
+  async function showEstimate(id) {
+    const estimate = await json("GET", "/runs/" + encodeURIComponent(id) + "/estimate");
+    $("estimate-dollars").textContent = "$" + estimate.dollars.toFixed(4);
+    $("estimate-tokens").textContent = estimate.tokens.toLocaleString("en");
+    $("estimate-notes-model").textContent = estimate.notes_model;
+    $("estimate-write-model").textContent = estimate.write_model;
+    $("estimate-card").hidden = false;
+    $("confirm").disabled = false;
+  }
+
+  // ------------------------------------------------------------ past runs and a new room
+
+  // Draws the Past runs card from the server's list, newest first. Run data goes in as text only.
+  async function refreshRuns() {
+    let found;
+    try {
+      found = (await json("GET", "/runs")).runs;
+    } catch (err) {
+      return;
+    }
+    const list = $("past-list");
+    list.textContent = "";
+    $("past-empty").hidden = found.length > 0;
+    for (const item of found) {
+      const row = document.createElement("li");
+      row.dataset.id = item.id;
+      const id = document.createElement("span");
+      id.className = "id";
+      id.textContent = item.id;
+      const created = document.createElement("span");
+      created.className = "muted";
+      created.textContent = new Date(item.created).toLocaleString("en", { dateStyle: "short", timeStyle: "short" });
+      const status = document.createElement("span");
+      status.className = "status";
+      status.textContent = item.status;
+      const dollars = document.createElement("span");
+      dollars.className = "dollars";
+      dollars.textContent = "$" + Number(item.dollars || 0).toFixed(4);
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "open";
+      open.textContent = "Open";
+      open.addEventListener("click", () => openClicked(item.id, item.status));
+      row.append(id, " ", created, " ", status, " ", dollars, " ", open);
+      list.append(row);
+    }
+  }
+
+  // Open asks first when another run is going; the question's buttons carry on from there.
+  let pending = null;
+
+  function openClicked(id, status) {
+    if (run && run.id === id) return;
+    if (run && run.going) {
+      pending = { id, status };
+      $("open-question").hidden = false;
+      return;
+    }
+    openRun(id, status);
+  }
+
+  async function stopAndOpen() {
+    $("open-question").hidden = true;
+    const next = pending;
+    pending = null;
+    if (!next) return;
+    try {
+      await stop();
+    } catch (err) {
+      showError(err.code || "unexpected", err.message, false);
+      return;
+    }
+    openRun(next.id, next.status);
+  }
+
+  // Shows a past run as the page would have shown it live: the event stream replays a run
+  // that is over, so a done run gives its report and a failed or stopped run its error card.
+  async function openRun(id, status) {
+    hideError();
+    $("open-question").hidden = true;
+    $("replace-question").hidden = true;
+    $("stop").hidden = true;
+    startRun(id);
+    if (status !== "uploaded") {
+      follow();
+      return;
+    }
+    try {
+      await showEstimate(id);
+    } catch (err) {
+      showError(err.code || "unexpected", err.message, false);
+    }
+  }
+
+  // Back to step 2: the room, the estimate, the progress, the report and any error cleared; the key kept.
+  function newRoom() {
+    if (run && run.source) run.source.close();
+    run = null;
+    chosen = null;
+    $("room-folder").value = "";
+    $("room-zip").value = "";
+    for (const card of ["estimate-card", "progress-card", "report-card"]) $(card).hidden = true;
+    $("stop").hidden = true;
+    $("replace-question").hidden = true;
+    $("open-question").hidden = true;
+    hideError();
+    $("room-card").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function startRun(id) {
@@ -314,12 +419,14 @@
         if (event.result && event.result.dollars != null) run.values.dollars = event.result.dollars;
         showValues();
         showReport();
+        refreshRuns();
         break;
       case "RUN_ERROR":
         source.close();
         ended();
         for (const row of document.querySelectorAll('#stages [data-state="running"]')) mark(row.dataset.stage, "stopped");
         showError(event.code || "unexpected", event.message, true);
+        refreshRuns();
         break;
       default:
         break;
@@ -331,6 +438,7 @@
     run.going = false;
     $("stop").hidden = true;
     $("replace-question").hidden = true;
+    $("open-question").hidden = true;
   }
 
   // ------------------------------------------------------------ the error card
@@ -564,6 +672,9 @@
   $("upload").addEventListener("click", uploadClicked);
   $("replace-stop").addEventListener("click", stopAndUpload);
   $("replace-keep").addEventListener("click", () => ($("replace-question").hidden = true));
+  $("open-stop").addEventListener("click", stopAndOpen);
+  $("open-keep").addEventListener("click", () => ($("open-question").hidden = true));
+  $("new-room").addEventListener("click", newRoom);
   $("stop").addEventListener("click", () => stop().catch((err) => showError(err.code || "unexpected", err.message, false)));
   $("confirm").addEventListener("click", confirm);
   $("retry").addEventListener("click", retry);
@@ -583,4 +694,5 @@
     signIn();
   }
   configure();
+  refreshRuns();
 })();

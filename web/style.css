@@ -112,6 +112,24 @@ input[type="password"] {
   border-color: var(--stop);
 }
 
+#past-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#past-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+#past-list .id {
+  font-family: ui-monospace, Consolas, monospace;
+}
+
 #error .code {
   font-family: ui-monospace, Consolas, monospace;
   color: var(--stop);

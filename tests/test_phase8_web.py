@@ -526,7 +526,7 @@ def test_past_runs_lists_both_rooms_and_opening_the_first_shows_its_report(web, 
     expect(page.locator("#past-list li")).to_have_count(2)
     expect(page.locator(f'#past-list li[data-id="{first_id}"]')).to_contain_text("done")
     expect(page.locator(f'#past-list li[data-id="{second_id}"]')).to_contain_text("done")
-    expect(page.locator("#past-card")).not_to_contain_text("No runs yet.")
+    expect(page.locator("#past-empty")).to_be_hidden()
 
     page.locator(f'#past-list li[data-id="{first_id}"] button.open').click()
 
