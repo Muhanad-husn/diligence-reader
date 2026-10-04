@@ -10,6 +10,13 @@ cannot. Rewriting `atlas`, `northwind` and `northstar-dental` costs about $0.58,
 $0.31 left. The five variants book to phase 6 and need nothing. Approved by the founder for
 issue #101. The reserve stands at $14 of $15.
 
+**Three dollars borrowed from the reserve, 2026-10-04.** Phase 8 has a cap of $3. Its model
+calls are the runs that prove the web interface gives the same report as the command line: a run
+of sample 1 costs about $0.30 and samples 2 and 3 about $0.10 each, so one gate round is about
+$0.50; the slices each run sample 1 once and the gate runs the three samples twice. Approved by
+the founder on 2026-10-04 with the phase 8 plan. The reserve stands at $11 of $15. Added by
+hand.
+
 | date | sample | phase | model | tokens in | tokens out | dollars | balance |
 |---|---|---|---|---|---|---|---|
 | 2026-09-05 | | | | 0 | 0 | 0.0000 | 50.0000 |
