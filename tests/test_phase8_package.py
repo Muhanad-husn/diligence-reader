@@ -19,7 +19,6 @@ import json
 import os
 import re
 import shutil
-import socket
 import subprocess
 import threading
 import time
@@ -391,7 +390,6 @@ def k8s(tmp_path, monkeypatch):
         transport=cluster,
         poll=0.01,
     )
-    runner.account_dir = account
     yield runner, cluster
     runner.close()
 
