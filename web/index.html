@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>diligence-reader</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-update-check="pending">
+<header class="top">
+  <h1>diligence-reader</h1>
+  <span class="muted">version <span id="version"></span></span>
+</header>
+
+<section id="update" class="card notice" hidden>
+  <p>A newer version, <strong id="update-version"></strong>, is out. Update with the command for how you installed it:</p>
+  <dl class="commands">
+    <dt>Docker</dt><dd><code id="update-docker"></code></dd>
+    <dt>pipx</dt><dd><code id="update-pipx"></code></dd>
+    <dt>Helm</dt><dd><code id="update-helm"></code></dd>
+  </dl>
+</section>
+
+<main>
+  <section class="card" id="key-card">
+    <h2>1. OpenRouter key</h2>
+    <p class="muted">The key stays in this page's memory and goes with each run. It is not saved; a reload forgets it.</p>
+    <div class="row">
+      <button id="sign-in" type="button">Sign in with OpenRouter</button>
+      <span class="muted">or paste a key</span>
+      <input id="key-input" type="password" autocomplete="off" spellcheck="false" placeholder="sk-or-v1-...">
+      <button id="key-use" type="button">Use this key</button>
+    </div>
+    <p id="key-state" class="muted">no key yet</p>
+  </section>
+
+  <section class="card" id="room-card">
+    <h2>2. The room</h2>
+    <div class="row">
+      <label>A folder <input id="room-folder" type="file" webkitdirectory multiple></label>
+      <label>or a zip <input id="room-zip" type="file" accept=".zip,application/zip"></label>
+      <button id="upload" type="button">Upload and estimate</button>
+    </div>
+  </section>
+
+  <section class="card" id="estimate-card" hidden>
+    <h2>3. The estimate</h2>
+    <p>About <strong id="estimate-dollars"></strong> for <span id="estimate-tokens"></span> tokens
+      (notes on <span id="estimate-notes-model"></span>, the report on <span id="estimate-write-model"></span>).
+      The dollars come from your OpenRouter credits.</p>
+    <button id="confirm" type="button">Confirm and start</button>
+  </section>
+
+  <section class="card" id="error" hidden>
+    <h2>The run stopped: <span class="code"></span></h2>
+    <p class="fix"></p>
+    <p class="row">
+      <button id="retry" type="button">Retry from the stage that stopped</button>
+      <a id="top-up" href="https://openrouter.ai/settings/credits" target="_blank" rel="noopener" hidden>Add credits</a>
+      <a id="report-problem" target="_blank" rel="noopener noreferrer" hidden>Report a problem</a>
+    </p>
+  </section>
+
+  <section class="card" id="progress-card" hidden>
+    <h2>4. Progress <span class="muted">run <span id="run-id"></span></span></h2>
+    <ol id="stages"></ol>
+    <p>Documents noted: <strong id="noted">0</strong> · Dollars spent: <strong id="dollars">$0.0000</strong></p>
+  </section>
+
+  <section class="card" id="report-card" hidden>
+    <h2>5. The report</h2>
+    <p id="exports" class="row">
+      <a data-format="md" download>Markdown</a>
+      <a data-format="docx" download>Word</a>
+      <a data-format="pdf" download>PDF</a>
+      <a data-format="csv" download>Evidence CSV</a>
+    </p>
+    <div class="reader">
+      <article id="report"></article>
+      <aside id="source" hidden>
+        <h3 id="source-doc"></h3>
+        <div id="source-lines"></div>
+      </aside>
+    </div>
+  </section>
+</main>
+
+<script src="vendor/marked.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
