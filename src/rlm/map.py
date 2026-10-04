@@ -1,8 +1,8 @@
 """Builds runs/<sample>/map.json from the index, the sections and the notes.
 
-The map is a graph of the room. Its nodes are the documents the key names, in the key's own
-order, each with its folder, its first date and the status words the index read off it. Its
-edges are the values two documents share: an `identifier` the index saw, an `amount` the index
+The map is a graph of the room. Its nodes are the room's documents, in the order
+rlm.key.room_documents gives them (the key's own order where the room has a key), each with
+its folder, its first date and the status words the index read off it. Its edges are the values two documents share: an `identifier` the index saw, an `amount` the index
 read as a figure, a `cross-reference` a note wrote, a `version` pair of a draft and its final,
 and a `date` where two documents carry a dated section within seven days of each other. A shared
 value weighs less the more documents carry it, so AURORA in sixteen documents weighs a quarter
@@ -92,7 +92,8 @@ figure of another set document's note as well. The matter keeps every such model
 number that outlived the matter in two models is two models to correct, not one.
 
 Nothing here reads the key's facts, its required documents or its decoys, opens a socket or
-calls a model. The key is read for the id and path of each document and for nothing else.
+calls a model. The key, where there is one, is read for the id and path of each document and
+the sample's name, and for nothing else.
 """
 
 from __future__ import annotations
@@ -108,7 +109,7 @@ import time
 from pathlib import Path
 
 from rlm.index import line_cells
-from rlm.key import load_key
+from rlm.key import room_documents, room_name
 from rlm.words import (
     COMPARE_WORDS,
     TERMINATION_WORDS,
@@ -1539,9 +1540,9 @@ def stands_beside(first: dict, other: dict, room: int) -> bool:
 
 def build_map(sample_dir: Path, run_dir: Path) -> dict:
     """Reads a sample's index, sections and notes and returns the map."""
-    key = load_key(sample_dir)
-    order = list(key.documents)
-    ids_by_path = {path: doc_id for doc_id, path in key.documents.items()}
+    room = room_documents(sample_dir)
+    order = list(room)
+    ids_by_path = {path: doc_id for doc_id, path in room.items()}
 
     sections = read_jsonl(run_dir / "sections.jsonl")
     records = read_jsonl(run_dir / "index.jsonl")
@@ -1570,7 +1571,7 @@ def build_map(sample_dir: Path, run_dir: Path) -> dict:
 
     documents = []
     for doc_id in order:
-        path = key.documents[doc_id]
+        path = room[doc_id]
         days = dated.get(doc_id, [])
         documents.append(
             {
@@ -1703,7 +1704,7 @@ def build_map(sample_dir: Path, run_dir: Path) -> dict:
             for edge in edges
         ],
         "matters": matters,
-        "sample": key.sample,
+        "sample": room_name(sample_dir),
     }
 
 

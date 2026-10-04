@@ -1,5 +1,8 @@
 """Writes one sample's findings report from its brief and its dossier, in one gateway call.
 
+The brief is the room's brief.md, or the package's own brief.md, DEFAULT_BRIEF, where the room
+carries none, so a user's room is written on the same five deliverables as the samples.
+
 The report has two halves and only the first is written by a model. build_digest reads the
 dossier's first matter and keeps about a hundred and fifty rows of it: every comparison, one
 row for each name, the models blind to the matter, the largest lesser matters and every lesser
@@ -84,6 +87,9 @@ DEFAULT_MODEL = "z-ai/glm-5.3"
 # 2026-09-07, when the digest grew to give every document of the matter a timeline row and
 # the reply needed room to quote them.
 MAX_OUTPUT_TOKENS = 12000
+
+# The brief a room with no brief.md is written on, shipped inside the package.
+DEFAULT_BRIEF = Path(__file__).resolve().with_name("brief.md")
 
 # What an empty field is written as, in the dossier and in the schedule.
 EMPTY_FIELD = "-"
@@ -1010,6 +1016,12 @@ def holds_further_matter(digest: str) -> bool:
     return any(line.startswith("## ") for line in digest.splitlines())
 
 
+def brief_path(sample_dir: Path) -> Path:
+    """The brief a room is written on: its own brief.md, or DEFAULT_BRIEF where it has none."""
+    own = Path(sample_dir) / "brief.md"
+    return own if own.exists() else DEFAULT_BRIEF
+
+
 def build_messages(brief: str, digest: str) -> list[dict]:
     """The two messages of the call: the instructions with the brief, then the digest.
 
@@ -1252,15 +1264,12 @@ def main(
 
     sample_dir = Path(args.sample_dir)
     run_dir = Path(args.run_dir)
-    brief_path = sample_dir / "brief.md"
+    brief = brief_path(sample_dir)
     dossier_path = run_dir / "dossier.md"
     sections_path = run_dir / "sections.jsonl"
     index_path = run_dir / "index.jsonl"
     if not dossier_path.exists():
         print(f"no dossier at {dossier_path}")
-        return 2
-    if not brief_path.exists():
-        print(f"no brief at {brief_path}")
         return 2
     if not sections_path.exists():
         print(f"no sections.jsonl at {sections_path}")
@@ -1273,7 +1282,7 @@ def main(
     digest = digest_markdown(dossier)
     rows = build_digest(dossier)
 
-    messages = build_messages(brief_path.read_text(encoding="utf-8"), digest)
+    messages = build_messages(brief.read_text(encoding="utf-8"), digest)
 
     evidence, cut = evidence_within_reach(dossier)
     sections = verifier.read_jsonl(sections_path)

@@ -53,7 +53,8 @@ id, so a document with a flag and no money figure follows the ones with money. E
 carries that figure, the note's first flag and the place it was written.
 
 Nothing here reads the key's facts, its required documents or its decoys, opens a socket or
-calls a model. The key is read for the id and path of each document and for nothing else.
+calls a model. The key, where there is one, is read for the id and path of each document and
+for nothing else; a room with no key gives its own files, as rlm.key.room_documents reads them.
 """
 
 from __future__ import annotations
@@ -65,7 +66,7 @@ import time
 from pathlib import Path
 
 from rlm.amounts import date_matches, normalise_amount
-from rlm.key import load_key
+from rlm.key import room_documents
 from rlm.map import as_day, as_iso, figure_number, read_jsonl, read_notes
 from rlm.words import (
     COMMON_WORDS,
@@ -968,8 +969,7 @@ def lesser_lines(
 
 def build_dossier(sample_dir: Path, run_dir: Path) -> str:
     """Reads a sample's map, index, sections and notes and returns the dossier's markdown."""
-    key = load_key(sample_dir)
-    ids_by_path = {path: doc_id for doc_id, path in key.documents.items()}
+    ids_by_path = {path: doc_id for doc_id, path in room_documents(sample_dir).items()}
 
     document = json.loads((run_dir / "map.json").read_text(encoding="utf-8"))
     sections = read_jsonl(run_dir / "sections.jsonl")

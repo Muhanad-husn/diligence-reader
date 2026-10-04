@@ -1,6 +1,6 @@
 [project]
 name = "diligence-reader"
-version = "0.0.0"
+version = "0.8.0"
 description = "Reads an acquisition data room and writes a cited, verified findings report; a fixed rebuild of a recursive language model run"
 requires-python = "==3.13.*"
 dependencies = [
@@ -17,6 +17,9 @@ dependencies = [
 
 license = "Apache-2.0"
 readme = "README.md"
+
+[project.scripts]
+diligence-reader = "rlm.cli:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "python-docx"]

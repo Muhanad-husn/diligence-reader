@@ -41,7 +41,8 @@ reply that answers with fewer items loses nothing; an item both replies write is
 fails on the second reply is dropped and written to notes-verify.jsonl. A reply that is not one
 JSON object, or that has no what or none of the four lists, is asked again with the exact key
 names, and a second reply that fails the same way drops the note whole. There is no third call.
-A document the key names but sections.jsonl does not carry is dropped without a call.
+A document of the room (the key's, or every readable file of a room with no key, as
+rlm.key.room_documents gives them) that sections.jsonl does not carry is dropped without a call.
 
 A document whose text is longer than PIECE_LIMIT characters is split at section boundaries into
 pieces, each under the limit, and noted one piece at a time: each piece is its own call (or two,
@@ -55,8 +56,14 @@ exactly as it does for a document short enough for one call.
 Every reply text is written verbatim to runs/<sample>/notes-raw/<document>.<attempt>.txt, so a
 pass can be read back without calling the model again.
 
+A call the gateway refuses with 401, 402, 403 or 429 stops the pass instead: the key, the
+account or the rate refuses every call, so no note of the room can be written, and dropping each
+document in turn would finish a pass that noted nothing. The documents not yet started are
+cancelled, the error is raised out of main, and no summary, no verify log and no ledger row is
+written. Every other exception still drops its one document.
+
 The documents run eight at a time inside one ledger batch, so a pass is one line of LEDGER.md
-and one runs/<sample>/notes-summary.json. A pass over every document of the key writes that
+and one runs/<sample>/notes-summary.json. A pass over every document of the room writes that
 summary from what this call did. A pass over --only documents merges into it instead: the
 counts are read back from what is on disk afterward, and the usage of the documents just
 replaced is swapped for their new usage in the previous totals.
@@ -77,8 +84,17 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from rlm.amounts import AMOUNT
-from rlm.gateway import PHASE_CAPS, Batch, Completion, Gateway, Ledger, estimate_tokens, price
-from rlm.key import load_key
+from rlm.gateway import (
+    PHASE_CAPS,
+    Batch,
+    Completion,
+    Gateway,
+    Ledger,
+    estimate_tokens,
+    price,
+    stops_every_call,
+)
+from rlm.key import room_documents
 from rlm.map import BREADTH_SHARE, is_count, ordinary_words
 from rlm.words import fold
 
@@ -373,6 +389,12 @@ def build_messages(sections: list[dict]) -> list[dict]:
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": USER_PREFIX + document_text(sections)},
     ]
+
+
+def request_tokens(sections: list[dict]) -> int:
+    """The input tokens one document's note request carries, by the gateway's counter, over the
+    request as build_messages writes it for the whole document."""
+    return estimate_tokens("\n".join(message["content"] for message in build_messages(sections)))
 
 
 def parse_reply(text: str) -> dict | None:
@@ -925,8 +947,9 @@ def note_and_write(
     Runs in one pool thread. Every reply text is written to notes-raw before it is read, so a
     pass can be tuned from what the model actually said. A call that raises drops this document
     whole so the pool and the batch finish: the exception is caught, printed, and logged as
-    note-dropped at attempt 1. A reply that never parses is not an exception; it is also printed
-    and logged, so nothing here is silent.
+    note-dropped at attempt 1. A gateway status that refuses every call is raised instead, so
+    the pass stops. A reply that never parses is not an exception; it is also printed and
+    logged, so nothing here is silent.
     """
     completions: list[Completion] = []
 
@@ -940,6 +963,8 @@ def note_and_write(
     try:
         note, records = note_document(doc, model, pass_name, sections, call, named)
     except Exception as exc:
+        if stops_every_call(exc):
+            raise
         print(f"{doc_id}: note dropped, {type(exc).__name__}: {exc}")
         return doc_id, None, [_log_record(doc, None, None, None, "note-dropped", 1)]
 
@@ -1055,21 +1080,21 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
     run_dir = Path(args.run_dir)
     out_dir = Path(args.out) if args.out else run_dir
 
-    key = load_key(sample_dir)
-    ids_by_path = {path: doc_id for doc_id, path in key.documents.items()}
+    room = room_documents(sample_dir)
+    ids_by_path = {path: doc_id for doc_id, path in room.items()}
     if not args.only:
-        chosen = list(key.documents.items())
+        chosen = list(room.items())
     else:
         wanted = set()
         for only in args.only:
-            if only in key.documents:
+            if only in room:
                 wanted.add(only)
             elif only in ids_by_path:
                 wanted.add(ids_by_path[only])
             else:
                 print(f"no such document in the key: {only}")
                 return 2
-        chosen = [(doc_id, doc) for doc_id, doc in key.documents.items() if doc_id in wanted]
+        chosen = [(doc_id, doc) for doc_id, doc in room.items() if doc_id in wanted]
 
     sections_by_doc = read_sections(run_dir)
     prompts = [(doc_id, doc) for doc_id, doc in chosen if sections_by_doc.get(doc)]
@@ -1083,7 +1108,7 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
     # there, with 89 documents in the set.
     skipped = frozenset(
         ordinary_words([section for sections in sections_by_doc.values() for section in sections])
-    ) | frozenset(key.documents)
+    ) | frozenset(room)
     named_by_doc = {doc: named_values(index, doc, skipped) for _, doc in prompts}
 
     if gateway is None:
@@ -1091,10 +1116,7 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
     if ledger is None:
         ledger = Ledger(Path(__file__).resolve().parents[2] / "LEDGER.md")
 
-    estimated_in = sum(
-        estimate_tokens("\n".join(message["content"] for message in build_messages(sections_by_doc[doc])))
-        for _, doc in prompts
-    )
+    estimated_in = sum(request_tokens(sections_by_doc[doc]) for _, doc in prompts)
     estimated_out = args.max_output_tokens * len(prompts)
 
     # A partial pass merges into what a prior pass wrote, so the usage of the documents this
@@ -1137,7 +1159,14 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
                 )
                 for doc_id, doc in prompts
             ]
-            results = [future.result() for future in futures]
+            try:
+                results = [future.result() for future in futures]
+            except BaseException:
+                # A refused key or an empty account fails every document the same way, so the
+                # documents not yet started are not sent at all.
+                for future in futures:
+                    future.cancel()
+                raise
     seconds = time.monotonic() - started
 
     noted = 0
@@ -1162,7 +1191,7 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
         # rather than replacing it. tokens_in and tokens_out fold this call's usage into the
         # previous summary's totals, minus the usage of the documents just replaced; with no
         # previous summary there is nothing to fold into, so this call's own totals stand.
-        disk_counts = counts_from_disk(out_dir, len(key.documents))
+        disk_counts = counts_from_disk(out_dir, len(room))
         verify_counts = verify_counts_from_disk(out_dir)
         if previous_summary is None:
             tokens_in, tokens_out = batch.tokens_in, batch.tokens_out
