@@ -1,5 +1,5 @@
 # Builds the image on a pull request that changes it, and publishes nothing. A second build after
-# a code-only change shows that every layer but the code is reused; both times go in the summary.
+# a code-only change must finish under a minute; both times and the layers rebuilt go in the summary.
 name: image
 
 on:
@@ -47,7 +47,6 @@ jobs:
           start=$(date +%s)
           docker buildx build --progress=plain --cache-from type=gha,scope=image -f deploy/Dockerfile --target runtime . 2> rebuild.log
           second=$(( $(date +%s) - start ))
-          grep -E '^#[0-9]+ (\[|CACHED|DONE)' rebuild.log || true
           rebuilt=$(python3 - <<'EOF'
           import re
           steps, cached = {}, set()
@@ -68,7 +67,7 @@ jobs:
             echo "- Steps rebuilt: ${rebuilt}"
           } >> "$GITHUB_STEP_SUMMARY"
           echo "first ${first}s, code-only rebuild ${second}s, rebuilt: ${rebuilt}"
-          case "$rebuilt" in
-            "COPY . /app/") ;;
-            *) echo "a code-only change rebuilt more than the code layer"; exit 1 ;;
-          esac
+          # The bar is the founder's: a code-only rebuild under a minute. Which layers CI rebuilds is
+          # reported, not enforced; tests/test_phase8_package.py checks every layer but the code is
+          # reused on a local builder.
+          if [ "$second" -ge 60 ]; then echo "a code-only rebuild took ${second}s, over a minute"; exit 1; fi
