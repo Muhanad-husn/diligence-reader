@@ -407,6 +407,130 @@ def test_a_stopped_mark_ends_a_running_state_stopped():
     assert "\n" not in found[-1].message
 
 
+# ---------------------------------------------------------------- the list of runs
+
+
+def listed(client) -> list[dict]:
+    response = client.get("/runs")
+    assert response.status_code == 200
+    return response.json()["runs"]
+
+
+def status_of(client, run_id: str) -> str:
+    [found] = [run for run in listed(client) if run["id"] == run_id]
+    return found["status"]
+
+
+def age(client, run_id: str, seconds: int) -> None:
+    """Sets the time of the run's room folder, which the list reads, to a fixed moment."""
+    os.utime(client.runs / run_id / run_id, (seconds, seconds))
+
+
+def test_an_empty_or_missing_runs_folder_lists_nothing(api):
+    assert not api.runs.exists()
+    assert api.get("/runs").json() == {"runs": []}
+
+    api.runs.mkdir()
+    assert api.get("/runs").json() == {"runs": []}
+
+
+def test_a_run_never_confirmed_is_uploaded(api, tmp_path):
+    run_id = upload(api, room_files(tmp_path)).json()["id"]
+
+    [found] = listed(api)
+
+    assert found["id"] == run_id
+    assert found["status"] == "uploaded"
+    assert found["dollars"] == 0
+    assert found["created"].endswith("+00:00") or found["created"].endswith("Z")
+
+
+def test_a_running_run_is_running_and_a_stopped_one_is_stopped(api, tmp_path):
+    run_id = started(api, tmp_path, key=SLOW_KEY)
+    assert status_of(api, run_id) == "running"
+
+    assert api.post(f"/runs/{run_id}/stop").status_code == 200
+
+    assert status_of(api, run_id) == "stopped"
+
+
+def test_a_finished_run_is_done_with_its_dollars(api, tmp_path):
+    run_id = started(api, tmp_path)
+    assert read_events(api, run_id)[-1]["type"] == "RUN_FINISHED"
+
+    [found] = listed(api)
+
+    assert found["status"] == "done"
+    assert found["dollars"] == run_json(api.runs / run_id)["dollars"]
+    assert found["dollars"] > 0
+
+
+def test_a_refused_key_is_failed(api, tmp_path):
+    run_id = started(api, tmp_path, key=BAD_KEY)
+    assert read_events(api, run_id)[-1]["type"] == "RUN_ERROR"
+
+    assert status_of(api, run_id) == "failed"
+
+
+def test_a_running_state_with_no_process_is_failed(api, tmp_path):
+    run_id = upload(api, room_files(tmp_path)).json()["id"]
+    (api.runs / run_id / "run.json").write_text(
+        json.dumps({"stage": "notes", "status": "running", "dollars": 0.25}), encoding="utf-8"
+    )
+
+    [found] = listed(api)
+
+    assert found["status"] == "failed"
+    assert found["dollars"] == 0.25
+
+
+def test_the_list_is_newest_first(api, tmp_path):
+    ids = [upload(api, room_files(tmp_path), name=name).json()["id"] for name in ("run-a", "run-b", "run-c")]
+    for run_id, seconds in zip(ids, (2_000_000_000, 1_000_000_000, 1_500_000_000)):
+        age(api, run_id, seconds)
+
+    assert [run["id"] for run in listed(api)] == ["run-a", "run-c", "run-b"]
+
+
+def test_a_folder_the_run_rule_refuses_is_left_out(api, tmp_path):
+    run_id = upload(api, room_files(tmp_path)).json()["id"]
+    (api.runs / "Not_A_Run").mkdir()
+    (api.runs / "stray.txt").write_text("not a folder", encoding="utf-8")
+
+    assert [run["id"] for run in listed(api)] == [run_id]
+
+
+def test_the_list_holds_neither_the_key_nor_the_room(api, tmp_path):
+    run_id = started(api, tmp_path)
+    assert read_events(api, run_id)[-1]["type"] == "RUN_FINISHED"
+
+    body = api.get("/runs").text
+
+    assert GOOD_KEY not in body
+    for path in (api.runs / run_id / run_id).rglob("*.md"):
+        assert path.read_text(encoding="utf-8").strip().splitlines()[0] not in body
+    assert set(listed(api)[0]) == {"id", "created", "status", "dollars"}
+
+
+def test_a_run_the_server_did_not_start_still_replays_its_end(api, tmp_path):
+    run_id = started(api, tmp_path)
+    assert read_events(api, run_id)[-1]["type"] == "RUN_FINISHED"
+    api.runner.processes.clear()
+
+    assert status_of(api, run_id) == "done"
+    assert read_events(api, run_id)[-1]["type"] == "RUN_FINISHED"
+
+
+def test_a_stopped_run_the_server_did_not_start_replays_stopped(api, tmp_path):
+    run_id = started(api, tmp_path, key=SLOW_KEY)
+    assert api.post(f"/runs/{run_id}/stop").status_code == 200
+    api.runner.processes.clear()
+
+    assert status_of(api, run_id) == "stopped"
+    last = read_events(api, run_id)[-1]
+    assert (last["type"], last["code"]) == ("RUN_ERROR", "stopped")
+
+
 def test_a_missing_report_and_export_are_not_found(api, tmp_path):
     run_id = upload(api, room_files(tmp_path)).json()["id"]
 
