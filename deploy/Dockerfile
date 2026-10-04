@@ -19,7 +19,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
 
-RUN useradd --uid 10001 --user-group --create-home --home-dir /home/app app \
+# The system layer: Debian's security fixes since the base was cut, pip removed since uv
+# installs everything (pip's vendored packages carry findings of their own), and the user.
+RUN apt-get update \
+    && apt-get -y upgrade \
+    && rm -rf /var/lib/apt/lists/* \
+    && python -m pip uninstall -y pip \
+    && rm -rf /usr/local/lib/python3.13/ensurepip \
+    && useradd --uid 10001 --user-group --create-home --home-dir /home/app app \
     && mkdir -p /app/runs \
     && chown app:app /app/runs
 

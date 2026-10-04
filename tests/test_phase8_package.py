@@ -85,8 +85,9 @@ def instructions() -> list[str]:
 
 def test_the_dockerfile_pins_its_base_by_digest_and_installs_with_uv():
     found = instructions()
-    bases = [line for line in found if line.upper().startswith("FROM ") and " AS " in line.upper()]
+    bases = [line for line in found if line.startswith("FROM python")]
 
+    assert len(bases) == 1
     assert re.match(r"FROM python:3\.13-slim(-\w+)?@sha256:[0-9a-f]{64} AS \w+", bases[0])
     uv = [line for line in found if "astral-sh/uv" in line]
     assert uv and all(re.search(r"@sha256:[0-9a-f]{64}", line) for line in uv)
