@@ -48,7 +48,19 @@ def docx_text(path: Path) -> str:
 
 
 def pdf_text(path: Path) -> str:
-    return "\n".join(page.extract_text() or "" for page in PdfReader(str(path)).pages)
+    """The PDF's text, page by page, less the page number each page ends with, and with a
+    citation path the page wrapped after a slash joined again.
+
+    Left in, the number lands inside a quote that runs across a page break, and the line break
+    splits a document's path so the grader no longer reads it as cited.
+    """
+    pages = []
+    for number, page in enumerate(PdfReader(str(path)).pages, start=1):
+        lines = (page.extract_text() or "").splitlines()
+        if lines and lines[-1].strip() == str(number):
+            lines = lines[:-1]
+        pages.append("\n".join(lines))
+    return re.sub(r"/\n", "/", "\n".join(pages))
 
 
 @pytest.fixture
