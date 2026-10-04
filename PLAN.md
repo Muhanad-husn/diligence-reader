@@ -19,7 +19,7 @@ its score against the sample's key, the dollars it cost, and the spread between 
 
 Phase 8 turns the tool into a product a user installs and runs on their own machine, from one
 command or a web page served on that machine. The seven stages run unchanged, on the user's own
-OpenRouter key, under a spending cap the user sets. Section 4c describes it.
+OpenRouter key. Section 4c describes it.
 
 ## 2. The method
 
@@ -144,11 +144,11 @@ database, no payments: each run is a folder under `runs/`, and the folder is the
 | Layer | What it is |
 |---|---|
 | Engine | `src/rlm/`, the seven stages, unchanged |
-| Command | `diligence-reader run <room>`, replacing the five `python -m` steps, with a per-run spending cap the user sets, a price estimate printed before the first model call, and a retry that resumes from the stage that stopped, since every stage already writes its own artefact |
+| Command | `diligence-reader run <room>`, replacing the five `python -m` steps, with a price estimate shown before the first model call and confirmed by the user, and a retry that resumes from the stage that stopped, since every stage already writes its own artefact |
 | Runner | a run takes minutes and does not fit in one web request: a background process on the machine, or a Kubernetes Job, one interface and two implementations |
 | API | FastAPI: start a run, stream its progress, fetch the report, export it |
 | Progress stream | AG-UI events over server-sent events: run started, step started and finished per stage, state updates for documents noted and dollars spent, run error with its code. No chat and no CopilotKit |
-| Web page | upload a room, connect the OpenRouter key, see the estimate and set the cap, watch progress, read the report, export, see an error card |
+| Web page | upload a room, connect the OpenRouter key, see the estimate and confirm it, watch progress, read the report, export, see an error card |
 | Export | Markdown as written, Word and PDF built from the same Markdown with pandoc and WeasyPrint, and the Evidence section alone as CSV, saved so Excel opens it cleanly. No Excel file: the report body is prose, and the Evidence section is one flat table, about 1,800 rows on sample 1, that a CSV carries whole |
 | Packaging | one Docker image for `docker run`, `pipx install diligence-reader` for the command alone, a build on every merge that publishes the image to GitHub's container registry, and a Helm chart for a firm that runs it on its own Kubernetes cluster |
 
@@ -159,9 +159,11 @@ The key: the user connects with OpenRouter's sign-in, which issues a key the use
 revoke, or pastes one. The key stays in the browser, goes with each run, is held in the runner's
 memory, and is never logged or written to disk.
 
-Money: a user's run spends the user's credits. Its ledger is written in the run's folder and its
-cap is the one the user set. The repository's `LEDGER.md` and the $50 ceiling apply to this
-build's own calls, which are the gate runs on the three samples.
+Money: a user's run spends the user's credits, and the tool sets no cap on them. The limit is the
+one the user puts on the key at OpenRouter. The tool shows the estimate before the first model
+call and the dollars spent after the run. The repository's `LEDGER.md`, the phase caps and the
+$50 ceiling apply to this build's own calls only, which are the gate runs on the three samples; a
+user's run neither writes `LEDGER.md` nor is refused by those caps.
 
 When a run fails: every failure carries a code from a short list, each with its fix on the error
 card: a refused key, no credits left with a link to top up, rate limited, a model that returned
