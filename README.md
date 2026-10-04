@@ -56,32 +56,51 @@ Details of every sample and its key: [`samples/README.md`](samples/README.md).
 
 ## Run it
 
+Three ways to run it.
+
+**Docker**
+
+The web page on the user's machine.
+
+```
+docker run -p 8000:8000 -v <runs>:/app/runs ghcr.io/muhanad-husn/diligence-reader
+```
+
+Open http://localhost:8000, connect an OpenRouter key (sign in or paste one), upload a room as a folder or zip, read the estimate, confirm, watch progress, read the report and export Word, PDF or the evidence CSV. The key stays in the browser and goes with each run; it is not written to disk.
+
+**pipx**
+
+The command alone.
+
+```
+pipx install diligence-reader
+diligence-reader run <room> --out <folder>
+```
+
+Set OPENROUTER_API_KEY. The command shows the price estimate and asks before the first model call; pass --yes to accept it. A rerun resumes from the stage that stopped.
+
+**Helm**
+
+For a firm that runs it on its own Kubernetes cluster.
+
+```
+helm install dr oci://ghcr.io/muhanad-husn/charts/diligence-reader
+kubectl port-forward svc/dr-diligence-reader 8000:8000
+```
+
+Each run is one Kubernetes Job. The page is at http://localhost:8000.
+
+**From the repository**
+
 Python 3.13. Model calls go through OpenRouter; the tool refuses to call a model before it
-has counted the input tokens, printed the price and checked the ledger against the ceiling.
+has counted the input tokens, printed the price and checked the ledger against the ceiling. A user's own runs spend the user's OpenRouter credits; the limit is the one the user sets on the key.
 
 ```
 pip install -e ".[dev]"
-export OPENROUTER_API_KEY=...        # or put it in .env
-
-python -m rlm.ingest  samples/atlas runs/atlas
-python -m rlm.notes   samples/atlas runs/atlas     # model: GLM 5.3 Flash by default
-python -m rlm.map     samples/atlas runs/atlas
-python -m rlm.dossier samples/atlas runs/atlas
-python -m rlm.write   samples/atlas runs/atlas --passes 2   # model: GLM 5.3 by default;
-                                                             # writes, verifies, grades, prints the spread
+export OPENROUTER_API_KEY=...
 ```
 
-`rlm.write` runs the verifier and the grader itself and prints recall, rubric score and the
-spread between the two passes. They can also be run alone:
-`python -m rlm.verify samples/atlas runs/atlas` and
-`python -m rlm.grade samples/atlas runs/atlas/report.md runs/atlas <name>`.
-
-Artefacts land under `runs/<sample>/` and are never committed. For the real filings,
-`python -m rlm.yahoo fetch samples/yahoo` downloads the seven documents from SEC EDGAR
-first. `python -m rlm.widen <knob> samples/atlas samples/atlas-<knob>` generates a variant.
-
-Tests: `pytest -q`. The phase tests are parametrised over the three gate samples and pinned by
-digest; the model-calling phases replay from pinned artefacts and need no key.
+Run one stage at a time: `python -m rlm.ingest`, `python -m rlm.notes`, `python -m rlm.map`, `python -m rlm.dossier`, `python -m rlm.write`. Tests: `pytest -q`. Artefacts land under `runs/` and are never committed.
 
 ## When a run stops
 
