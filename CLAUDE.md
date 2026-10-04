@@ -59,6 +59,12 @@ before this build started, and every rule in this repository is written after ha
 That is stated once here and is not a concern: the generalisation test is samples 2, 3 and 4,
 not blindness to sample 1.
 
+**Machine needs.** An issue whose body carries a `**Needs:**` line names what must be running on
+the founder's machine. Before any builder is dispatched, the session checks each one (Docker:
+`docker info`). If one is not running, the session stops, sends the founder a push notification
+and says in one line what to start; it resumes when he answers. A need found mid-build is
+handled the same way.
+
 **Runs.** Artefacts go under `runs/<sample>/` and are never committed. A long run is launched
 detached (PowerShell `Start-Process`), and progress is read from the artefact, not the shell.
 
