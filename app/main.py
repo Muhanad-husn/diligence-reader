@@ -6,7 +6,8 @@ the stages name the sample after the run; the runs root is RLM_RUNS, runs under 
 folder by default. The key comes in the X-OpenRouter-Key header and is held
 in this process's memory by run id until the runner starts the command with it; it is never
 written to a file, a log or a response. The web page in web/ is served at / when the folder is
-there.
+there; it reads the version and whether to check for a newer release from /api/config, and a
+cited document's sections from /runs/<id>/documents/<doc>.
 """
 
 from __future__ import annotations
@@ -27,7 +28,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app import events
 from app.runner import Runner, runner_from_env
-from rlm import cli
+from rlm import __version__, cli
 from rlm import ingest as ingest_stage
 from rlm import notes as notes_stage
 from rlm import write as write_stage
@@ -235,6 +236,27 @@ def create_app(
                     if row["anchor"] == anchor:
                         return {field: row.get(field) for field in ("anchor", "doc", "heading", "text")}
         raise Refused(404, "no-section", f"no section {anchor}")
+
+    @app.get("/runs/{run_id}/documents/{doc:path}")
+    async def read_document(run_id: str, doc: str):
+        """Every section of one document, in order, read from sections.jsonl and never from the room."""
+        path = folder(run_id) / "sections.jsonl"
+        found = []
+        if path.exists():
+            with path.open(encoding="utf-8") as handle:
+                for line in handle:
+                    row = json.loads(line)
+                    if row["doc"] == doc:
+                        found.append({field: row.get(field) for field in ("anchor", "heading", "text")})
+        if not found:
+            raise Refused(404, "no-document", f"no document {doc}")
+        return {"doc": doc, "sections": found}
+
+    @app.get("/api/config")
+    async def read_config():
+        """The version, and whether the page may ask GitHub for a newer release: RLM_UPDATE_CHECK=off says no."""
+        check = os.environ.get("RLM_UPDATE_CHECK", "on").strip().lower() != "off"
+        return {"version": __version__, "update_check": check}
 
     @app.get("/runs/{run_id}/export/{fmt}")
     async def export(run_id: str, fmt: str):
