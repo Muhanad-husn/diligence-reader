@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0
       - run: uv pip install --system -e .
       - run: python -m rlm.modelcheck
 
@@ -36,7 +36,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0
       - run: uv pip install --system -e ".[dev]"
       - run: pytest -q -W error::DeprecationWarning
 
