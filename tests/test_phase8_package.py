@@ -815,7 +815,8 @@ def run_on_kind(base: str, sample: str, name: str, key: str, tmp_path: Path) -> 
     logs = kubectl("logs", "deploy/dr-diligence-reader").stdout
     pod = kubectl("get", "pods", "-l", "app.kubernetes.io/component=api", "-o", "jsonpath={.items[0].metadata.name}").stdout
     copied = tmp_path / name
-    kubectl("cp", f"{pod}:/app/runs/{name}", str(copied))
+    # A relative destination: kubectl cp reads a drive letter such as C: as a pod's name.
+    kubectl("cp", f"{pod}:/app/runs/{name}", name, cwd=str(tmp_path))
     return {
         "events": found,
         "state": state,
