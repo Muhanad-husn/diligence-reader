@@ -42,6 +42,13 @@
       <label>or a zip <input id="room-zip" type="file" accept=".zip,application/zip"></label>
       <button id="upload" type="button">Upload and estimate</button>
     </div>
+    <div id="replace-question" hidden>
+      <p>A run is going. Stop it and upload the new room?</p>
+      <p class="row">
+        <button id="replace-stop" type="button">Stop and upload</button>
+        <button id="replace-keep" type="button">Keep it running</button>
+      </p>
+    </div>
   </section>
 
   <section class="card" id="estimate-card" hidden>
@@ -66,6 +73,7 @@
     <h2>4. Progress <span class="muted">run <span id="run-id"></span></span></h2>
     <ol id="stages"></ol>
     <p>Documents noted: <strong id="noted">0</strong> · Dollars spent: <strong id="dollars">$0.0000</strong></p>
+    <p><button id="stop" type="button" hidden>Stop the run</button></p>
   </section>
 
   <section class="card" id="report-card" hidden>

@@ -140,6 +140,38 @@
     chosen = input.files && input.files.length ? input : null;
   }
 
+  // The upload button asks first when a run is going; the question's buttons carry on from there.
+  function uploadClicked() {
+    if (run && run.going) {
+      $("replace-question").hidden = false;
+      return;
+    }
+    upload();
+  }
+
+  async function stopAndUpload() {
+    $("replace-question").hidden = true;
+    try {
+      await stop();
+    } catch (err) {
+      showError(err.code || "unexpected", err.message, false);
+      return;
+    }
+    upload();
+  }
+
+  async function stop() {
+    $("stop").disabled = true;
+    try {
+      await call("POST", "/runs/" + run.id + "/stop");
+    } catch (err) {
+      // A run that ended while the click was on its way needs no stop.
+      if (err.code !== "not-running") throw err;
+    } finally {
+      $("stop").disabled = false;
+    }
+  }
+
   async function upload() {
     hideError();
     if (!key) {
@@ -152,6 +184,7 @@
     }
     if (run && run.source) run.source.close();
     run = null;
+    $("stop").hidden = true;
     const form = new FormData();
     for (const file of chosen.files) form.append("files", file, file.webkitRelativePath || file.name);
     $("upload").disabled = true;
@@ -174,7 +207,7 @@
 
   function startRun(id) {
     if (run && run.source) run.source.close();
-    run = { id, source: null, values: { stage: null, documents_noted: 0, dollars: 0 } };
+    run = { id, source: null, going: false, values: { stage: null, documents_noted: 0, dollars: 0 } };
     $("run-id").textContent = id;
     $("estimate-card").hidden = true;
     $("progress-card").hidden = true;
@@ -239,6 +272,8 @@
     drawStages();
     $("progress-card").hidden = false;
     $("report-card").hidden = true;
+    run.going = true;
+    $("stop").hidden = false;
     const source = new EventSource("/runs/" + encodeURIComponent(run.id) + "/events");
     run.source = source;
     source.onmessage = (message) => {
@@ -275,18 +310,27 @@
         break;
       case "RUN_FINISHED":
         source.close();
+        ended();
         if (event.result && event.result.dollars != null) run.values.dollars = event.result.dollars;
         showValues();
         showReport();
         break;
       case "RUN_ERROR":
         source.close();
+        ended();
         for (const row of document.querySelectorAll('#stages [data-state="running"]')) mark(row.dataset.stage, "stopped");
         showError(event.code || "unexpected", event.message, true);
         break;
       default:
         break;
     }
+  }
+
+  // The run is over: no Stop button, and an upload needs no question.
+  function ended() {
+    run.going = false;
+    $("stop").hidden = true;
+    $("replace-question").hidden = true;
   }
 
   // ------------------------------------------------------------ the error card
@@ -517,7 +561,10 @@
   $("sign-in").addEventListener("click", signIn);
   $("room-folder").addEventListener("change", (event) => choose(event.target));
   $("room-zip").addEventListener("change", (event) => choose(event.target));
-  $("upload").addEventListener("click", upload);
+  $("upload").addEventListener("click", uploadClicked);
+  $("replace-stop").addEventListener("click", stopAndUpload);
+  $("replace-keep").addEventListener("click", () => ($("replace-question").hidden = true));
+  $("stop").addEventListener("click", () => stop().catch((err) => showError(err.code || "unexpected", err.message, false)));
   $("confirm").addEventListener("click", confirm);
   $("retry").addEventListener("click", retry);
   $("report").addEventListener("click", (event) => {

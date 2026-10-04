@@ -138,6 +138,7 @@ def create_app(
         keys[run_id] = key
         if runner.status(run_id) == "running":
             raise Refused(409, "running", "the run is already running")
+        events.stopped_mark(run_dir).unlink(missing_ok=True)
         runner.start(run_id, room_of(run_dir), run_dir, key)
         return JSONResponse({"id": run_id}, status_code=202)
 
@@ -211,6 +212,16 @@ def create_app(
     @app.post("/runs/{run_id}/retry")
     async def retry(run_id: str, x_openrouter_key: str | None = Header(None)):
         return launch(run_id, x_openrouter_key)
+
+    @app.post("/runs/{run_id}/stop")
+    async def stop(run_id: str):
+        run_dir = folder(run_id)
+        if runner.status(run_id) != "running":
+            raise Refused(409, "not-running", "the run is not running")
+        # The mark goes down first, so the stream never reads the exit as a crash.
+        events.stopped_mark(run_dir).write_text("stopped", encoding="utf-8")
+        await run_in_threadpool(runner.cancel, run_id)
+        return {"id": run_id}
 
     @app.get("/runs/{run_id}/events")
     async def read_events(run_id: str):

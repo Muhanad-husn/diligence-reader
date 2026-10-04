@@ -38,8 +38,12 @@ FIXES = {
     "unreadable-file": "A file in the room could not be read. Remove or replace it and upload again.",
     "verify-failed": "The report did not pass its checks. Retry to write it again.",
     "declined": "The estimate was not accepted, so nothing was sent.",
+    "stopped": "You stopped the run. Retry resumes from the stage that stopped.",
     "unexpected": "The run stopped for an unexpected reason. Read run.log in the run folder, then retry.",
 }
+
+# The mark a stop leaves in the run folder; a retry or a confirm removes it.
+STOPPED_FILE = "stopped"
 
 # The values of the shared state, in the order a delta lists them.
 FIELDS = ("documents_noted", "dollars", "stage", "estimate")
@@ -56,13 +60,18 @@ class Deriver:
         self.finished: set[str] = set()
         self.values = {"stage": None, "documents_noted": 0, "dollars": 0.0, "estimate": None}
 
-    def feed(self, state: dict | None, live_noted: int, process: str) -> list[BaseEvent]:
+    def feed(
+        self, state: dict | None, live_noted: int, process: str, stopped: bool = False
+    ) -> list[BaseEvent]:
         """The events since the last feed, from run.json, the notes written and the runner status.
+
+        stopped says the run folder holds the mark a stop leaves: a run that ends without
+        finishing then ends with the code `stopped`, not `unexpected`.
 
         A run.json is final only once the process has stopped: while a retry's child runs, the
         file the attempt before it left is still there.
         """
-        if self.ended or (state is None and process != "running"):
+        if self.ended or (state is None and process != "running" and not stopped):
             return []
         found: list[BaseEvent] = []
         if not self.begun:
@@ -70,6 +79,9 @@ class Deriver:
             found.append(RunStartedEvent(thread_id=self.run_id, run_id=self.run_id))
             found.append(StateSnapshotEvent(snapshot=dict(self.values)))
         if state is None:
+            if stopped and process != "running":
+                found.append(RunErrorEvent(message=FIXES["stopped"], code="stopped"))
+                self.ended = True
             return found
 
         stage = state.get("stage")
@@ -91,6 +103,8 @@ class Deriver:
             )
         else:
             code = state.get("code") if status == "failed" else "unexpected"
+            if stopped:
+                code = "stopped"
             code = code if code in FIXES else "unexpected"
             found.append(RunErrorEvent(message=FIXES[code], code=code))
         self.ended = True
@@ -140,6 +154,11 @@ def read_state(run_dir: Path) -> dict | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def stopped_mark(run_dir: Path) -> Path:
+    """The file a stop leaves in the run folder, so the stream can tell a stop from a crash."""
+    return run_dir / STOPPED_FILE
+
+
 def notes_written(run_dir: Path) -> int:
     """How many documents the notes pass has written a note for so far."""
     folder = run_dir / "notes"
@@ -158,7 +177,7 @@ async def stream(run_id: str, run_dir: Path, runner, poll: float = 0.5) -> Async
         except (ValueError, OSError):
             await asyncio.sleep(poll)
             continue
-        for event in deriver.feed(state, notes_written(run_dir), process):
+        for event in deriver.feed(state, notes_written(run_dir), process, stopped_mark(run_dir).exists()):
             yield encoder.encode(event)
         if deriver.ended:
             return
