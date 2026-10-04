@@ -6,6 +6,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Raise a pinned range to the new release instead of widening it.
+    versioning-strategy: increase
     groups:
       python:
         patterns: ["*"]
