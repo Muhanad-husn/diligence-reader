@@ -314,3 +314,5 @@ hand.
 | 2026-10-04 | northstar-dental | 8 | z-ai/glm-5.3 (API run; booked as room, sample named by hand) | 21291 | 6371 | 0.0578 | 30.2939 |
 | 2026-10-04 | northstar-dental | 8 | z-ai/glm-5.3-flash | 36760 | 20797 | 0.0080 | 30.2859 |
 | 2026-10-04 | northstar-dental | 8 | z-ai/glm-5.3 | 21214 | 6230 | 0.0571 | 30.2288 |
+| 2026-10-04 | a03d4f1d17f6 | 8 | z-ai/glm-5.3-flash | 519350 | 396918 | 0.2764 | 29.9524 |
+| 2026-10-04 | a03d4f1d17f6 | 8 | z-ai/glm-5.3 | 46125 | 13188 | 0.1226 | 29.8298 |
