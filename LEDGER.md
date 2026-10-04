@@ -306,3 +306,5 @@ hand.
 | 2026-10-04 | atlas | 8 | z-ai/glm-5.3-flash | 518483 | 379557 | 0.1338 | 30.7472 |
 | 2026-10-04 | atlas | 8 | z-ai/glm-5.3 | 46388 | 13122 | 0.1227 | 30.6245 |
 | 2026-10-04 | northstar-dental | 8 | z-ai/glm-5.3 | 21554 | 8135 | 0.0660 | 30.5585 |
+| 2026-10-04 | northstar-dental | 8 | z-ai/glm-5.3-flash (run without --phase, which books nothing; added by hand from notes-summary.json) | 33966 | 19486 | 0.0074 | 30.5511 |
+| 2026-10-04 | northstar-dental | 8 | z-ai/glm-5.3 (run without --phase, which books nothing; added by hand from write-summary.json) | 21441 | 6501 | 0.0586 | 30.4925 |

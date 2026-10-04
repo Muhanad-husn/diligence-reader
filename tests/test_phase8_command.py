@@ -12,7 +12,9 @@ when a folder is missing, the way the export tests skip without a pinned report.
 
 import io
 import json
+import os
 import shutil
+import subprocess
 import sys
 import threading
 from pathlib import Path
@@ -180,6 +182,25 @@ def run(room: Path, run_dir: Path, transport, *extra, ledger=None) -> int:
 
 def test_version_is_read_from_the_package_metadata():
     assert rlm.__version__ == "0.8.0"
+
+
+def test_the_version_reads_from_a_source_checkout_with_nothing_installed():
+    probe = "\n".join(
+        [
+            "import importlib.metadata as m",
+            "def missing(name):",
+            "    raise m.PackageNotFoundError(name)",
+            "m.version = missing",
+            "import rlm",
+            "print(rlm.__version__)",
+        ]
+    )
+    env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
+    done = subprocess.run(
+        [sys.executable, "-c", probe], env=env, capture_output=True, text=True, timeout=60
+    )
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.strip() == "0.8.0"
 
 
 def test_version_flag_prints_the_version(capsys):
