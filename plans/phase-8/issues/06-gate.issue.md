@@ -3,6 +3,7 @@
 **Issue:** #141 · **Spec:** PLAN.md#4c-phase-8-the-product · **Plan:** plans/phase-8/06-gate.md
 **Depends on:** 04-web (slice 04 of this batch), 05-package (slice 05 of this batch)
 **Labels:** phase-8
+**Needs:** Docker Desktop with its engine running (`docker info` answers).
 
 ## Deliverable
 

@@ -3,6 +3,7 @@
 **Issue:** #140 · **Spec:** PLAN.md#4c-phase-8-the-product · **Plan:** plans/phase-8/05-package.md
 **Depends on:** 03-api (slice 03 of this batch)
 **Labels:** phase-8
+**Needs:** Docker Desktop with its engine running (`docker info` answers); kind and helm, which this slice installs with winget.
 
 ## Deliverable
 
