@@ -9,8 +9,12 @@ into one section per header line, before one section per block of its body; head
 numbered after the body, the numbering `rlm.sections` sets out.
 
 Records are sorted by doc then ordinal and their JSON keys are sorted, so two runs of the same
-sample write the same bytes. The sample's key is read for its list of documents and nothing
-else; nothing here opens a socket or calls a model.
+sample write the same bytes. The room's documents come from rlm.key.room_documents: the key's
+list where the room has a key, every file of a readable format where it has none. Nothing here
+opens a socket or calls a model.
+
+A file whose reader raises stops the ingest with UnreadableFile, naming the file and the
+reader's error, and nothing is written.
 """
 
 from __future__ import annotations
@@ -35,7 +39,7 @@ from openpyxl.utils import get_column_letter
 from pdftext.extraction import paginated_plain_text_output
 
 from rlm.index import build_index, write_index
-from rlm.key import load_key
+from rlm.key import room_documents
 from rlm.sections import (
     Cell,
     Section,
@@ -62,6 +66,10 @@ _PYPDF_BULLET = "\x7f"
 _BULLET = "•"
 
 _BLANK = re.compile(r"^\s*$")
+
+
+class UnreadableFile(Exception):
+    """Raised when a document of the room cannot be read by the reader for its format."""
 
 
 @dataclass(frozen=True)
@@ -367,10 +375,9 @@ def read_document(path: Path, doc: str) -> tuple[list[Section], int, int]:
 
 
 def documents(sample_dir: Path) -> list[Path]:
-    """Lists the documents the sample's key names, in path order."""
-    key = load_key(sample_dir)
+    """Lists the room's documents, as rlm.key.room_documents gives them, in path order."""
     return sorted(
-        (sample_dir / relative for relative in key.documents.values()),
+        (sample_dir / relative for relative in room_documents(sample_dir).values()),
         key=lambda path: path.relative_to(sample_dir).as_posix(),
     )
 
@@ -392,7 +399,11 @@ def ingest(sample_dir: Path, run_dir: Path) -> Coverage:
     disagreements = 0
     empty = 0
     for path in documents(sample_dir):
-        sections, disagreed, blank = read_document(path, path.relative_to(sample_dir).as_posix())
+        relative = path.relative_to(sample_dir).as_posix()
+        try:
+            sections, disagreed, blank = read_document(path, relative)
+        except Exception as exc:
+            raise UnreadableFile(f"{relative}: {type(exc).__name__}: {exc}") from exc
         read += 1
         disagreements += disagreed
         empty += blank
