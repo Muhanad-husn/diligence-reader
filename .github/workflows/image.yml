@@ -44,6 +44,7 @@ jobs:
           start=$(date +%s)
           docker buildx build --progress=plain --cache-from type=gha,scope=image -f deploy/Dockerfile --target runtime . 2> rebuild.log
           second=$(( $(date +%s) - start ))
+          grep -E '^#[0-9]+ (\[|CACHED|DONE)' rebuild.log || true
           rebuilt=$(python3 - <<'EOF'
           import re
           steps, cached = {}, set()
