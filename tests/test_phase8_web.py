@@ -35,7 +35,7 @@ from conftest import ROOT
 from rlm import __version__, cli
 from rlm.grade import measure_recall
 from rlm.key import load_key
-from test_phase8_api import BAD_KEY, GOOD_KEY, SRC, TESTS, free_port
+from test_phase8_api import BAD_KEY, GOOD_KEY, SLOW_KEY, SRC, TESTS, free_port
 from test_phase8_command import ROOM, copy_room
 
 WEB = ROOT / "web"
@@ -103,6 +103,7 @@ The CIM's own diligence note says to "compare this narrative with `revenue_summa
 CHILD = """import json
 import os
 import sys
+import time
 from pathlib import Path
 
 sys.path[:0] = [{tests!r}, {src!r}]
@@ -121,6 +122,8 @@ class Crash(RoomTransport):
 
 key = os.environ["OPENROUTER_API_KEY"]
 report = Path({report!r}).read_text(encoding="utf-8")
+if key == {slow!r}:
+    time.sleep(120)
 if key == {crash!r}:
     transport = Crash(report=report)
 else:
@@ -151,7 +154,7 @@ def server(tmp_path):
     script = tmp_path / "child.py"
     script.write_text(
         CHILD.format(
-            tests=str(TESTS), src=str(SRC), report=str(report), bad=BAD_KEY, crash=CRASH_KEY
+            tests=str(TESTS), src=str(SRC), report=str(report), bad=BAD_KEY, crash=CRASH_KEY, slow=SLOW_KEY
         ),
         encoding="utf-8",
     )
@@ -423,6 +426,80 @@ def test_an_unexpected_stop_offers_a_report_that_names_the_run_and_nothing_else(
             assert text not in readable, row["anchor"]
     assert "northstar" not in readable.casefold()
     web.assert_kept_in(CRASH_KEY)
+
+
+# ---------------------------------------------------------------- a stop
+
+
+def test_stop_ends_the_run_with_the_stopped_card_and_a_retry(web, tmp_path):
+    page = web.page
+    page.goto(web.served.url)
+    paste_key(page, SLOW_KEY)
+    upload_and_confirm(page, "#room-folder", room_folder(tmp_path))
+    [run_dir] = web.served.run_dirs()
+    expect(page.locator("#stop")).to_be_visible()
+
+    page.click("#stop")
+
+    card = page.locator("#error")
+    expect(card).to_be_visible(timeout=RUN_TIMEOUT)
+    expect(card.locator(".code")).to_have_text("stopped")
+    expect(card).to_contain_text(FIXES["stopped"])
+    expect(card.locator("#retry")).to_be_visible()
+    expect(page.locator("#stop")).to_be_hidden()
+    assert web.served.runner.status(run_dir.name) == "exited"
+    web.assert_kept_in(SLOW_KEY)
+
+
+def test_an_upload_during_a_run_asks_and_keep_it_running_changes_nothing(web, tmp_path):
+    page = web.page
+    dialogs = []
+    page.on("dialog", lambda dialog: (dialogs.append(dialog.message), dialog.dismiss()))
+    page.goto(web.served.url)
+    paste_key(page, SLOW_KEY)
+    upload_and_confirm(page, "#room-folder", room_folder(tmp_path))
+    [run_dir] = web.served.run_dirs()
+    question = page.locator("#replace-question")
+    expect(question).to_be_hidden()
+
+    page.set_input_files("#room-zip", str(room_zip(tmp_path)))
+    page.click("#upload")
+
+    expect(question).to_be_visible()
+    expect(question).to_contain_text("A run is going. Stop it and upload the new room?")
+    page.click("#replace-keep")
+
+    expect(question).to_be_hidden()
+    expect(page.locator("#stop")).to_be_visible()
+    expect(page.locator("#run-id")).to_have_text(run_dir.name)
+    assert web.served.runner.status(run_dir.name) == "running"
+    assert web.served.run_dirs() == [run_dir]
+    assert dialogs == []
+
+
+def test_stop_and_upload_stops_the_old_run_and_shows_the_new_estimate(web, tmp_path):
+    page = web.page
+    dialogs = []
+    page.on("dialog", lambda dialog: (dialogs.append(dialog.message), dialog.dismiss()))
+    page.goto(web.served.url)
+    paste_key(page, SLOW_KEY)
+    upload_and_confirm(page, "#room-folder", room_folder(tmp_path))
+    [old] = web.served.run_dirs()
+
+    page.set_input_files("#room-zip", str(room_zip(tmp_path)))
+    page.click("#upload")
+    expect(page.locator("#replace-question")).to_be_visible()
+    page.click("#replace-stop")
+
+    expect(page.locator("#estimate-dollars")).to_contain_text("$")
+    expect(page.locator("#replace-question")).to_be_hidden()
+    expect(page.locator("#estimate-card")).to_be_visible()
+    expect(page.locator("#run-id")).not_to_have_text(old.name)
+    assert web.served.runner.status(old.name) == "exited"
+    assert len(web.served.run_dirs()) == 2
+    stops = [post for post in keyed_posts(web) if post.url.endswith("/stop")]
+    assert len(stops) == 1 and urlparse(stops[0].url).path == f"/runs/{old.name}/stop"
+    assert dialogs == []
 
 
 # ---------------------------------------------------------------- the update notice

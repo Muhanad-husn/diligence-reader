@@ -39,6 +39,7 @@ from rlm import cli, notes, write
 from test_phase8_command import KNOWN_MISSES, ROOM, copy_room
 
 GOOD_KEY = "sk-or-v1-test-GOODKEY-0123456789abcdef"
+SLOW_KEY = "sk-or-v1-test-SLOWKEY-0123456789abcdef"
 BAD_KEY = "sk-or-v1-test-BADKEY-0123456789abcdef"
 
 TESTS = Path(__file__).resolve().parent
@@ -47,6 +48,7 @@ SRC = TESTS.parent / "src"
 # The child a test's LocalRunner starts: the real command on a fake transport, refused on BAD_KEY.
 CHILD = """import os
 import sys
+import time
 
 sys.path[:0] = [{tests!r}, {src!r}]
 
@@ -55,6 +57,8 @@ from rlm.gateway import Gateway
 from test_phase8_command import RoomTransport
 
 key = os.environ["OPENROUTER_API_KEY"]
+if key == {slow!r}:
+    time.sleep(120)
 transport = RoomTransport(status=401 if key == {bad!r} else None)
 gateway = Gateway(api_key=key, transport=transport, rate_limit_waits=())
 sys.exit(cli.main(sys.argv[1:], gateway=gateway))
@@ -78,7 +82,7 @@ EVERY_STEP = [(kind, stage) for stage in cli.STAGES for kind in STEP_TYPES]
 def api(tmp_path):
     """A test client on an app whose LocalRunner starts the fake child, and the runs folder."""
     script = tmp_path / "child.py"
-    script.write_text(CHILD.format(tests=str(TESTS), src=str(SRC), bad=BAD_KEY), encoding="utf-8")
+    script.write_text(CHILD.format(tests=str(TESTS), src=str(SRC), bad=BAD_KEY, slow=SLOW_KEY), encoding="utf-8")
     runner = LocalRunner([sys.executable, str(script)])
     runs = tmp_path / "runs"
     app = create_app(runner=runner, runs_root=runs, web_dir=tmp_path / "noweb")
@@ -334,6 +338,73 @@ def test_a_running_run_cannot_be_confirmed_twice(api, tmp_path):
     assert api.post(f"/runs/{run_id}/confirm").status_code == 409
     assert api.post(f"/runs/{run_id}/retry").status_code == 409
     read_events(api, run_id)
+
+
+# ---------------------------------------------------------------- a stop
+
+
+def test_a_stopped_run_ends_stopped_and_a_retry_finishes_it(api, tmp_path):
+    run_id = started(api, tmp_path, key=SLOW_KEY)
+    run_dir = api.runs / run_id
+    assert api.runner.status(run_id) == "running"
+
+    response = api.post(f"/runs/{run_id}/stop")
+
+    assert response.status_code == 200
+    assert api.runner.status(run_id) == "exited"
+    first = read_events(api, run_id)
+    assert first[-1]["type"] == "RUN_ERROR"
+    assert first[-1]["code"] == "stopped"
+    assert first[-1]["message"] == events_module.FIXES["stopped"]
+    assert files_holding(run_dir, SLOW_KEY) == []
+
+    response = api.post(f"/runs/{run_id}/retry", headers={"X-OpenRouter-Key": GOOD_KEY})
+    assert response.status_code == 202
+    second = read_events(api, run_id)
+
+    assert second[-1]["type"] == "RUN_FINISHED"
+    assert steps(second) == EVERY_STEP
+    assert run_json(run_dir)["status"] == "done"
+
+
+def test_a_stop_on_a_run_never_confirmed_is_refused(api, tmp_path):
+    run_id = upload(api, room_files(tmp_path)).json()["id"]
+
+    response = api.post(f"/runs/{run_id}/stop")
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "not-running"
+
+
+def test_a_stop_on_a_finished_run_is_refused(api, tmp_path):
+    run_id = started(api, tmp_path)
+    assert read_events(api, run_id)[-1]["type"] == "RUN_FINISHED"
+
+    response = api.post(f"/runs/{run_id}/stop")
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "not-running"
+    assert api.get(f"/runs/{run_id}").json()["state"]["status"] == "done"
+
+
+def test_a_stop_on_an_unknown_run_is_not_found(api):
+    assert api.post("/runs/nosuchrun/stop").status_code == 404
+
+
+def test_a_stopped_run_with_no_state_yet_still_ends_stopped():
+    deriver = Deriver("r6")
+    found = deriver.feed(None, 0, "exited", stopped=True)
+
+    assert kinds(found) == ["RUN_STARTED", "STATE_SNAPSHOT", "RUN_ERROR"]
+    assert found[-1].code == "stopped"
+
+
+def test_a_stopped_mark_ends_a_running_state_stopped():
+    deriver = Deriver("r7")
+    found = deriver.feed(state("write"), 4, "exited", stopped=True)
+
+    assert found[-1].code == "stopped"
+    assert "\n" not in found[-1].message
 
 
 def test_a_missing_report_and_export_are_not_found(api, tmp_path):
