@@ -3,8 +3,8 @@
 The tests at $0 run the command on a temporary copy of sample 3's room, with a fake transport
 injected into the gateway, so nothing leaves the machine and nothing is booked to the real
 LEDGER.md. The fake answers a note call with a note quoting the document's first line and a
-write call with a report that does not verify, so a fake run stops at the verifier unless a
-test makes it stop earlier.
+write call with FAKE_REPORT, whose sentences cite the room's own first line and verify, so a
+fake run is done unless a test makes it stop. BAD_REPORT cites a line the room does not have.
 
 The end-to-end tests read the run folders the paid runs leave under runs/<sample>-cli and skip
 when a folder is missing, the way the export tests skip without a pinned report.
@@ -66,6 +66,10 @@ Open [cim.md | cim.md#l1].
 """
 
 
+# A report citing an anchor no document of the room carries, so it fails the verifier twice.
+BAD_REPORT = FAKE_REPORT.replace("cim.md#l1]", "cim.md#l99999]")
+
+
 def reply(content, tokens_in: int = 1000, tokens_out: int = 200) -> dict:
     return {
         "id": "fake",
@@ -96,14 +100,16 @@ class RoomTransport(httpx.MockTransport):
     """Answers note calls with a fake note and write calls with FAKE_REPORT.
 
     status answers every chat completion with that HTTP status instead; null answers every one
-    with a null content; write_status answers only the write calls with that status. Every
+    with a null content; write_status answers only the write calls with that status; report is
+    the text every write call is answered with. Every
     request is recorded with its model, and when events is given each request appends
     ("request", model) to it, so a test can read what reached the transport against what was
     printed.
     """
 
-    def __init__(self, status=None, null=False, write_status=None, events=None):
+    def __init__(self, status=None, null=False, write_status=None, events=None, report=FAKE_REPORT):
         self.requests: list[dict] = []
+        self.report = report
         self.status = status
         self.null = null
         self.write_status = write_status
@@ -127,7 +133,7 @@ class RoomTransport(httpx.MockTransport):
         if body["model"] == WRITE_MODEL:
             if self.write_status is not None:
                 return httpx.Response(self.write_status, json={"error": {"message": "refused"}})
-            return httpx.Response(200, json=reply(FAKE_REPORT, 20000, 5000))
+            return httpx.Response(200, json=reply(self.report, 20000, 5000))
         return httpx.Response(200, json=reply(fake_note(body)))
 
 
@@ -242,7 +248,7 @@ def test_a_null_write_reply_gives_empty_reply(tmp_path, monkeypatch):
 def test_a_report_that_fails_the_verifier_twice_gives_verify_failed(tmp_path):
     room = copy_room(tmp_path)
     run_dir = tmp_path / "run"
-    transport = RoomTransport()
+    transport = RoomTransport(report=BAD_REPORT)
 
     assert run(room, run_dir, transport) != 0
 
@@ -332,7 +338,7 @@ def test_a_run_stopped_after_notes_resumes_without_noting_again(tmp_path):
     run(room, run_dir, transport, "--phase", "8", ledger=ledger)
 
     assert NOTES_MODEL not in transport.models()
-    assert transport.models().count(WRITE_MODEL) == 2
+    assert transport.models().count(WRITE_MODEL) == 1
     assert (run_dir / "sections.jsonl").stat().st_mtime_ns == sections_mtime
     new_rows = ledger.rows()[len(rows_before):]
     assert [(row["phase"], row["model"]) for row in new_rows] == [("8", WRITE_MODEL)]
@@ -361,7 +367,7 @@ def test_with_phase_8_the_ledger_books_under_phase_8(tmp_path):
     run_dir = tmp_path / "run"
     ledger = write_ledger(tmp_path / "LEDGER.md")
 
-    run(room, run_dir, RoomTransport(), "--phase", "8", ledger=ledger)
+    assert run(room, run_dir, RoomTransport(), "--phase", "8", ledger=ledger) == 0
 
     booked = ledger.rows()[1:]
     assert [(row["phase"], row["model"]) for row in booked] == [
@@ -369,6 +375,22 @@ def test_with_phase_8_the_ledger_books_under_phase_8(tmp_path):
         ("8", WRITE_MODEL),
     ]
     assert run_json(run_dir)["dollars"] == pytest.approx(sum(row["dollars"] for row in booked), abs=1e-3)
+
+
+def test_a_keyed_room_is_graded_on_recall_alone(tmp_path):
+    room = copy_room(tmp_path)
+    run_dir = tmp_path / "run"
+
+    assert run(room, run_dir, RoomTransport()) == 0
+
+    state = run_json(run_dir)
+    assert state["status"] == "done"
+    grade = json.loads((run_dir / "grade.json").read_text(encoding="utf-8"))
+    assert grade["rubric"] == []
+    assert grade["model"] == "none"
+    assert state["recall"] == grade["recall"]
+    for name in ("report.docx", "report.pdf", "evidence.csv"):
+        assert (run_dir / name).exists(), name
 
 
 # ---------------------------------------------------------------- the default brief
@@ -413,16 +435,18 @@ def test_a_room_with_no_key_lists_every_readable_file(tmp_path):
     assert docs == set(expected)
 
 
-def test_a_room_with_no_key_runs_through_the_dossier_and_is_not_graded(tmp_path):
+def test_a_room_with_no_key_runs_to_the_end_and_is_not_graded(tmp_path):
     room = copy_room(tmp_path, key=False)
     run_dir = tmp_path / "run"
 
-    run(room, run_dir, RoomTransport())
+    assert run(room, run_dir, RoomTransport()) == 0
 
-    assert (run_dir / "dossier.md").exists()
-    assert (run_dir / "verify.json").exists()
+    state = run_json(run_dir)
+    assert state["status"] == "done"
+    assert state["code"] is None
+    assert state["recall"] is None
+    assert (run_dir / "report.docx").exists()
     assert not (run_dir / "grade.json").exists()
-    assert run_json(run_dir)["code"] == "verify-failed"
 
 
 # ---------------------------------------------------------------- the gateway

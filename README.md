@@ -83,6 +83,22 @@ first. `python -m rlm.widen <knob> samples/atlas samples/atlas-<knob>` generates
 Tests: `pytest -q`. The phase tests are parametrised over the three gate samples and pinned by
 digest; the model-calling phases replay from pinned artefacts and need no key.
 
+## When a run stops
+
+`diligence-reader run` exits non-zero with one of these codes and writes the same code to
+`run.json` in the run folder. Running the same command again resumes from the stage that stopped.
+
+| Code | What to do |
+|---|---|
+| `key-refused` | OpenRouter refused the key (401 or 403). Check the key, or make a new one at openrouter.ai/keys. |
+| `no-credits` | The key's account has no credits left (402). Add credits at openrouter.ai/settings/credits, then run again. |
+| `rate-limited` | OpenRouter kept answering 429. Wait a few minutes, then run again. |
+| `empty-reply` | A model returned nothing twice for the same request. Run again; the stage is retried. |
+| `unreadable-file` | A document in the room could not be read. Remove or convert the file named in the message, then run again. |
+| `verify-failed` | The report did not pass the verifier after its one rewrite. Run again to write it once more. |
+| `declined` | The estimate was not confirmed. Run again and answer y, or pass --yes. |
+| `unexpected` | Anything else. Open an issue with the run's run.json attached; it holds no document text and no key. |
+
 ## Why it was built this way
 
 - **The key is the only test.** A phase passes when its artefact carries every planted fact
