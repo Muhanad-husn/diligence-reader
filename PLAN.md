@@ -17,6 +17,10 @@ citations, the most material issue quantified with a specific deal action, lesse
 items), produced from raw documents with no human step, with three numbers printed beside it:
 its score against the sample's key, the dollars it cost, and the spread between two runs.
 
+Phase 8 turns the tool into a product a user installs and runs on their own machine, from one
+command or a web page served on that machine. The seven stages run unchanged, on the user's own
+OpenRouter key, under a spending cap the user sets. Section 4c describes it.
+
 ## 2. The method
 
 Seven stages. Two call a model. Everything else is code and is byte-identical across runs.
@@ -63,9 +67,10 @@ the gap is fixed in its own phase and every later phase reruns.
 | 5 Report | `runs/<sample>/report.md`, `verify.json`, `grade.json` | Verifier passes. Score at or above the bar. Two writes, spread printed. Bake-off over the five models. A room holding a second matter writes it under a heading of its own, above the lesser issues, since #121 | bake-off | $9, $8 plus $1 borrowed from the reserve on 2026-09-09 to rewrite the three gate samples' reports, lost with #119's worktree; the reason is at the head of `LEDGER.md` |
 | 6 Widen | same artefacts under `runs/<sample>-<knob>/` | Phases 1 to 5 hold when a knob is turned on the fixture: names spelled inconsistently, the matter named nowhere and linked only by dates and numbers, a second matter, twice the documents. Each knob is one generated variant of sample 1 with its own key. A failure names the phase that dropped the fact. Closed 2026-09-09: `control` holds; `names` was dropped by phase 3, whose map linked documents by the surface of a name, fixed by #113; `unnamed`, `second` and `twice` were dropped by phase 3, whose map read the room from one seed and returned one matter, fixed by #115. Five known misses stand, each a knob taking away what tied a document to the matter | as chosen in 2 and 5 | $15 |
 | 7 Compare | `runs/yahoo/` | Our tool once on sample 4, an open corpus with no planted facts, against the public record | as chosen | $4 |
+| 8 Product | `runs/<sample>/` written by a run started from the web interface, with `report.docx`, `report.pdf`, `evidence.csv` beside `report.md` | A run started from the web interface on samples 1, 2 and 3 gives the same planted-fact recall as the command line, 100 / 100 / 100, and every planted fact reads out of the docx, the PDF and the CSV. Spread over two runs printed | as chosen in 2 and 5 | $3, from the reserve on 2026-10-04 |
 
-Reserve: $14 of the $50, $15 less the $1 phase 5 borrowed on 2026-09-09. Nothing borrows from
-it without the reason written in `LEDGER.md` first.
+Reserve: $11 of the $50, $15 less the $1 phase 5 borrowed on 2026-09-09 and the $3 phase 8
+borrowed on 2026-10-04. Nothing borrows from it without the reason written in `LEDGER.md` first.
 
 **The bar for phase 5.** Planted-fact recall 100% (the key is by construction). Rubric score: 85
 on sample 1, the rubric's own floor for "excellent", proposed here and set by the founder.
@@ -91,6 +96,7 @@ rubric are on sample 1's variants; its dollars are every phase 6 row of `LEDGER.
 | 5 Report | Phase 5 | done | 100 / 100 / 100, rubric 100 | 8.28 | 0 / 0 / 0 | 2026-09-08 |
 | 6 Widen | Phase 6 | done | recall 100 / 100 / 97.9 / 98.5 / 98.1, rubric 100 / 94 / 98 / 99 / 100 | 7.78 | 0 / 6 / 2 / 1 / 1 | 2026-09-09 |
 | 7 Compare | Phase 7 | done | sample 4 recall 86.4 | 0.26 | one run | 2026-09-09 |
+| 8 Product | Phase 8 | open | | | | |
 
 Phase 5's row was restated on 2026-09-09 by the phase 6 gate, which rewrote the three gate
 samples' reports after PR #119 changed the map under them: rubric 90 to 100, spread 4 / 0 / 0
@@ -128,6 +134,49 @@ artefact on samples 2 and 3, then the closing issue `Phase N gate` that runs all
 all three samples and fills the row above. Each issue is one session and one pull request. No
 issue of the next phase exists before the gate issue closes.
 
+## 4c. Phase 8, the product
+
+The same seven stages, unchanged in `src/rlm/`, run from one command and from a web page served
+on the user's own machine. The user's documents never leave the machine except as the model
+calls the tool already makes, through the user's own OpenRouter key. No accounts, no login, no
+database, no payments: each run is a folder under `runs/`, and the folder is the state.
+
+| Layer | What it is |
+|---|---|
+| Engine | `src/rlm/`, the seven stages, unchanged |
+| Command | `diligence-reader run <room>`, replacing the five `python -m` steps, with a per-run spending cap the user sets, a price estimate printed before the first model call, and a retry that resumes from the stage that stopped, since every stage already writes its own artefact |
+| Runner | a run takes minutes and does not fit in one web request: a background process on the machine, or a Kubernetes Job, one interface and two implementations |
+| API | FastAPI: start a run, stream its progress, fetch the report, export it |
+| Progress stream | AG-UI events over server-sent events: run started, step started and finished per stage, state updates for documents noted and dollars spent, run error with its code. No chat and no CopilotKit |
+| Web page | upload a room, connect the OpenRouter key, see the estimate and set the cap, watch progress, read the report, export, see an error card |
+| Export | Markdown as written, Word and PDF built from the same Markdown with pandoc and WeasyPrint, and the Evidence section alone as CSV, saved so Excel opens it cleanly. No Excel file: the report body is prose, and the Evidence section is one flat table, about 1,800 rows on sample 1, that a CSV carries whole |
+| Packaging | one Docker image for `docker run`, `pipx install diligence-reader` for the command alone, a build on every merge that publishes the image to GitHub's container registry, and a Helm chart for a firm that runs it on its own Kubernetes cluster |
+
+Kubernetes: the chart is tested on kind, a Kubernetes cluster on one machine, at no cost. No
+managed cluster is paid for. Each run is one Kubernetes Job.
+
+The key: the user connects with OpenRouter's sign-in, which issues a key the user can cap and
+revoke, or pastes one. The key stays in the browser, goes with each run, is held in the runner's
+memory, and is never logged or written to disk.
+
+Money: a user's run spends the user's credits. Its ledger is written in the run's folder and its
+cap is the one the user set. The repository's `LEDGER.md` and the $50 ceiling apply to this
+build's own calls, which are the gate runs on the three samples.
+
+When a run fails: every failure carries a code from a short list, each with its fix on the error
+card: a refused key, no credits left with a link to top up, rate limited, a model that returned
+nothing, a file that could not be read, the verifier failing twice. The card offers a retry from
+the stage that stopped. Anything not on the list gets a "Report a problem" button that opens a
+GitHub issue filled in with the run id, the version, the stage, the error code and the dollars
+spent, never document text and never the key, labelled `user-report`. No server and no GitHub
+token are needed for it.
+
+A citation in the report viewer opens the source page with the cited line marked.
+
+The gate: the closing issue `Phase 8 gate` runs the three gate samples through the Docker image
+from the web interface, checks recall against the command line's 100 / 100 / 100 and every
+planted fact out of the three export files, and writes the row in 4a.
+
 ## 5. Models
 
 Five candidates, chosen per task by the bake-off tables in phases 2 and 5, never by preference.
@@ -145,7 +194,8 @@ prompt then completion.
 No Gemini. No model from outside this table without the founder's word. Prices are reread and
 rewritten here the day a bake-off runs.
 
-What one full note pass on sample 1 cost at the prices of 2026-09-06 (about 90k tokens in, about 60k out
+What one full note pass on sample 1 cost at the prices of 2026-09-06 (about 90k tokens in, about
+60k out
 with a tight schema): DeepSeek Flash $0.01, GLM Flash $0.02, Luna $0.09, DeepSeek Pro $0.14,
 GLM 5.3 $0.39. A five-model bake-off on sample 1 is under $1. Samples 2 and 3 are under a cent
 each on any model.
@@ -200,7 +250,8 @@ sample 1 only, pass a, pass b, spread. Dollars are the six passes at the prices 
 Both Flash rows were tried first and both fail the verifier on sample 1 and sample 3; the Pro
 tier ran because every Flash failed, as section 5 asks. The pinned reports are the winner's
 pass a under `runs/<sample>/` and pass b under `runs/<sample>/b/`, digests in
-`tests/phase5-digests.json`. Phase 5 spent $1.78 of its $8: $0.95 on the five-model bake-off, $0.31 on the two northwind
+`tests/phase5-digests.json`. Phase 5 spent $1.78 of its $8: $0.95 on the five-model bake-off,
+$0.31 on the two northwind
 reruns of 2026-09-08, $0.52 on slices 01 to 04. The repository has spent $3.50 of the $50.
 
 ## 6. Money
@@ -230,6 +281,10 @@ No sub-metric, no option list. If the message cannot name the score, nothing els
   reader per pull request. A pull request is a phase.
 - No specification files. The tests are the specification. Docstrings say what a function does
   in the present tense and cite nothing.
+- No hosted service, public demo, accounts, database, payments, chat, or Excel export. The
+  product runs on the user's machine only, founder's decision 2026-10-04, because a data room
+  sits under a confidentiality agreement and its owner does not upload it to a site run by
+  someone else.
 
 ## 9. Repository layout
 
@@ -242,12 +297,15 @@ samples/         the four samples, their keys, their briefs
 src/rlm/         the tool; one module per stage
 tests/           one test file per phase, parametrised over the three samples
 runs/            artefacts, never committed
+app/             the API and the runner
+web/             the web page
+deploy/          the Dockerfile and the Helm chart
 ```
 
 ## 10. Decisions the founder has made, and one he has not
 
 Made: $50 ceiling; five models; no Gemini; three-sample gate; phase order; samples 1 to 4;
-fresh repository, no lanes.
+local-only product as phase 8 (2026-10-04); fresh repository, no lanes.
 
 **Decision 2, where phase 6's knobs come from. Made on 2026-09-08 with the phase 6 sprint plan,
 as proposed: the generator.** `python -m rlm.widen <knob> samples/atlas samples/atlas-<knob>`
