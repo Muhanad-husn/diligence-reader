@@ -145,8 +145,9 @@ def test_the_page_runs_the_room_in_the_image(container, page: Page, tmp_path, ga
         marker = {"issue": ISSUE, "sample": gate_sample, "attempt": attempt, "label": label(gate_sample, attempt)}
         (folder / "gate.json").write_text(json.dumps(marker, indent=2) + "\n", encoding="utf-8")
 
-        last = page.locator('#stages [data-stage="export"][data-state="finished"]')
-        expect(last.or_(page.locator("#error"))).to_be_visible(timeout=GATE_TIMEOUT)
+        # The error card is in the page while hidden, so it joins the wait only when shown.
+        ended = page.locator('#stages [data-stage="export"][data-state="finished"], #error:visible')
+        expect(ended.first).to_be_visible(timeout=GATE_TIMEOUT)
         expect(page.locator("#error")).to_be_hidden()
         expect_every_stage(page, "finished")
         assert run_json(folder)["status"] == "done"
