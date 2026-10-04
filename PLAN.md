@@ -149,7 +149,7 @@ database, no payments: each run is a folder under `runs/`, and the folder is the
 | API | FastAPI: start a run, stream its progress, fetch the report, export it |
 | Progress stream | AG-UI events over server-sent events: run started, step started and finished per stage, state updates for documents noted and dollars spent, run error with its code. No chat and no CopilotKit |
 | Web page | upload a room, connect the OpenRouter key, see the estimate and confirm it, watch progress, read the report, export, see an error card |
-| Export | Markdown as written, Word and PDF built from the same Markdown with pandoc and WeasyPrint, and the Evidence section alone as CSV, saved so Excel opens it cleanly. No Excel file: the report body is prose, and the Evidence section is one flat table, about 1,800 rows on sample 1, that a CSV carries whole |
+| Export | Markdown as written, Word and PDF built from the same Markdown, Word with pandoc and PDF with pandoc and Typst, and the Evidence section alone as CSV, saved so Excel opens it cleanly. No Excel file: the report body is prose, and the Evidence section is one flat list, about 1,870 rows on sample 1, that a CSV carries whole |
 | Packaging | one Docker image for `docker run`, `pipx install diligence-reader` for the command alone, a build on every merge that publishes the image to GitHub's container registry, and a Helm chart for a firm that runs it on its own Kubernetes cluster |
 
 Kubernetes: the chart is tested on kind, a Kubernetes cluster on one machine, at no cost. No
