@@ -174,7 +174,7 @@ def test_a_folder_upload_lands_at_the_room_root(api, tmp_path):
     response = upload(api, room_files(tmp_path))
 
     assert response.status_code == 201
-    room = api.runs / response.json()["id"] / "room"
+    room = api.runs / response.json()["id"] / response.json()["id"]
     assert (room / "cim.md").exists()
     assert (room / "brief.md").exists()
     assert (room / "key.json").exists()
@@ -188,7 +188,7 @@ def test_a_zip_upload_lands_at_the_room_root(api, tmp_path):
 
     assert response.status_code == 201
     assert response.json() == {"id": "zipped"}
-    room = api.runs / "zipped" / "room"
+    room = api.runs / "zipped" / "zipped"
     assert (room / "cim.md").exists()
     assert (room / "key.json").exists()
     assert not (room / ROOM).exists()

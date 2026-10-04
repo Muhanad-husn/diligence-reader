@@ -1,8 +1,9 @@
 """The local API: upload a room, read its estimate, start the run, follow it, fetch the report.
 
 `uvicorn app.main:app --host 127.0.0.1 --port 8000` serves it. A run's folder is
-<runs root>/<id> and the uploaded room is <runs root>/<id>/room; the runs root is RLM_RUNS, runs
-under the current folder by default. The key comes in the X-OpenRouter-Key header and is held
+<runs root>/<id> and the uploaded room is <runs root>/<id>/<id>, a folder named by the run id so
+the stages name the sample after the run; the runs root is RLM_RUNS, runs under the current
+folder by default. The key comes in the X-OpenRouter-Key header and is held
 in this process's memory by run id until the runner starts the command with it; it is never
 written to a file, a log or a response. The web page in web/ is served at / when the folder is
 there.
@@ -58,6 +59,11 @@ class Refused(Exception):
         self.status = status
         self.code = code
         self.message = message or code
+
+
+def room_of(run_dir: Path) -> Path:
+    """A run's room: a folder inside the run folder named by the run id."""
+    return run_dir / run_dir.name
 
 
 def room_path(name: str) -> PurePosixPath:
@@ -131,7 +137,7 @@ def create_app(
         keys[run_id] = key
         if runner.status(run_id) == "running":
             raise Refused(409, "running", "the run is already running")
-        runner.start(run_id, run_dir / "room", run_dir, key)
+        runner.start(run_id, room_of(run_dir), run_dir, key)
         return JSONResponse({"id": run_id}, status_code=202)
 
     @app.post("/runs", status_code=201)
@@ -150,7 +156,7 @@ def create_app(
             raise Refused(409, "name-taken", f"a run named {run_id} exists")
         uploads = [(upload.filename or "", await upload.read()) for upload in files]
         entries = room_entries(uploads)
-        room = runs_root / run_id / "room"
+        room = room_of(runs_root / run_id)
         try:
             for path, data in entries:
                 target = room / path
@@ -174,7 +180,7 @@ def create_app(
     @app.get("/runs/{run_id}/estimate")
     async def read_estimate(run_id: str):
         run_dir = folder(run_id)
-        room = run_dir / "room"
+        room = room_of(run_dir)
         if not cli.done("ingest", run_dir):
             try:
                 await run_in_threadpool(ingest_stage.ingest, room, run_dir)
