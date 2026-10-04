@@ -26,6 +26,17 @@ the estimated tokens and the price before anything is sent, refuses when the est
 take the phase past its cap or the total past the $50 ceiling, and on a clean exit appends one
 row to LEDGER.md with the gateway's own reported token counts. A batch that raises writes
 nothing. Nothing else writes LEDGER.md.
+
+A user's run of the command is not this build's spending, so it books nothing. Meter has the
+batch shape of Ledger and counts what every batch's calls cost, raise or not, for the run's
+own record. Given no ledger it applies no cap, prints its estimate and writes nothing; given a
+ledger, each of its batches is that ledger's batch underneath, so the cap and the row stand
+as they do for any phase, and the meter still counts.
+
+A request the gateway answers with 429 is sent again after each wait of RATE_LIMIT_WAITS, and
+a 429 after the last wait is raised like any other status. A 401, 402, 403 or 429 says that
+the key, the account or the rate refuses every call and not one document, and stops_every_call
+says so to a pass that would otherwise drop the document and go on to the next.
 """
 
 from __future__ import annotations
@@ -106,10 +117,21 @@ MAX_DRAWS = 2
 # from the reserve on 2026-09-09 to rewrite the three gate samples' reports, whose artefacts were
 # lost with PR #119's worktree; the reason is written at the head of LEDGER.md.
 TOTAL_CEILING = 50.0
-PHASE_CAPS: dict[int, float] = {0: 0.0, 1: 0.0, 2: 8.0, 3: 0.0, 4: 0.0, 5: 9.0, 6: 15.0, 7: 4.0}
+PHASE_CAPS: dict[int, float] = {
+    0: 0.0, 1: 0.0, 2: 8.0, 3: 0.0, 4: 0.0, 5: 9.0, 6: 15.0, 7: 4.0, 8: 3.0
+}
 
 BASE_URL = "https://openrouter.ai/api/v1"
 TIMEOUT_SECONDS = 300.0
+
+# The seconds waited before each further try of a request the gateway answered with 429. Two
+# waits make three tries; the 429 of the third is raised.
+RATE_LIMIT_WAITS: tuple[float, ...] = (2.0, 8.0)
+
+# The statuses that refuse every call of a run rather than one request: the key refused (401,
+# 403), the account out of credits (402), and the rate limit still in force after the waits
+# (429).
+STOPPING_STATUSES = frozenset({401, 402, 403, 429})
 
 _LEDGER_ROW = re.compile(
     r"^\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|$"
@@ -133,6 +155,14 @@ class Completion:
     tokens_out: int
     seconds: float
     model: str
+
+
+def stops_every_call(exc: BaseException) -> bool:
+    """Says whether an exception is a gateway status that refuses every call, not one request."""
+    return (
+        isinstance(exc, httpx.HTTPStatusError)
+        and exc.response.status_code in STOPPING_STATUSES
+    )
 
 
 def estimate_tokens(text: str) -> int:
@@ -185,9 +215,11 @@ class Gateway:
         api_key: str | None = None,
         transport: httpx.BaseTransport | None = None,
         base_url: str = BASE_URL,
+        rate_limit_waits: tuple[float, ...] = RATE_LIMIT_WAITS,
     ):
         self.api_key = api_key if api_key is not None else os.environ["OPENROUTER_API_KEY"]
         self.base_url = base_url.rstrip("/")
+        self.rate_limit_waits = tuple(rate_limit_waits)
         self._client = httpx.Client(transport=transport, timeout=TIMEOUT_SECONDS)
 
     def models(self) -> dict[str, tuple[float, float]]:
@@ -215,14 +247,20 @@ class Gateway:
     def _send(self, body: dict) -> tuple[dict, float]:
         """Posts one chat completion and returns the answered body and the wall seconds.
 
-        Raises httpx.HTTPStatusError when the gateway answers outside the 2xx range.
+        A 429 is posted again after each wait of rate_limit_waits, and the seconds waited count
+        in the wall seconds. Raises httpx.HTTPStatusError when the gateway answers outside the
+        2xx range, a 429 included once the waits are spent.
         """
         started = time.monotonic()
-        response = self._client.post(
-            f"{self.base_url}/chat/completions",
-            json=body,
-            headers={"Authorization": f"Bearer {self.api_key}"},
-        )
+        for wait in (*self.rate_limit_waits, None):
+            response = self._client.post(
+                f"{self.base_url}/chat/completions",
+                json=body,
+                headers={"Authorization": f"Bearer {self.api_key}"},
+            )
+            if response.status_code != 429 or wait is None:
+                break
+            time.sleep(wait)
         response.raise_for_status()
         return response.json(), time.monotonic() - started
 
@@ -391,3 +429,94 @@ class Ledger:
         if text and not text.endswith("\n"):
             text += "\n"
         self.path.write_text(text + row, encoding="utf-8")
+
+
+class MeteredBatch:
+    """One batch of a Meter: the tokens its calls reported, counted onto the meter as they come.
+
+    With a ledger batch underneath, entering and leaving are that batch's, so it prints the
+    estimate, refuses past a cap and books its row on a clean exit. Without one, entering prints
+    the estimate and nothing is refused or written.
+    """
+
+    def __init__(
+        self,
+        meter: "Meter",
+        inner: Batch | None,
+        model: str,
+        tokens_in: int,
+        tokens_out: int,
+    ):
+        self._meter = meter
+        self._inner = inner
+        self.model = model
+        self.estimated_in = tokens_in
+        self.estimated_out = tokens_out
+        self.tokens_in = 0
+        self.tokens_out = 0
+        self._lock = threading.Lock()
+
+    def record(self, completion: Completion) -> Completion:
+        """Adds one completion's reported tokens to the batch and the meter and returns it."""
+        if self._inner is not None:
+            self._inner.record(completion)
+        with self._lock:
+            self.tokens_in += completion.tokens_in
+            self.tokens_out += completion.tokens_out
+        self._meter.add(self.model, completion.tokens_in, completion.tokens_out)
+        return completion
+
+    def __enter__(self) -> "MeteredBatch":
+        if self._inner is not None:
+            self._inner.__enter__()
+        else:
+            estimate = price(self.model, self.estimated_in, self.estimated_out)
+            print(
+                f"estimate: {self.estimated_in} tokens in, {self.estimated_out} tokens out, "
+                f"${estimate:.4f} on {self.model}"
+            )
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> bool:
+        if self._inner is not None:
+            return bool(self._inner.__exit__(exc_type, exc, traceback))
+        return False
+
+
+class Meter:
+    """Counts the dollars of every batch it opens, at the PRICES rate, whether the batch ends
+    cleanly or raises, since a call that returned was paid either way.
+
+    It has the batch shape of Ledger, so a stage takes it where it takes a ledger. Without a
+    ledger nothing is capped and nothing is written; with one, each batch is also booked there.
+    """
+
+    def __init__(self, ledger: Ledger | None = None):
+        self.ledger = ledger
+        self.tokens_in = 0
+        self.tokens_out = 0
+        self.dollars = 0.0
+        self._lock = threading.Lock()
+
+    def add(self, model: str, tokens_in: int, tokens_out: int) -> None:
+        """Counts one call's reported tokens and their price."""
+        with self._lock:
+            self.tokens_in += tokens_in
+            self.tokens_out += tokens_out
+            self.dollars += price(model, tokens_in, tokens_out)
+
+    def batch(
+        self, sample: str, phase: int, model: str, tokens_in: int, tokens_out: int
+    ) -> MeteredBatch:
+        """Opens a batch that counts onto this meter, and onto the ledger's row when there is one."""
+        inner = (
+            self.ledger.batch(sample, phase, model, tokens_in, tokens_out)
+            if self.ledger is not None
+            else None
+        )
+        return MeteredBatch(self, inner, model, tokens_in, tokens_out)
