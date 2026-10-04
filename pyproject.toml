@@ -14,7 +14,7 @@ dependencies = [
     "pypandoc-binary==1.17",
     "typst==0.15.0",
     "fastapi>=0.142,<0.143",
-    "uvicorn>=0.40,<0.41",
+    "uvicorn>=0.40,<0.55",
     "ag-ui-protocol==1.0.0",
     "python-multipart>=0.0.22,<0.1",
 ]
