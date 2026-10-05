@@ -53,6 +53,13 @@ whose note is dropped whole loses only its own items, and a document with no pie
 gives a note of None. The harvest that follows still runs over the whole document's sections,
 exactly as it does for a document short enough for one call.
 
+A piece, or a document short enough for one call, whose call runs out of its output budget on
+both draws is cut in two at the section boundary that balances the halves, and each half is
+noted on its own, again halved if it runs out again, down to one section. A single section that
+still runs out is dropped alone with one note-dropped record, and the other pieces still make
+the note. The halves of a piece are merged the way the pieces of a document are. A refusal that
+did not run out of budget, and every other error, still drops the document.
+
 Every reply text is written verbatim to runs/<sample>/notes-raw/<document>.<attempt>.txt, so a
 pass can be read back without calling the model again.
 
@@ -90,6 +97,7 @@ from rlm.gateway import (
     Completion,
     Gateway,
     Ledger,
+    NoReply,
     estimate_tokens,
     price,
     stops_every_call,
@@ -825,51 +833,103 @@ def piece_named_values(piece: list[dict], named: Sequence[str]) -> list[str]:
     return [value for value in named if fold(value) and fold(value) in text]
 
 
+def halve(sections: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Cuts a list of two or more sections into two contiguous runs.
+
+    The cut is at the boundary that makes the document_text lengths of the two runs closest; the
+    first such boundary wins a tie. Order is kept and no section is split.
+    """
+    best = min(
+        range(1, len(sections)),
+        key=lambda cut: abs(
+            len(document_text(sections[:cut])) - len(document_text(sections[cut:]))
+        ),
+    )
+    return sections[:best], sections[best:]
+
+
+def note_piece(
+    doc: str, model: str, pass_name: str, piece: list[dict], call, named: Sequence[str]
+) -> tuple[list[dict], list[dict]]:
+    """Notes one piece and returns its notes in document order with its log records.
+
+    The piece is one model_note call. When that call raises a NoReply that ran out of its output
+    budget, a piece of two or more sections is halved and each half is noted by this function on
+    its own, with only the named values that half carries. A single section that runs out is
+    dropped alone, with one note-dropped record and no note. A piece whose reply never parses
+    gives no note and model_note's own record. Any other error is raised.
+    """
+    try:
+        note, records = model_note(doc, model, pass_name, piece, call, named)
+    except NoReply as exc:
+        if not exc.cut_off:
+            raise
+        if len(piece) < 2:
+            return [], [_log_record(doc, None, None, None, "note-dropped", 1)]
+        notes: list[dict] = []
+        records = []
+        for half in halve(piece):
+            half_notes, half_records = note_piece(
+                doc, model, pass_name, half, call, piece_named_values(half, named)
+            )
+            notes.extend(half_notes)
+            records.extend(half_records)
+        return notes, records
+    return ([] if note is None else [note]), records
+
+
+def merge_notes(doc: str, model: str, pass_name: str, notes: list[dict]) -> dict:
+    """One note from several, in order: the first note's what and each quoted field merged.
+
+    The usage is left empty for the caller. A single note is returned as it is.
+    """
+    if len(notes) == 1:
+        return notes[0]
+    merged_note = {
+        "doc": doc,
+        "model": model,
+        "pass": pass_name,
+        "what": notes[0]["what"],
+        "usage": {},
+    }
+    for field in QUOTED_FIELDS:
+        merged: list[dict] = []
+        for note in notes:
+            merged = merge_items(merged, note[field])
+        merged_note[field] = merged
+    return merged_note
+
+
 def note_document(
     doc: str, model: str, pass_name: str, sections: list[dict], call, named: Sequence[str] = ()
 ) -> tuple[dict | None, list[dict]]:
     """Notes one document from the model, then harvests the figures the model did not write.
 
     A document whose text is over PIECE_LIMIT characters is split into pieces by split_sections
-    and each piece noted on its own, with model_note run separately per piece and only the named
-    values that piece carries. The merged note's what is the first piece's whose note is not
-    None; each quoted field is the pieces' items merged, piece by piece, in piece order; the
-    records are the pieces' records concatenated in piece order; and a document with no piece
-    noted at all gives a note of None. A document at or under PIECE_LIMIT keeps the single-call
-    path. Either way the harvest runs once, over the whole document's sections.
+    and each piece noted on its own by note_piece, with only the named values that piece
+    carries. A document at or under PIECE_LIMIT is one piece. A piece whose call runs out of its
+    output budget is halved by note_piece, down to one section, so its notes can be several.
+    The merged note's what is the first note's; each quoted field is the notes' items merged, in
+    document order; the records are the pieces' records concatenated in piece order; and a
+    document with no note at all gives a note of None. Either way the harvest runs once, over the
+    whole document's sections.
     """
     if len(document_text(sections)) <= PIECE_LIMIT:
-        note, records = model_note(doc, model, pass_name, sections, call, named)
-        if note is None:
-            return None, records
-        return note, records + add_harvest(doc, note, sections)
+        pieces = [(sections, named)]
+    else:
+        pieces = [(piece, piece_named_values(piece, named)) for piece in split_sections(sections)]
 
     records: list[dict] = []
-    piece_notes: list[dict] = []
-    for piece in split_sections(sections):
-        piece_note, piece_records = model_note(
-            doc, model, pass_name, piece, call, piece_named_values(piece, named)
-        )
+    notes: list[dict] = []
+    for piece, piece_named in pieces:
+        piece_notes, piece_records = note_piece(doc, model, pass_name, piece, call, piece_named)
+        notes.extend(piece_notes)
         records.extend(piece_records)
-        if piece_note is not None:
-            piece_notes.append(piece_note)
 
-    if not piece_notes:
+    if not notes:
         return None, records
 
-    note = {
-        "doc": doc,
-        "model": model,
-        "pass": pass_name,
-        "what": piece_notes[0]["what"],
-        "usage": {},
-    }
-    for field in QUOTED_FIELDS:
-        merged: list[dict] = []
-        for piece_note in piece_notes:
-            merged = merge_items(merged, piece_note[field])
-        note[field] = merged
-
+    note = merge_notes(doc, model, pass_name, notes)
     return note, records + add_harvest(doc, note, sections)
 
 
@@ -954,7 +1014,21 @@ def note_and_write(
     completions: list[Completion] = []
 
     def call(messages: list[dict]) -> Completion:
-        completion = gateway.complete(model, messages, max_tokens=max_output_tokens)
+        try:
+            completion = gateway.complete(model, messages, max_tokens=max_output_tokens)
+        except NoReply as exc:
+            # The draws that ran out were paid though they gave no text, so they are booked
+            # before the error goes on to the caller that halves the piece.
+            paid = Completion(
+                text="",
+                tokens_in=exc.tokens_in,
+                tokens_out=exc.tokens_out,
+                seconds=exc.seconds,
+                model=model,
+            )
+            batch.record(paid)
+            completions.append(paid)
+            raise
         batch.record(completion)
         completions.append(completion)
         write_raw(out_dir, doc_id, len(completions), completion.text)

@@ -152,7 +152,26 @@ class CapExceeded(Exception):
 
 
 class NoReply(Exception):
-    """Raised when two draws of one request both came back with no reply in them."""
+    """Raised when two draws of one request both came back with no reply in them.
+
+    tokens_in, tokens_out and seconds are the sums over the draws, which were paid though they
+    gave no text. cut_off is true when every draw finished on the length reason, which is a
+    request too large for its max_tokens budget and not a gateway that answered with nothing.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        tokens_in: int = 0,
+        tokens_out: int = 0,
+        seconds: float = 0.0,
+        cut_off: bool = False,
+    ):
+        super().__init__(message)
+        self.tokens_in = tokens_in
+        self.tokens_out = tokens_out
+        self.seconds = seconds
+        self.cut_off = cut_off
 
 
 @dataclass(frozen=True)
@@ -298,6 +317,7 @@ class Gateway:
         tokens_in = 0
         tokens_out = 0
         refused: list[str] = []
+        all_cut_off = True
         for _ in range(MAX_DRAWS):
             data, took = self._send(body)
             seconds += took
@@ -316,13 +336,18 @@ class Gateway:
                     seconds=seconds,
                     model=model,
                 )
+            all_cut_off = all_cut_off and finish_reason == CUT_OFF
             # OpenRouter names the provider that served the call at the top of the body, so
             # the message can say which one answered with no reply in it.
             refused.append(
                 refused_draw(data.get("provider"), finish_reason, drawn_out, len(text))
             )
         raise NoReply(
-            f"{model} returned no reply on {len(refused)} draws: " + ", then ".join(refused)
+            f"{model} returned no reply on {len(refused)} draws: " + ", then ".join(refused),
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
+            seconds=seconds,
+            cut_off=all_cut_off,
         )
 
 
