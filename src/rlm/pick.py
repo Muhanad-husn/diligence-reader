@@ -155,12 +155,16 @@ def flags_of(note: dict | None) -> list[dict]:
 
 def choose(ranked: list[str], notes: dict[str, dict | None], cap: int = DIGEST_ROWS) -> tuple[list[str], int]:
     """The documents taken whole from the top of the ranking until the next would pass cap
-    rows, a row being one flag, and the rows they carry."""
+    rows, a row being one flag, and the rows they carry.
+
+    The first document is taken whatever its rows: a room whose top document alone carries more
+    than cap flags would otherwise choose nothing and the writer would read an empty digest.
+    """
     chosen: list[str] = []
     rows = 0
     for doc in ranked:
         count = len(flags_of(notes.get(doc)))
-        if rows + count > cap:
+        if chosen and rows + count > cap:
             break
         chosen.append(doc)
         rows += count
