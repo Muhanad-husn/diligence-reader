@@ -67,10 +67,11 @@ the gap is fixed in its own phase and every later phase reruns.
 | 5 Report | `runs/<sample>/report.md`, `verify.json`, `grade.json` | Verifier passes. Score at or above the bar. Two writes, spread printed. Bake-off over the five models. A room holding a second matter writes it under a heading of its own, above the lesser issues, since #121 | bake-off | $9, $8 plus $1 borrowed from the reserve on 2026-09-09 to rewrite the three gate samples' reports, lost with #119's worktree; the reason is at the head of `LEDGER.md` |
 | 6 Widen | same artefacts under `runs/<sample>-<knob>/` | Phases 1 to 5 hold when a knob is turned on the fixture: names spelled inconsistently, the matter named nowhere and linked only by dates and numbers, a second matter, twice the documents. Each knob is one generated variant of sample 1 with its own key. A failure names the phase that dropped the fact. Closed 2026-09-09: `control` holds; `names` was dropped by phase 3, whose map linked documents by the surface of a name, fixed by #113; `unnamed`, `second` and `twice` were dropped by phase 3, whose map read the room from one seed and returned one matter, fixed by #115. Five known misses stand, each a knob taking away what tied a document to the matter | as chosen in 2 and 5 | $15 |
 | 7 Compare | `runs/yahoo/` | Our tool once on sample 4, an open corpus with no planted facts, against the public record | as chosen | $4 |
-| 8 Product | `runs/<sample>/` written by a run started from the web interface, with `report.docx`, `report.pdf`, `evidence.csv` beside `report.md` | A run started from the web interface on samples 1, 2 and 3 gives the same planted-fact recall as the command line, 100 / 100 / 100, and every planted fact reads out of the docx, the PDF and the CSV. Spread over two runs printed | as chosen in 2 and 5 | $3, from the reserve on 2026-10-04 |
+| 8 Product | `runs/<sample>/` written by a run started from the web interface, with `report.docx`, `report.pdf`, `evidence.csv` beside `report.md` | A run started from the web interface on samples 1, 2 and 3 gives the same planted-fact recall as the command line, 100 / 100 / 100, and every planted fact reads out of the docx, the PDF and the CSV. Spread over two runs printed | as chosen in 2 and 5 | $9, $3 from the reserve on 2026-10-04 and $6 on 2026-10-05 for #160 |
 
-Reserve: $11 of the $50, $15 less the $1 phase 5 borrowed on 2026-09-09 and the $3 phase 8
-borrowed on 2026-10-04. Nothing borrows from it without the reason written in `LEDGER.md` first.
+Reserve: $5 of the $50, $15 less the $1 phase 5 borrowed on 2026-09-09, the $3 phase 8
+borrowed on 2026-10-04 and the $6 phase 8 borrowed on 2026-10-05 for #160. Nothing borrows from
+it without the reason written in `LEDGER.md` first.
 
 **The bar for phase 5.** Planted-fact recall 100% (the key is by construction). Rubric score: 85
 on sample 1, the rubric's own floor for "excellent", proposed here and set by the founder.

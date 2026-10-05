@@ -17,6 +17,14 @@ $0.50; the slices each run sample 1 once and the gate runs the three samples twi
 the founder on 2026-10-04 with the phase 8 plan. The reserve stands at $11 of $15. Added by
 hand.
 
+**Six dollars borrowed from the reserve, 2026-10-05.** Phase 8's cap goes from $3 to $9 for
+issue #160. Its model calls rank a room against a fixed acquisition checklist in two arms, one
+model call and TypeSafe's Jev, and both are tried on Avid for practice, rechecked on the three
+samples, and then run once each on two sealed rooms, which are noted once. The issue estimates
+about $5.50 in all: noting the two sealed rooms $3.60, Avid practice $0.45, the sealed ranking
+and writing $0.70 and the three samples $0.70. Jev's calls are booked here like any other.
+Approved by the founder on 2026-10-05 for #160. The reserve stands at $5 of $15. Added by hand.
+
 | date | sample | phase | model | tokens in | tokens out | dollars | balance |
 |---|---|---|---|---|---|---|---|
 | 2026-09-05 | | | | 0 | 0 | 0.0000 | 50.0000 |

@@ -124,10 +124,12 @@ MAX_DRAWS = 2
 
 # The total ceiling and the per phase caps, from PLAN.md section 6. Phase 5 carries $1 borrowed
 # from the reserve on 2026-09-09 to rewrite the three gate samples' reports, whose artefacts were
-# lost with PR #119's worktree; the reason is written at the head of LEDGER.md.
+# lost with PR #119's worktree; the reason is written at the head of LEDGER.md. Phase 8 carries
+# $3 from the reserve on 2026-10-04 and $6 more on 2026-10-05 for #160, whose two rankers are
+# tried on two sealed rooms; that reason is written there too.
 TOTAL_CEILING = 50.0
 PHASE_CAPS: dict[int, float] = {
-    0: 0.0, 1: 0.0, 2: 8.0, 3: 0.0, 4: 0.0, 5: 9.0, 6: 15.0, 7: 4.0, 8: 3.0
+    0: 0.0, 1: 0.0, 2: 8.0, 3: 0.0, 4: 0.0, 5: 9.0, 6: 15.0, 7: 4.0, 8: 9.0
 }
 
 BASE_URL = "https://openrouter.ai/api/v1"
