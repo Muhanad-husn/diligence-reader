@@ -206,7 +206,9 @@ def test_the_writer_on_sonnet_in_tree_mode_records_its_api_price_in_tree_json(tm
         "## The most material issue quantified\n\nNone [a.txt | a.txt#l1].\n\n"
         "## Lesser issues\n\nNone [c.txt | c.txt#l1].\n\n## Open items\n\nNone [c.txt | c.txt#l1].\n"
     )
-    runner = FakeRunner(lambda args, stdin: cli_reply(report))
+    head, tail = report.split("## Lesser issues")
+    runner = FakeRunner(lambda args, stdin: cli_reply(
+        "## Lesser issues" + tail if system_of(args).startswith(write.FULL_TAIL_PROMPT) else head))
     ledger = write_ledger(tmp_path / "L.md")
     code = write.main([str(room), str(run_dir), "--tree", "--phase", "8", "--model", SONNET],
                       gateway=gateway_with(runner), ledger=ledger)
@@ -216,8 +218,8 @@ def test_the_writer_on_sonnet_in_tree_mode_records_its_api_price_in_tree_json(tm
     assert float(ledger.rows()[-1]["dollars"]) == 0.0
     written = json.loads((run_dir / tree.TREE_FILE).read_text(encoding="utf-8"))
     assert written["writer"]["model"] == SONNET
-    assert (written["writer"]["tokens_in"], written["writer"]["tokens_out"]) == (1000, 120)
-    assert written["writer"]["api_dollars"] == pytest.approx(api_price(SONNET, 1000, 120))
+    assert (written["writer"]["tokens_in"], written["writer"]["tokens_out"]) == (2000, 240)
+    assert written["writer"]["api_dollars"] == pytest.approx(api_price(SONNET, 2000, 240))
 
 
 # ---------------------------------------------------------------- the command
@@ -262,7 +264,7 @@ def test_the_command_runs_both_levels_on_sonnet(tmp_path):
     code = cli.main(argv, gateway=gateway, ledger=ledger)
 
     assert code == 0, (run_dir / "run.json").read_text(encoding="utf-8")
-    assert len(runner.calls) == 2
+    assert len(runner.calls) == 3  # the group call, then the writer's two
     sonnet_rows = [row for row in ledger.rows() if row["model"] == SONNET]
     assert len(sonnet_rows) == 2
     assert all(float(row["dollars"]) == 0.0 for row in sonnet_rows)

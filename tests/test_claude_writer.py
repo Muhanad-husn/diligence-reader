@@ -98,21 +98,33 @@ def both_room(tmp_path):
     return room, run_dir
 
 
-REPORT = (
+HEAD = (
     "## Executive summary\n\nRecommendation: proceed.\n\n"
     f'The loan says "{LOAN[:-1]}" [a.txt | a.txt#l1].\n\n'
     "## Findings ranked by materiality\n\n"
     f'1. The loan is repaid on a change of control, "{LOAN[:-1]}" [a.txt | a.txt#l1].\n\n'
-    "## The most material issue quantified\n\nNone [a.txt | a.txt#l1].\n\n"
-    "## Lesser issues\n\n1. None [c.txt | c.txt#l1].\n\n## Open items\n\n1. None [c.txt | c.txt#l1].\n"
+    "## The most material issue quantified\n\nNone [a.txt | a.txt#l1].\n"
 )
+TAIL = "## Lesser issues\n\n1. None [c.txt | c.txt#l1].\n\n## Open items\n\n1. None [c.txt | c.txt#l1].\n"
+REPORT = HEAD + "\n" + TAIL
+
+
+def run_both(tmp_path, replies, model=SONNET):
+    room, run_dir = both_room(tmp_path)
+    gateway = Recorder(replies)
+    argv = [str(room), str(run_dir), "--both", "--tree-first", "--phase", "8"]
+    if model:
+        argv += ["--model", model]
+    code = write.main(argv, gateway=gateway, ledger=write_ledger(tmp_path / "L.md"))
+    return code, run_dir, gateway
+
+
+def narrative(run_dir) -> str:
+    return (run_dir / "report.md").read_text(encoding="utf-8").split("\n## Evidence", 1)[0]
 
 
 def test_a_sonnet_writer_of_both_reads_every_tree_finding_first_with_its_own_prompt_and_cap(tmp_path):
-    room, run_dir = both_room(tmp_path)
-    gateway = Recorder([REPORT])
-    code = write.main([str(room), str(run_dir), "--both", "--tree-first", "--phase", "8", "--model", SONNET],
-                      gateway=gateway, ledger=write_ledger(tmp_path / "L.md"))
+    code, run_dir, gateway = run_both(tmp_path, [HEAD, TAIL])
     assert code == 0
     call = gateway.calls[0]
     assert call["max_tokens"] == write.FULL_OUTPUT_TOKENS
@@ -129,23 +141,68 @@ def test_a_sonnet_writer_of_both_reads_every_tree_finding_first_with_its_own_pro
     assert json.loads((run_dir / "verify.json").read_text(encoding="utf-8"))["passes"] is True
 
 
-def test_a_sonnet_writer_is_asked_again_by_its_own_reask(tmp_path):
-    room, run_dir = both_room(tmp_path)
-    failing = REPORT.replace("None [c.txt | c.txt#l1].\n\n## Open", "An uncited sentence.\n\n## Open")
-    gateway = Recorder([failing, REPORT])
-    write.main([str(room), str(run_dir), "--both", "--tree-first", "--phase", "8", "--model", SONNET],
-               gateway=gateway, ledger=write_ledger(tmp_path / "L.md"))
+def test_a_sonnet_writer_writes_the_first_sections_then_the_last_two_in_a_second_call(tmp_path):
+    code, run_dir, gateway = run_both(tmp_path, [HEAD, TAIL])
+    assert code == 0
     assert len(gateway.calls) == 2
-    asked = gateway.calls[1]["messages"][-1]["content"]
+    head_system = gateway.calls[0]["messages"][0]["content"]
+    assert "## Lesser issues" not in write.FULL_PROMPT.split("THE SHAPE", 1)[1].split("THE NUMBER", 1)[0]
+    second = gateway.calls[1]
+    assert second["max_tokens"] == write.FULL_OUTPUT_TOKENS
+    assert second["messages"][0]["content"].startswith(write.FULL_TAIL_PROMPT)
+    assert second["messages"][0]["content"] != head_system
+    user = second["messages"][1]["content"]
+    assert user.startswith(gateway.calls[0]["messages"][1]["content"])
+    assert user.rstrip().endswith(HEAD.rstrip())
+    assert narrative(run_dir) == REPORT
+    record = json.loads((run_dir / "verify.json").read_text(encoding="utf-8"))
+    assert record["passes"] is True and record["calls"] == 2
+
+
+def test_a_failing_sentence_is_fixed_in_place_from_a_numbered_list(tmp_path):
+    tail = TAIL.replace("1. None [c.txt | c.txt#l1].\n\n## Open", "1. An uncited sentence.\n\n## Open")
+    fixes = json.dumps({"fixes": [{"n": 1, "sentence": "A cited sentence [c.txt | c.txt#l1]."}]})
+    code, run_dir, gateway = run_both(tmp_path, [HEAD, tail, fixes])
+    assert code == 0
+    assert len(gateway.calls) == 3
+    asked = gateway.calls[2]["messages"][-1]["content"]
     assert asked.startswith(write.FULL_REASK.split("{items}")[0])
-    assert gateway.calls[1]["max_tokens"] == write.FULL_OUTPUT_TOKENS
+    assert "1. An uncited sentence." in asked
+    assert gateway.calls[2]["messages"][-2]["content"] == HEAD + "\n" + tail
+    written = narrative(run_dir)
+    assert "1. A cited sentence [c.txt | c.txt#l1]." in written
+    assert "uncited" not in written
+    record = json.loads((run_dir / "verify.json").read_text(encoding="utf-8"))
+    assert record["passes"] is True and record["calls"] == 3
+    assert len(record["rounds"]) == 2 and record["rounds"][1] == []
+
+
+def test_a_sentence_the_fixes_leave_failing_is_left_out(tmp_path):
+    tail = TAIL.replace("1. None [c.txt | c.txt#l1].\n\n## Open", "1. None [c.txt | c.txt#l1]. An uncited sentence.\n\n## Open")
+    code, run_dir, gateway = run_both(tmp_path, [HEAD, tail, "not json"])
+    assert code == 0
+    written = narrative(run_dir)
+    assert "uncited" not in written
+    assert "1. None [c.txt | c.txt#l1].\n\n## Open" in written
+    record = json.loads((run_dir / "verify.json").read_text(encoding="utf-8"))
+    assert record["passes"] is True
+    assert record["left_out"] == ["An uncited sentence."]
+    assert len(record["rounds"]) == 3 and record["rounds"][2] == []
+
+
+def test_fixes_replace_each_listed_sentence_once_and_an_empty_one_takes_it_out():
+    text = "## A\n\n1. First one. Second one.\n2. Third one.\n"
+    reply = json.dumps({"fixes": [{"n": 1, "sentence": "First fixed."}, {"n": 2, "sentence": ""},
+                                  {"n": 9, "sentence": "no such number"}]})
+    fixed = write.apply_fixes(text, ["First one.", "Third one."], reply)
+    assert fixed == "## A\n\n1. First fixed. Second one.\n"
+    assert write.apply_fixes(text, ["First one."], "not json") == text
+    assert write.leave_out(text, ["Second one."]) == "## A\n\n1. First one.\n2. Third one.\n"
 
 
 def test_a_glm_writer_of_both_is_unchanged(tmp_path):
-    room, run_dir = both_room(tmp_path)
-    gateway = Recorder([REPORT])
-    write.main([str(room), str(run_dir), "--both", "--tree-first", "--phase", "8"],
-               gateway=gateway, ledger=write_ledger(tmp_path / "L.md"))
+    code, run_dir, gateway = run_both(tmp_path, [REPORT], model=None)
+    assert len(gateway.calls) == 1
     call = gateway.calls[0]
     assert call["max_tokens"] == write.MAX_OUTPUT_TOKENS
     assert call["messages"][0]["content"].startswith(write.PROMPT)
