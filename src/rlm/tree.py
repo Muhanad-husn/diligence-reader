@@ -17,8 +17,10 @@ the first that holds it; every other finding is dropped with its reason. The kep
 the group's cap are dropped too. A group whose reply is unreadable, or keeps nothing, is asked
 once more, with its first reply and what was wrong with it; a group is never asked a third time.
 
-tree.json holds the model, the budget, the cap and every group: its documents, its tokens, its
-calls, every finding it returned, the ones kept and the ones dropped.
+tree.json holds the model, the budget, the cap, the tokens the calls reported, what they would
+cost on the model maker's API, and every group: its documents, its tokens, its calls, every
+finding it returned, the ones kept and the ones dropped. A model on the founder's Claude
+subscription costs no cash and its ledger row reads $0.00; the API price is kept here instead.
 
 tree_digest writes what the writer reads in place of the dossier digest: the kept findings
 grouped by document in the room's order, a row being `- <finding> | <doc> | <quote> |
@@ -39,7 +41,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from rlm.gateway import PHASE_CAPS, Completion, Gateway, Ledger, NoReply, estimate_tokens
+from rlm.gateway import PHASE_CAPS, Completion, Gateway, Ledger, NoReply, api_price, estimate_tokens
 from rlm.key import room_documents
 from rlm.notes import reask_messages
 from rlm.pick import CHECKLIST, _ITEM, clean, digest_rows, field, flags_of, read_notes, schedule_field, titles
@@ -49,9 +51,9 @@ PHASE = 8
 
 DEFAULT_MODEL = "z-ai/glm-5.3-flash"
 
-# The context window of each model a group call may use, in tokens, as the gateway's model
-# list gave it on 2026-10-05.
-CONTEXT_WINDOWS = {"z-ai/glm-5.3-flash": 1_048_575}
+# The context window of each model a group call may use, in tokens: GLM 5.3 Flash as the
+# gateway's model list gave it on 2026-10-05, Sonnet 5.5 as headless Claude Code reported it.
+CONTEXT_WINDOWS = {"z-ai/glm-5.3-flash": 1_048_575, "claude-code/claude-sonnet-5-5": 1_000_000}
 
 # The share of the context window a group call is allowed to fill by the repository's estimate
 # of four characters a token. Contract text with numbers and defined terms runs nearer three
@@ -220,6 +222,7 @@ def ask_group(docs, notes, system, cap, gateway, batch, model) -> dict:
     dropped: list[dict] = []
     kept: list[dict] = []
     calls = 0
+    tokens = [0, 0]
     sending = messages
     for _ in range(2):
         calls += 1
@@ -227,8 +230,12 @@ def ask_group(docs, notes, system, cap, gateway, batch, model) -> dict:
             completion = batch.record(gateway.complete(model, sending, max_tokens=MAX_OUTPUT_TOKENS))
         except NoReply as exc:
             batch.record(Completion("", exc.tokens_in, exc.tokens_out, exc.seconds, model))
+            tokens[0] += exc.tokens_in
+            tokens[1] += exc.tokens_out
             sending = messages
             continue
+        tokens[0] += completion.tokens_in
+        tokens[1] += completion.tokens_out
         try:
             findings = parse_findings(completion.text)
         except ValueError as exc:
@@ -243,7 +250,8 @@ def ask_group(docs, notes, system, cap, gateway, batch, model) -> dict:
         sending = reask_messages(messages, completion.text, REASK.format(reason=reason, cap=cap))
     for item in kept[cap:]:
         dropped.append({**item, "reason": f"past the cap of {cap}"})
-    return {"docs": docs, "calls": calls, "returned": returned, "findings": kept[:cap], "dropped": dropped}
+    return {"docs": docs, "calls": calls, "tokens_in": tokens[0], "tokens_out": tokens[1],
+            "returned": returned, "findings": kept[:cap], "dropped": dropped}
 
 
 def tree(
@@ -279,7 +287,12 @@ def tree(
             ))
     for docs, group in zip(groups, answered):
         group["tokens"] = sum(sizes[doc] for doc in docs)
-    built = {"model": model, "budget": budget, "cap": cap, "groups": answered}
+    tokens_in = sum(group["tokens_in"] for group in answered)
+    tokens_out = sum(group["tokens_out"] for group in answered)
+    built = {
+        "model": model, "budget": budget, "cap": cap, "tokens_in": tokens_in, "tokens_out": tokens_out,
+        "api_dollars": round(api_price(model, tokens_in, tokens_out), 6), "groups": answered,
+    }
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / TREE_FILE).write_text(json.dumps(built, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     kept = sum(len(group["findings"]) for group in answered)
@@ -349,6 +362,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("room")
     parser.add_argument("run_dir")
     parser.add_argument("--phase", type=int, default=PHASE)
+    parser.add_argument("--model", default=DEFAULT_MODEL, choices=sorted(CONTEXT_WINDOWS))
     return parser.parse_args(argv)
 
 
@@ -358,7 +372,7 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger=None) -> int:
     if args.phase not in PHASE_CAPS:
         print(f"no such phase in the caps: {args.phase}")
         return 2
-    tree(Path(args.room), Path(args.run_dir), gateway=gateway, ledger=ledger, phase=args.phase)
+    tree(Path(args.room), Path(args.run_dir), gateway=gateway, ledger=ledger, phase=args.phase, model=args.model)
     return 0
 
 

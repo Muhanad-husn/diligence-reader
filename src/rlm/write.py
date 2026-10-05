@@ -47,7 +47,9 @@ The prompt, the model and the verifier are the ones above.
 
 `--tree` writes from tree.json in the same way: the digest is the findings rlm.tree's group
 calls kept, grouped by document in the room's order, the verifier reads that digest as its
-dossier, and the schedule is those findings' own quotes. The report has no opening line.
+dossier, and the schedule is those findings' own quotes. The report has no opening line. The
+writer's model, its tokens and what they would cost on the model maker's API are written into
+tree.json under writer, beside the group calls' own.
 
 Both calls run inside one ledger batch, which prints the estimated tokens and the price before
 anything is sent and writes one phase 5 row of LEDGER.md, summed over the calls, when they
@@ -83,7 +85,7 @@ from itertools import zip_longest
 from pathlib import Path
 
 from rlm.amounts import normalise_amount
-from rlm.gateway import PHASE_CAPS, PRICES, Gateway, Ledger, estimate_tokens, price
+from rlm.gateway import PHASE_CAPS, Gateway, Ledger, api_price, estimate_tokens, price, priced
 from rlm.notes import reask_messages
 
 PHASE = 5
@@ -1271,7 +1273,7 @@ def main(
     from rlm.grade import has_key
 
     args = parse_args(argv)
-    if args.model not in PRICES:
+    if not priced(args.model):
         print(f"no such model in the price table: {args.model}")
         return 2
     if args.phase not in PHASE_CAPS:
@@ -1501,6 +1503,17 @@ def main(
             result = grader(sample_dir, out_dir / "report.md", out_dir, "grade.json")
             grades.append(result)
             print(graded_line(sample_dir.name, letter, result, record["passes"]))
+
+    if args.tree:
+        path = run_dir / "tree.json"
+        written = json.loads(path.read_text(encoding="utf-8"))
+        tokens_in = sum(summary["tokens_in"] for summary in summaries)
+        tokens_out = sum(summary["tokens_out"] for summary in summaries)
+        written["writer"] = {
+            "model": args.model, "tokens_in": tokens_in, "tokens_out": tokens_out,
+            "api_dollars": round(api_price(args.model, tokens_in, tokens_out), 6),
+        }
+        path.write_text(json.dumps(written, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
     if len(grades) == 2:
         # The spread of the two draws lives with pass a's grade, which is the graded artefact

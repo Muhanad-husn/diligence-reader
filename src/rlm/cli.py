@@ -15,7 +15,9 @@ one above and `--deal` changes nothing.
 `--write tree` runs rlm.tree in place of the map and the dossier: the stages are ingest, notes,
 tree, write and export, the room's notes are read in groups by a model that keeps the findings
 a deal committee must see, and the writer reads those findings. tree is done when tree.json is
-there. It does not go with `--rank`.
+there. It does not go with `--rank`. `--middle-model` names the group calls' model and
+`--writer-model` the writer's, each defaulting to its module's DEFAULT_MODEL; either may be a
+Claude Code model on the founder's subscription.
 
 Before the first model call the command prints what the calls ahead will cost: the input tokens
 counted by the gateway's counter and the dollars, then asks y/N. `--yes` answers for the user.
@@ -67,7 +69,9 @@ from rlm import pick as pick_stage
 from rlm import tree as tree_stage
 from rlm import write as write_stage
 from rlm.gateway import (
+    CLAUDE_CODE_MODELS,
     PHASE_CAPS,
+    PRICES,
     Gateway,
     Ledger,
     Meter,
@@ -357,7 +361,8 @@ def run(args: argparse.Namespace, gateway: Gateway | None, ledger: Ledger | None
             state.stage = "tree"
             if not done("tree", run_dir):
                 state.write("running")
-                if tree_stage.main([str(room), str(run_dir), "--phase", phase], gateway=gateway, ledger=meter) != 0:
+                tree_argv = [str(room), str(run_dir), "--phase", phase, "--model", args.middle_model]
+                if tree_stage.main(tree_argv, gateway=gateway, ledger=meter) != 0:
                     raise Stopped("unexpected", "the tree did not run")
         elif args.rank is None:
             state.stage = "map"
@@ -385,7 +390,7 @@ def run(args: argparse.Namespace, gateway: Gateway | None, ledger: Ledger | None
             grader = grade_recall if has_key(room) else None
             write_argv = stage_argv
             if args.write == "tree":
-                write_argv = [*stage_argv, "--tree"]
+                write_argv = [*stage_argv, "--tree", "--model", args.writer_model]
             elif args.rank is not None:
                 write_argv = [*stage_argv, "--pick"]
             if write_stage.main(write_argv, gateway=gateway, ledger=meter, grader=grader) != 0:
@@ -452,6 +457,20 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         choices=("tree",),
         default=None,
         help="tree: models read the notes in groups and keep what the report reads, in place of the map",
+    )
+    runner.add_argument(
+        "--middle-model",
+        dest="middle_model",
+        choices=sorted(tree_stage.CONTEXT_WINDOWS),
+        default=tree_stage.DEFAULT_MODEL,
+        help="the model of the group calls with --write tree",
+    )
+    runner.add_argument(
+        "--writer-model",
+        dest="writer_model",
+        choices=sorted({*PRICES, *CLAUDE_CODE_MODELS} - {pick_stage.JEV_MODEL}),
+        default=write_stage.DEFAULT_MODEL,
+        help="the writer's model with --write tree",
     )
     args = parser.parse_args(argv)
     if args.command is None:

@@ -43,8 +43,12 @@ from __future__ import annotations
 
 import datetime
 import math
+import json as jsonlib
 import os
 import re
+import shutil
+import subprocess
+import tempfile
 import threading
 import time
 from dataclasses import dataclass
@@ -69,6 +73,18 @@ PRICES: dict[str, tuple[float, float]] = {
 # The models PRICES carries that the gateway does not serve. Their calls are priced and booked
 # like any other, but Gateway.complete never sends them and no bake-off chooses between them.
 OFF_GATEWAY = frozenset({"typesafe/jev-1.13.0"})
+
+# The models served by headless Claude Code on the founder's subscription, by the id this
+# repository names them with, each with the id the claude command line takes. A call to one
+# costs no cash: price reads it at zero and the ledger books it at $0.00.
+CLAUDE_CODE_MODELS: dict[str, str] = {"claude-code/claude-sonnet-5-5": "claude-sonnet-5-5"}
+
+# What the same tokens would cost on Anthropic's API, per million tokens, prompt then completion.
+# It is written beside the run, never in the ledger.
+API_EQUIVALENT: dict[str, tuple[float, float]] = {"claude-code/claude-sonnet-5-5": (2.0, 10.0)}
+
+# The model id each Claude Code model's reply must name, from its usage by model.
+CLAUDE_CODE_REPLY = {"claude-code/claude-sonnet-5-5": re.compile(r"^claude-sonnet-5-5(?![0-9])")}
 
 # The tables the repository has priced a call at before, newest first. A ledger row written
 # before a price moved reconciles at one of these, so it is kept here.
@@ -224,9 +240,143 @@ def refused_draw(
 
 
 def price(model: str, tokens_in: int, tokens_out: int) -> float:
-    """Prices a call at the PRICES rate. Raises KeyError for a model outside the table."""
+    """Prices a call at the PRICES rate, a Claude Code model at zero. Raises KeyError for a
+    model in neither."""
+    if model in CLAUDE_CODE_MODELS:
+        return 0.0
     rate_in, rate_out = PRICES[model]
     return tokens_in * rate_in / 1_000_000 + tokens_out * rate_out / 1_000_000
+
+
+def priced(model: str) -> bool:
+    """Says whether price knows a model."""
+    return model in PRICES or model in CLAUDE_CODE_MODELS
+
+
+def api_price(model: str, tokens_in: int, tokens_out: int) -> float:
+    """What a call would cost on its maker's API: API_EQUIVALENT for a Claude Code model, the
+    PRICES rate for every other."""
+    if model not in API_EQUIVALENT:
+        return price(model, tokens_in, tokens_out)
+    rate_in, rate_out = API_EQUIVALENT[model]
+    return tokens_in * rate_in / 1_000_000 + tokens_out * rate_out / 1_000_000
+
+
+class WrongModel(Exception):
+    """Raised when a Claude Code reply names a model other than the one asked for."""
+
+
+class ClaudeCodeError(Exception):
+    """Raised when the claude command exits non-zero or reports an error."""
+
+
+# The parent session's variables that would tie the child to it.
+DROP_ENV_PREFIXES = ("CLAUDE_CODE_", "AEO_")
+DROP_ENV = frozenset({"CLAUDECODE", "CLAUDE_PID", "CLAUDE_EFFORT"})
+
+# The seconds one claude call may take, and the seconds waited between two calls.
+CLAUDE_TIMEOUT_SECONDS = 1800
+CLAUDE_PAUSE_SECONDS = 5.0
+
+# A command line on Windows ends at 32767 characters, and the system prompt rides on it.
+MAX_COMMAND_LINE = 32_000
+
+
+def run_claude(args: list[str], cwd: Path, env: dict, stdin: str) -> tuple[int, str, str]:
+    """Runs one claude command and returns its exit code, its output and its errors."""
+    done = subprocess.run(args, cwd=cwd, env=env, input=stdin, capture_output=True, text=True,
+                          encoding="utf-8", timeout=CLAUDE_TIMEOUT_SECONDS)
+    return done.returncode, done.stdout, done.stderr
+
+
+def json_object(text: str) -> str:
+    """The first JSON object a reply holds, as text, or the reply as it came when it holds none."""
+    decoder = jsonlib.JSONDecoder()
+    start = text.find("{")
+    while start >= 0:
+        try:
+            _, end = decoder.raw_decode(text, start)
+        except ValueError:
+            start = text.find("{", start + 1)
+            continue
+        return text[start:end]
+    return text
+
+
+class ClaudeCode:
+    """Sends a call to headless Claude Code: `claude -p` with no tools, no settings, no MCP and
+    no saved session, from an empty folder outside the repository, the system prompt on the
+    command line and the rest of the conversation on stdin. Calls go one at a time, with
+    pause seconds between them. The runner is injectable so a test can fake the subprocess."""
+
+    _lock = threading.Lock()
+
+    def __init__(self, runner=None, pause: float = CLAUDE_PAUSE_SECONDS):
+        self.runner = runner or run_claude
+        self.pause = pause
+        self._sent = 0
+
+    @staticmethod
+    def stdin_of(messages: list[dict]) -> str:
+        """The conversation after the system prompt as one text: the first message as it is,
+        and a later turn under a line saying whose it is."""
+        turns = [message for message in messages if message["role"] != "system"]
+        parts = [turns[0]["content"]] if turns else []
+        for message in turns[1:]:
+            who = "YOUR REPLY" if message["role"] == "assistant" else "THE NEXT MESSAGE"
+            parts.append(f"{who}\n\n{message['content']}")
+        return "\n\n".join(parts)
+
+    def complete(self, model: str, messages: list[dict], max_tokens: int, json: bool = True) -> Completion:
+        """One call, its reply text and its usage. Raises WrongModel when the reply names
+        another model, ClaudeCodeError when the command fails, NoReply when it returns no text."""
+        system = "\n\n".join(message["content"] for message in messages if message["role"] == "system")
+        args = [
+            "claude", "-p",
+            "--output-format", "json",
+            "--model", CLAUDE_CODE_MODELS[model],
+            "--tools", "",
+            "--strict-mcp-config",
+            "--disable-slash-commands",
+            "--setting-sources", "",
+            "--no-session-persistence",
+            "--system-prompt", system,
+        ]
+        if len(subprocess.list2cmdline(args)) > MAX_COMMAND_LINE:
+            raise ClaudeCodeError("the system prompt is too long for one command line")
+        env = {name: value for name, value in os.environ.items()
+               if name not in DROP_ENV and not name.startswith(DROP_ENV_PREFIXES)}
+        with self._lock:
+            if self._sent and self.pause:
+                time.sleep(self.pause)
+            self._sent += 1
+            cwd = Path(tempfile.mkdtemp(prefix="rlm-claude-"))
+            started = time.monotonic()
+            try:
+                code, out, err = self.runner(args, cwd, env, self.stdin_of(messages))
+            finally:
+                shutil.rmtree(cwd, ignore_errors=True)
+            seconds = time.monotonic() - started
+        try:
+            reply = jsonlib.loads(out)
+        except (ValueError, TypeError):
+            reply = None
+        if code != 0 or not isinstance(reply, dict) or reply.get("is_error"):
+            raise ClaudeCodeError(f"claude exited {code}: {(err or out or '').strip()[:300]}")
+        named = sorted(reply.get("modelUsage") or {})
+        if not named or not all(CLAUDE_CODE_REPLY[model].match(name) for name in named):
+            raise WrongModel(f"the reply for {model} came from {named or 'no model named'}")
+        usage = reply.get("usage") or {}
+        tokens_in = sum(int(usage.get(name) or 0) for name in
+                        ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"))
+        tokens_out = int(usage.get("output_tokens") or 0)
+        text = reply.get("result") or ""
+        if not text.strip():
+            raise NoReply(f"{model} returned no reply", tokens_in=tokens_in, tokens_out=tokens_out,
+                          seconds=seconds)
+        if json:
+            text = json_object(text)
+        return Completion(text=text, tokens_in=tokens_in, tokens_out=tokens_out, seconds=seconds, model=model)
 
 
 def known_prices(model: str) -> list[tuple[float, float]]:
@@ -252,7 +402,9 @@ class Gateway:
         transport: httpx.BaseTransport | None = None,
         base_url: str = BASE_URL,
         rate_limit_waits: tuple[float, ...] = RATE_LIMIT_WAITS,
+        claude_code: "ClaudeCode | None" = None,
     ):
+        self.claude_code = claude_code or ClaudeCode()
         self.api_key = api_key if api_key is not None else os.environ["OPENROUTER_API_KEY"]
         self.base_url = base_url.rstrip("/")
         self.rate_limit_waits = tuple(rate_limit_waits)
@@ -308,8 +460,11 @@ class Gateway:
         prose back is made. An answer carrying no content, and an answer cut off by the
         max_tokens budget, are not replies: either is sent again once, and two of them raise
         NoReply. The completion carries the tokens of every draw it took. Raises
-        httpx.HTTPStatusError when the gateway answers outside the 2xx range.
+        httpx.HTTPStatusError when the gateway answers outside the 2xx range. A Claude Code
+        model goes to headless Claude Code instead, through ClaudeCode.complete.
         """
+        if model in CLAUDE_CODE_MODELS:
+            return self.claude_code.complete(model, messages, max_tokens, json=json)
         body = {
             "model": model,
             "messages": messages,

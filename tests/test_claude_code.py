@@ -21,6 +21,7 @@ from rlm.gateway import (
     NoReply,
     WrongModel,
     api_price,
+    price,
 )
 from test_phase8_command import copy_room, write_ledger
 from test_pick import small_room
@@ -156,7 +157,9 @@ def test_calls_are_sent_one_at_a_time():
 
 
 def test_the_subscription_model_costs_nothing_in_cash_and_its_api_price_is_kept_apart():
-    assert PRICES[SONNET] == (0.0, 0.0)
+    # the OpenRouter table and its live check are left alone; the subscription has its own
+    assert SONNET not in PRICES
+    assert price(SONNET, 1_000_000, 1_000_000) == 0.0
     assert API_EQUIVALENT[SONNET] == (2.0, 10.0)
     assert api_price(SONNET, 1_000_000, 100_000) == pytest.approx(3.0)
     assert api_price("z-ai/glm-5.3-flash", 1_000_000, 0) == pytest.approx(PRICES["z-ai/glm-5.3-flash"][0])
