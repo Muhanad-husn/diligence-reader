@@ -163,7 +163,7 @@ MAX_DRAWS = 2
 # tried on two sealed rooms; that reason is written there too.
 TOTAL_CEILING = 50.0
 PHASE_CAPS: dict[int, float] = {
-    0: 0.0, 1: 0.0, 2: 8.0, 3: 0.0, 4: 0.0, 5: 9.0, 6: 15.0, 7: 4.0, 8: 9.0
+    0: 0.0, 1: 0.0, 2: 8.0, 3: 0.0, 4: 0.0, 5: 9.0, 6: 15.0, 7: 4.0, 8: 11.5
 }
 
 BASE_URL = "https://openrouter.ai/api/v1"

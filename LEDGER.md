@@ -25,6 +25,12 @@ about $5.50 in all: noting the two sealed rooms $3.60, Avid practice $0.45, the 
 and writing $0.70 and the three samples $0.70. Jev's calls are booked here like any other.
 Approved by the founder on 2026-10-05 for #160. The reserve stands at $5 of $15. Added by hand.
 
+**Two and a half dollars more from the reserve, 2026-10-05.** Phase 8's cap goes from $9 to
+$11.50 so the second sealed room of #160 (sensar) can run after the first (mri). The founder set
+the limit as the credits left on OpenRouter, with no top-up: $5.49 when this was written, after
+mri's notes cost $1.99 at OpenRouter's own prices. The reserve stands at $2.50 of $15. Added by
+hand.
+
 | date | sample | phase | model | tokens in | tokens out | dollars | balance |
 |---|---|---|---|---|---|---|---|
 | 2026-09-05 | | | | 0 | 0 | 0.0000 | 50.0000 |
