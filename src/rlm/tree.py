@@ -3,12 +3,14 @@
 The leaves are the notes, one per document. The middle level splits the room's documents, in
 the room's own order, into groups whose notes fit one call: a group's budget is the model's
 context window, CONTEXT_WINDOWS, times MARGIN, less the instructions and the reply's
-MAX_OUTPUT_TOKENS. A document whose note alone passes the budget is a group of its own.
+MAX_OUTPUT_TOKENS, and never more than GROUP_TOKENS for a model listed there. A document whose
+note alone passes the budget is a group of its own.
 
 One call per group to DEFAULT_MODEL. The call is told it is the buy-side diligence lead
 reviewing these documents for an acquisition of the company, and is given the room's brief
 (its own brief.md, else the package's) and the acquisition checklist as a reminder of what a
-buyer looks for. It returns at most group_cap findings, ranked, each with the document's id,
+buyer looks for. It returns at most group_cap findings, ranked, the model's FINDING_ROWS or
+else DIGEST_ROWS shared over the groups, each with the document's id,
 the finding in one or two sentences and the quote copied from that document's note.
 
 check_findings keeps a finding whose document is in the group and whose quote, whitespace
@@ -63,6 +65,18 @@ CONTEXT_WINDOWS = {"z-ai/glm-5.3-flash": 1_048_575, "claude-code/claude-sonnet-5
 # of four characters a token. Contract text with numbers and defined terms runs nearer three
 # characters a token, so a call at the full estimate could pass the window.
 MARGIN = 0.6
+
+# The note tokens one group call carries on a model listed here, below what its window allows.
+# Sonnet reads a million tokens, but a group call answers with a short ranked list, and every
+# document of the group competes for a place on it: two groups of four hundred thousand tokens
+# each put fifty documents against one list. A group of about a hundred thousand tokens is about
+# a tenth of a hundred document room, so each list weighs about ten documents.
+GROUP_TOKENS = {"claude-code/claude-sonnet-5-5": 100_000}
+
+# The findings a tree on a model listed here keeps in all, shared over its groups. DIGEST_ROWS
+# is what the GLM writer's 12000 token reply can quote; the writer on the subscription is asked
+# for every finding and has room for more, so the groups keep more.
+FINDING_ROWS = {"claude-code/claude-sonnet-5-5": 300}
 
 # The reply of one group: up to DIGEST_ROWS findings of a few sentences each, and the reasoning
 # the GLM endpoints spend before they answer.
@@ -143,8 +157,9 @@ def note_block(doc: str, note: dict | None) -> str:
 
 def group_budget(model: str, system: str) -> int:
     """The note tokens one group call may carry: MARGIN of the model's window, less the
-    instructions and the reply."""
-    return int(CONTEXT_WINDOWS[model] * MARGIN) - estimate_tokens(system) - MAX_OUTPUT_TOKENS
+    instructions and the reply, and never more than GROUP_TOKENS where the model is listed."""
+    budget = int(CONTEXT_WINDOWS[model] * MARGIN) - estimate_tokens(system) - MAX_OUTPUT_TOKENS
+    return min(budget, GROUP_TOKENS.get(model, budget))
 
 
 def make_groups(sizes: dict[str, int], budget: int) -> list[list[str]]:
@@ -166,9 +181,10 @@ def make_groups(sizes: dict[str, int], budget: int) -> list[list[str]]:
     return groups
 
 
-def group_cap(count: int) -> int:
-    """The findings one group keeps: the digest's rows shared over the groups, rounded up."""
-    return math.ceil(DIGEST_ROWS / count)
+def group_cap(count: int, model: str = DEFAULT_MODEL) -> int:
+    """The findings one group keeps: the model's FINDING_ROWS, else the digest's rows, shared
+    over the groups, rounded up."""
+    return math.ceil(FINDING_ROWS.get(model, DIGEST_ROWS) / count)
 
 
 def collapse(text: object) -> str:
@@ -277,9 +293,9 @@ def tree(
     notes = read_notes(room, run_dir)
     sizes = {doc: estimate_tokens(note_block(doc, note)) for doc, note in notes.items()}
     if budget is None:
-        budget = group_budget(model, instructions(room, len(notes), DIGEST_ROWS))
+        budget = group_budget(model, instructions(room, len(notes), FINDING_ROWS.get(model, DIGEST_ROWS)))
     groups = make_groups(sizes, budget)
-    cap = group_cap(len(groups))
+    cap = group_cap(len(groups), model)
     systems = [instructions(room, len(docs), cap) for docs in groups]
     estimated = sum(estimate_tokens(system) + sum(sizes[doc] for doc in docs) for system, docs in zip(systems, groups))
 

@@ -336,8 +336,9 @@ def json_object(text: str) -> str:
 class ClaudeCode:
     """Sends a call to headless Claude Code: `claude -p` with no tools, no settings, no MCP and
     no saved session, from an empty folder outside the repository, the system prompt on the
-    command line and the rest of the conversation on stdin. Calls go one at a time, with
-    pause seconds between them. The runner is injectable so a test can fake the subprocess."""
+    command line, the rest of the conversation on stdin and the call's max_tokens as the
+    reply cap. Calls go one at a time, with pause seconds between them. The runner is
+    injectable so a test can fake the subprocess."""
 
     _lock = threading.Lock()
 
@@ -376,6 +377,8 @@ class ClaudeCode:
             raise ClaudeCodeError("the system prompt is too long for one command line")
         env = {name: value for name, value in os.environ.items()
                if name not in DROP_ENV and not name.startswith(DROP_ENV_PREFIXES)}
+        # The command line takes no reply cap; headless Claude Code reads it from this variable.
+        env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = str(max_tokens)
         with self._lock:
             if self._sent and self.pause:
                 time.sleep(self.pause)
