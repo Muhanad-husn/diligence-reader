@@ -2239,7 +2239,7 @@ def test_writebakeoff_writes_the_table_after_each_model(bakeoff_room, capsys):
 def test_writebakeoff_the_winner_is_the_cheapest_measured_row(bakeoff_room, capsys):
     """Two models pass; the winner is the one whose measured dollars are lower."""
     samples_root, runs_root, ledger = bakeoff_room
-    transport = WriteTransport(usage={DS_FLASH: (100, 100), GLM_FLASH: (100_000, 10_000)})
+    transport = WriteTransport(usage={DS_FLASH: (100_000, 10_000), GLM_FLASH: (100, 100)})
     gateway = Gateway(api_key="k", transport=transport)
     grader = BakeoffGrader(runs_root)
 
@@ -2261,14 +2261,14 @@ def test_writebakeoff_the_winner_is_the_cheapest_measured_row(bakeoff_room, caps
     assert code == 0
 
     table = read_table(runs_root)
-    cheap = bakeoff_row(table, DS_FLASH)
-    dear = bakeoff_row(table, GLM_FLASH)
+    cheap = bakeoff_row(table, GLM_FLASH)
+    dear = bakeoff_row(table, DS_FLASH)
     assert cheap["passes"] is True and dear["passes"] is True
     assert cheap["dollars"] < dear["dollars"]
-    assert table["winner"] == DS_FLASH
+    assert table["winner"] == GLM_FLASH
     # The winner is the row measured cheaper, not the one the price table calls cheaper.
-    assert price(DS_FLASH, *writebakeoff.WRITE_TOKENS) > price(
-        GLM_FLASH, *writebakeoff.WRITE_TOKENS
+    assert price(GLM_FLASH, *writebakeoff.WRITE_TOKENS) > price(
+        DS_FLASH, *writebakeoff.WRITE_TOKENS
     )
 
 

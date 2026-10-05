@@ -57,15 +57,18 @@ from types import TracebackType
 
 import httpx
 
-# Per million tokens, prompt then completion, as PLAN.md section 5 reads, from the gateway's
-# model list on 2026-09-07. DeepSeek V4 Flash and DeepSeek V4 Pro both went up; Luna and the
-# two GLM endpoints read what they read on 2026-09-06.
+# Per million tokens, prompt then completion: the estimate printed before a batch and the cap
+# check, never what a row of LEDGER.md books, which is the cost the gateway reports for the call.
+# The two GLM rows are the dearest rate over the providers the gateway may route to, the highest
+# input rate and the highest output rate on OpenRouter's endpoints list of 2026-10-05 with
+# IGNORED_PROVIDERS left out, so the cap check is never under. The others are from the gateway's
+# model list on 2026-09-07.
 PRICES: dict[str, tuple[float, float]] = {
     "openai/gpt-5.6-luna": (0.200, 1.200),
     "deepseek/deepseek-v4-flash-0731": (0.0152, 1.280),
     "deepseek/deepseek-v4-pro": (0.2088, 0.4176),
-    "z-ai/glm-5.3": (1.400, 4.400),
-    "z-ai/glm-5.3-flash": (0.150, 0.500),
+    "z-ai/glm-5.3": (2.800, 12.000),
+    "z-ai/glm-5.3-flash": (0.300, 1.000),
     # TypeSafe's Jev on TypeSafe's own API, not the gateway: input tokens only, output free.
     "typesafe/jev-1.13.0": (0.042, 0.0),
 }
@@ -89,6 +92,13 @@ CLAUDE_CODE_REPLY = {"claude-code/claude-sonnet-5-5": re.compile(r"^claude-sonne
 # The tables the repository has priced a call at before, newest first. A ledger row written
 # before a price moved reconciles at one of these, so it is kept here.
 PAST_PRICES: tuple[dict[str, tuple[float, float]], ...] = (
+    {
+        "openai/gpt-5.6-luna": (0.200, 1.200),
+        "deepseek/deepseek-v4-flash-0731": (0.0152, 1.280),
+        "deepseek/deepseek-v4-pro": (0.2088, 0.4176),
+        "z-ai/glm-5.3": (1.400, 4.400),
+        "z-ai/glm-5.3-flash": (0.150, 0.500),
+    },
     {
         "openai/gpt-5.6-luna": (0.200, 1.200),
         "deepseek/deepseek-v4-flash-0731": (0.140, 0.280),
@@ -131,8 +141,10 @@ REASONING: dict[str, dict] = {
 # to 26; the same prompt had been answered a day earlier and the ten documents it hit came back
 # with no note at all, three runs in a row. GMICloud was found doing the same to
 # z-ai/glm-5.3-flash on 2026-10-04 in the phase 8 gate, twice on one atlas document (DR-029),
-# whose note was dropped and with it a planted fact.
-IGNORED_PROVIDERS = ("Wafer", "GMICloud")
+# whose note was dropped and with it a planted fact. Morph was found doing the same to
+# z-ai/glm-5.3 on 2026-10-05 in the Avid report write, twice, 12000 reasoning tokens each and
+# no content.
+IGNORED_PROVIDERS = ("Wafer", "GMICloud", "Morph")
 
 # The finish reason a draw carries when it ran out of the max_tokens budget. The reply then
 # stops wherever the budget ran out, which is usually mid sentence, and on a provider that
@@ -181,6 +193,7 @@ class NoReply(Exception):
     tokens_in, tokens_out and seconds are the sums over the draws, which were paid though they
     gave no text. cut_off is true when every draw finished on the length reason, which is a
     request too large for its max_tokens budget and not a gateway that answered with nothing.
+    cost is the dollars the gateway reported for the draws, or None where it reported none.
     """
 
     def __init__(
@@ -190,8 +203,10 @@ class NoReply(Exception):
         tokens_out: int = 0,
         seconds: float = 0.0,
         cut_off: bool = False,
+        cost: float | None = None,
     ):
         super().__init__(message)
+        self.cost = cost
         self.tokens_in = tokens_in
         self.tokens_out = tokens_out
         self.seconds = seconds
@@ -207,6 +222,7 @@ class Completion:
     tokens_out: int
     seconds: float
     model: str
+    cost: float | None = None
 
 
 def stops_every_call(exc: BaseException) -> bool:
@@ -246,6 +262,20 @@ def price(model: str, tokens_in: int, tokens_out: int) -> float:
         return 0.0
     rate_in, rate_out = PRICES[model]
     return tokens_in * rate_in / 1_000_000 + tokens_out * rate_out / 1_000_000
+
+
+def reported_cost(costs: list[float | None]) -> float | None:
+    """The dollars the gateway reported for a call's draws, or None where any draw reported none."""
+    if not costs or any(cost is None for cost in costs):
+        return None
+    return sum(costs)
+
+
+def call_dollars(completion: Completion) -> float:
+    """What a completion cost: the gateway's reported cost, else the PRICES rate of its tokens."""
+    if completion.cost is not None:
+        return completion.cost
+    return price(completion.model, completion.tokens_in, completion.tokens_out)
 
 
 def priced(model: str) -> bool:
@@ -473,6 +503,7 @@ class Gateway:
             "max_tokens": max_tokens,
             "reasoning": REASONING.get(model, {"enabled": False}),
             "provider": {"ignore": list(IGNORED_PROVIDERS)},
+            "usage": {"include": True},
         }
         if json:
             body["response_format"] = {"type": "json_object"}
@@ -480,6 +511,7 @@ class Gateway:
         tokens_in = 0
         tokens_out = 0
         refused: list[str] = []
+        costs: list[float | None] = []
         all_cut_off = True
         for _ in range(MAX_DRAWS):
             data, took = self._send(body)
@@ -488,6 +520,7 @@ class Gateway:
             drawn_out = int(usage.get("completion_tokens", 0))
             tokens_in += int(usage.get("prompt_tokens", 0))
             tokens_out += drawn_out
+            costs.append(None if usage.get("cost") is None else float(usage["cost"]))
             choice = (data.get("choices") or [{}])[0]
             text = (choice.get("message") or {}).get("content") or ""
             finish_reason = choice.get("finish_reason")
@@ -498,6 +531,7 @@ class Gateway:
                     tokens_out=tokens_out,
                     seconds=seconds,
                     model=model,
+                    cost=reported_cost(costs),
                 )
             all_cut_off = all_cut_off and finish_reason == CUT_OFF
             # OpenRouter names the provider that served the call at the top of the body, so
@@ -511,6 +545,7 @@ class Gateway:
             tokens_out=tokens_out,
             seconds=seconds,
             cut_off=all_cut_off,
+            cost=reported_cost(costs),
         )
 
 
@@ -530,13 +565,15 @@ class Batch:
         self.estimated_out = tokens_out
         self.tokens_in = 0
         self.tokens_out = 0
+        self.dollars = 0.0
         self._lock = threading.Lock()
 
     def record(self, completion: Completion) -> Completion:
-        """Adds one completion's reported tokens to the batch and returns it."""
+        """Adds one completion's reported tokens and its cost to the batch and returns it."""
         with self._lock:
             self.tokens_in += completion.tokens_in
             self.tokens_out += completion.tokens_out
+            self.dollars += call_dollars(completion)
         return completion
 
     def __enter__(self) -> "Batch":
@@ -566,8 +603,11 @@ class Batch:
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> bool:
-        if exc_type is None:
-            self._ledger.append(self.sample, self.phase, self.model, self.tokens_in, self.tokens_out)
+        paid_for_nothing = exc_type is not None and issubclass(exc_type, NoReply) and (self.tokens_in or self.tokens_out)
+        if exc_type is None or paid_for_nothing:
+            self._ledger.append(
+                self.sample, self.phase, self.model, self.tokens_in, self.tokens_out, dollars=self.dollars
+            )
         return False
 
 
@@ -612,9 +652,14 @@ class Ledger:
         """Opens a batch that prints its estimate, refuses past a cap, and writes one row."""
         return Batch(self, sample, phase, model, tokens_in, tokens_out)
 
-    def append(self, sample: str, phase: int, model: str, tokens_in: int, tokens_out: int) -> None:
-        """Appends one row with the reported tokens, the price and the new balance."""
-        dollars = round(price(model, tokens_in, tokens_out), 4)
+    def append(
+        self, sample: str, phase: int, model: str, tokens_in: int, tokens_out: int, dollars: float | None = None
+    ) -> None:
+        """Appends one row with the reported tokens, the dollars and the new balance. Without
+        dollars the row is priced at the PRICES rate."""
+        if dollars is None:
+            dollars = price(model, tokens_in, tokens_out)
+        dollars = round(dollars, 4)
         balance = round(self.balance() - dollars, 4)
         date = datetime.date.today().isoformat()
         row = (
@@ -659,7 +704,7 @@ class MeteredBatch:
         with self._lock:
             self.tokens_in += completion.tokens_in
             self.tokens_out += completion.tokens_out
-        self._meter.add(self.model, completion.tokens_in, completion.tokens_out)
+        self._meter.add(self.model, completion.tokens_in, completion.tokens_out, completion.cost)
         return completion
 
     def __enter__(self) -> "MeteredBatch":
@@ -685,7 +730,7 @@ class MeteredBatch:
 
 
 class Meter:
-    """Counts the dollars of every batch it opens, at the PRICES rate, whether the batch ends
+    """Counts the dollars of every batch it opens, as the gateway reported them, whether the batch ends
     cleanly or raises, since a call that returned was paid either way.
 
     It has the batch shape of Ledger, so a stage takes it where it takes a ledger. Without a
@@ -699,12 +744,12 @@ class Meter:
         self.dollars = 0.0
         self._lock = threading.Lock()
 
-    def add(self, model: str, tokens_in: int, tokens_out: int) -> None:
-        """Counts one call's reported tokens and their price."""
+    def add(self, model: str, tokens_in: int, tokens_out: int, cost: float | None = None) -> None:
+        """Counts one call's reported tokens and its cost, or their PRICES rate where it has none."""
         with self._lock:
             self.tokens_in += tokens_in
             self.tokens_out += tokens_out
-            self.dollars += price(model, tokens_in, tokens_out)
+            self.dollars += price(model, tokens_in, tokens_out) if cost is None else cost
 
     def batch(
         self, sample: str, phase: int, model: str, tokens_in: int, tokens_out: int

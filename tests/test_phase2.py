@@ -176,13 +176,14 @@ def test_gateway_estimate_tokens_is_characters_over_four_rounded_up():
 
 
 def test_gateway_price_table_is_plan_section_5():
-    """Per million tokens, prompt then completion, as the live list reads on 2026-10-04."""
+    """Per million tokens, prompt then completion: the live list on 2026-10-04, and for the two
+    GLM endpoints the dearest provider's rates on 2026-10-05."""
     assert PRICES == {
         "openai/gpt-5.6-luna": (0.200, 1.200),
         "deepseek/deepseek-v4-flash-0731": (0.0152, 1.280),
         "deepseek/deepseek-v4-pro": (0.2088, 0.4176),
-        "z-ai/glm-5.3": (1.400, 4.400),
-        "z-ai/glm-5.3-flash": (0.150, 0.500),
+        "z-ai/glm-5.3": (2.800, 12.000),
+        "z-ai/glm-5.3-flash": (0.300, 1.000),
         "typesafe/jev-1.13.0": (0.042, 0.0),
     }
     assert OFF_GATEWAY == {"typesafe/jev-1.13.0"}
@@ -197,6 +198,13 @@ def test_gateway_price_table_is_plan_section_5():
 def test_gateway_past_prices_keep_the_older_tables():
     """A ledger row written before a price moved still reconciles, so the old table is kept."""
     assert PAST_PRICES == (
+        {
+            "openai/gpt-5.6-luna": (0.200, 1.200),
+            "deepseek/deepseek-v4-flash-0731": (0.0152, 1.280),
+            "deepseek/deepseek-v4-pro": (0.2088, 0.4176),
+            "z-ai/glm-5.3": (1.400, 4.400),
+            "z-ai/glm-5.3-flash": (0.150, 0.500),
+        },
         {
             "openai/gpt-5.6-luna": (0.200, 1.200),
             "deepseek/deepseek-v4-flash-0731": (0.140, 0.280),
@@ -220,7 +228,7 @@ def test_gateway_past_prices_keep_the_older_tables():
         },
     )
     assert known_prices(MODEL) == [(0.0152, 1.280), (0.140, 0.280), (0.050, 0.100), (0.065, 0.180)]
-    assert known_prices("z-ai/glm-5.3") == [(1.400, 4.400)]
+    assert known_prices("z-ai/glm-5.3") == [(2.800, 12.000), (1.400, 4.400)]
     assert known_prices("openai/gpt-5.6-luna") == [(0.200, 1.200)]
     with pytest.raises(KeyError):
         known_prices("google/gemini")
@@ -3086,9 +3094,9 @@ def test_bakeoff_slug_and_the_tiers_run_in_price_order():
     assert bakeoff.slug(DS_PRO) == "deepseek-v4-pro"
     assert bakeoff.slug(GLM) == "glm-5.3"
 
-    # The order inside a tier is the price of one pass, so it moved when DeepSeek V4 Flash
-    # went from 0.050 to 0.140 in on 2026-09-07.
-    assert bakeoff.TIERS["flash"] == (GLM_FLASH, DS_FLASH, LUNA)
+    # The order inside a tier is the price of one pass, so it moved when GLM 5.3 Flash went to
+    # its dearest provider's rates on 2026-10-05.
+    assert bakeoff.TIERS["flash"] == (DS_FLASH, GLM_FLASH, LUNA)
     assert bakeoff.TIERS["pro"] == (DS_PRO, GLM)
     assert set(bakeoff.TIERS["flash"]) | set(bakeoff.TIERS["pro"]) == set(PRICES) - OFF_GATEWAY
     for tier in bakeoff.TIERS.values():
@@ -3168,9 +3176,11 @@ def test_bakeoff_gateway_models_reads_the_price_list():
     assert seen[0].method == "GET"
     assert str(seen[0].url) == "https://openrouter.ai/api/v1/models"
     assert seen[0].headers["authorization"] == "Bearer k"
-    # Rounded to four decimals, the list is the table PRICES carries.
+    # Rounded to four decimals, the list is the table PRICES carries, but for GLM 5.3, whose
+    # PRICES row is its dearest provider's rates and so is never below the list.
     rounded = {model: (round(rate_in, 4), round(rate_out, 4)) for model, (rate_in, rate_out) in found.items()}
-    assert rounded == {DS_FLASH: PRICES[DS_FLASH], DS_PRO: PRICES[DS_PRO], GLM: PRICES[GLM]}
+    assert rounded == {DS_FLASH: PRICES[DS_FLASH], DS_PRO: PRICES[DS_PRO], GLM: (1.4, 4.4)}
+    assert all(PRICES[GLM][place] >= rounded[GLM][place] for place in (0, 1))
 
 
 def test_bakeoff_a_missed_probe_fact_stops_the_model_before_its_passes(tmp_path, capsys):
@@ -3276,7 +3286,7 @@ def test_bakeoff_two_passes_on_two_samples_fill_one_row_and_name_the_winner(tmp_
     assert table["samples"] == ["northwind", "northstar-dental"]
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", table["date"])
     assert set(table["prices"]) == set(PRICES) - OFF_GATEWAY
-    assert table["prices"][GLM_FLASH] == [0.150, 0.500]
+    assert table["prices"][GLM_FLASH] == [0.300, 1.000]
     assert (runs_root / "northwind" / "bakeoff.json").read_text(encoding="utf-8").endswith("}\n")
 
     row = row_of(table, GLM_FLASH)
@@ -3469,7 +3479,7 @@ def test_bakeoff_the_winner_is_the_cheapest_passing_row(tmp_path, capsys):
     perfect = perfect_replies("northstar-dental", runs_root / "northstar-dental")
     transport = BakeoffTransport(
         {DS_FLASH: perfect, GLM_FLASH: perfect},
-        usage={DS_FLASH: (100, 100), GLM_FLASH: (100_000, 100_000)},
+        usage={DS_FLASH: (100_000, 100_000), GLM_FLASH: (100, 100)},
     )
     gateway = Gateway(api_key="k", transport=transport)
 
@@ -3490,13 +3500,13 @@ def test_bakeoff_the_winner_is_the_cheapest_passing_row(tmp_path, capsys):
     assert code == 0
 
     table = json.loads((runs_root / "northstar-dental" / "bakeoff.json").read_text(encoding="utf-8"))
-    cheap = row_of(table, DS_FLASH)
-    dear = row_of(table, GLM_FLASH)
+    cheap = row_of(table, GLM_FLASH)
+    dear = row_of(table, DS_FLASH)
     assert cheap["passes"] is True and dear["passes"] is True
     assert cheap["dollars"] < dear["dollars"]
-    assert table["winner"] == DS_FLASH
+    assert table["winner"] == GLM_FLASH
     # The winner is the row measured cheaper, not the one the price table calls cheaper.
-    assert price(DS_FLASH, 1, 1) > price(GLM_FLASH, 1, 1)
+    assert price(GLM_FLASH, 1, 1) > price(DS_FLASH, 1, 1)
 
 
 def test_bakeoff_dry_run_writes_a_table_of_not_run_rows_and_makes_no_request(tmp_path, capsys):
@@ -3739,9 +3749,13 @@ def test_bakeoff_recount_with_models_is_an_error(tmp_path, capsys):
     assert "--recount" in printed
 
 
-def test_bakeoff_every_ledger_row_reconciles_at_a_price_the_table_has_carried():
-    """Every row of LEDGER.md is priced at the current table or one the repository has used."""
-    for row in ledger_rows(ROOT / "LEDGER.md"):
+def test_bakeoff_every_ledger_row_reconciles_at_a_price_the_table_has_carried(tmp_path):
+    """Every row of LEDGER.md above the line that says the rows below book the gateway's reported
+    cost is priced at the current table or one the repository has used."""
+    text = (ROOT / "LEDGER.md").read_text(encoding="utf-8")
+    above = tmp_path / "LEDGER.md"
+    above.write_text(text.split("Rows below this line book the cost the gateway reported", 1)[0], encoding="utf-8")
+    for row in ledger_rows(above):
         if row["model"] not in PRICES:
             continue
         paid = {

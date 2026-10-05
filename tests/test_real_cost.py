@@ -120,3 +120,41 @@ def test_the_model_check_fails_only_where_the_list_is_dearer_than_the_table():
     assert modelcheck.problems(cheaper) == []
     dearer = {**listed, MODEL: (PRICES[MODEL][0], PRICES[MODEL][1] * 2)}
     assert modelcheck.problems(dearer) != []
+
+
+def test_a_batch_that_ends_on_a_call_with_no_reply_still_books_what_the_draws_cost(tmp_path):
+    ledger = write_ledger(tmp_path / "L.md")
+    with pytest.raises(NoReply):
+        with ledger.batch("room", 8, MODEL, 1000, 200) as batch:
+            batch.record(Completion("", 12000, 12000, 1.0, MODEL, cost=0.0777))
+            raise NoReply("no reply", tokens_in=12000, tokens_out=12000)
+    row = ledger.rows()[-1]
+    assert row["dollars"] == pytest.approx(0.0777)
+    assert row["tokens_out"] == 12000
+
+
+def test_a_batch_that_ends_on_another_error_books_nothing(tmp_path):
+    ledger = write_ledger(tmp_path / "L.md")
+    with pytest.raises(ValueError):
+        with ledger.batch("room", 8, MODEL, 1000, 200) as batch:
+            batch.record(Completion("{}", 1000, 200, 1.0, MODEL, cost=0.01))
+            raise ValueError("x")
+    assert len(ledger.rows()) == 1
+
+
+def test_a_write_that_gets_no_reply_books_the_draws_it_paid_for(tmp_path):
+    from rlm import write
+    from test_pick import small_room
+    from test_tree import TreeTransport, built_tree
+
+    room, run_dir = small_room(tmp_path)
+    (run_dir / "tree.json").write_text(json.dumps(built_tree()), encoding="utf-8")
+    ledger = write_ledger(tmp_path / "L.md")
+    transport = TreeTransport(lambda body, call: None)
+    with pytest.raises(NoReply):
+        write.main([str(room), str(run_dir), "--tree", "--phase", "8"],
+                   gateway=gateway_for(transport), ledger=ledger)
+    rows = ledger.rows()
+    assert len(rows) == 2
+    assert rows[-1]["model"] == write.DEFAULT_MODEL
+    assert rows[-1]["tokens_out"] == 600
