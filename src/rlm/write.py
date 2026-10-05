@@ -1081,11 +1081,12 @@ CITATIONS
 
 Every sentence ends with its citation and then the full stop:
 
-  The exception log records "Rotation blocked by legacy session compatibility" [DR-000 |
-  folder/File_Name.xlsx#Sheet!A12].
+  The exception log records "Rotation blocked by legacy session compatibility" [<doc> |
+  <anchor>].
 
 A citation is `[<doc> | <anchor>]`, both halves copied character for character from the row
-the sentence came from: the whole anchor, its path and its # and everything after it. Copy the
+the sentence came from: the doc as the row's doc field writes it, and the whole anchor, its
+path and its # and everything after it. Copy the
 anchor exactly, spelling and all, and where one looks misspelled copy the misspelling: it is
 the address of a file. Put the citation at the end of the sentence, never in the middle.
 Nothing follows it but the full stop. A sentence drawn from several rows ends with each of
