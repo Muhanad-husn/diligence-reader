@@ -22,6 +22,10 @@ cost on the model maker's API, and every group: its documents, its tokens, its c
 finding it returned, the ones kept and the ones dropped. A model on the founder's Claude
 subscription costs no cash and its ledger row reads $0.00; the API price is kept here instead.
 
+unseen_digest and unseen_evidence are the tree's part of a run given `--write both`: the kept
+findings whose quote, whitespace collapsed, the dossier digest does not already hold, written as
+a section after the dossier digest and as schedule lines after the dossier's schedule.
+
 tree_digest writes what the writer reads in place of the dossier digest: the kept findings
 grouped by document in the room's order, a row being `- <finding> | <doc> | <quote> |
 <anchor>`. The verifier reads the same text as its dossier. tree_evidence writes the schedule
@@ -229,7 +233,7 @@ def ask_group(docs, notes, system, cap, gateway, batch, model) -> dict:
         try:
             completion = batch.record(gateway.complete(model, sending, max_tokens=MAX_OUTPUT_TOKENS))
         except NoReply as exc:
-            batch.record(Completion("", exc.tokens_in, exc.tokens_out, exc.seconds, model))
+            batch.record(Completion("", exc.tokens_in, exc.tokens_out, exc.seconds, model, cost=exc.cost))
             tokens[0] += exc.tokens_in
             tokens[1] += exc.tokens_out
             sending = messages
@@ -336,6 +340,48 @@ def tree_digest(room: Path, run_dir: Path, built: dict) -> str:
             lines.append(f"- {field(item['finding'])} | {doc} | {clean(item['quote'])} | {item['anchor']}")
         lines.append("")
     return "\n".join(lines).rstrip("\n") + "\n"
+
+
+def unseen(built: dict, seen: str) -> dict:
+    """The tree with every kept finding dropped whose quote the text seen already holds, both
+    read with whitespace collapsed."""
+    text = " ".join(seen.split())
+    return {
+        **built,
+        "groups": [
+            {**group, "findings": [item for item in group["findings"] if collapse(item["quote"]) not in text]}
+            for group in built["groups"]
+        ],
+    }
+
+
+def unseen_digest(room: Path, built: dict, seen: str) -> str:
+    """The section the writer reads after the dossier digest: the kept findings the dossier
+    digest does not hold, by document in the room's order, or an empty string where there are
+    none. A row is the tree digest's row."""
+    named = titles(room)
+    documents = by_document(room, unseen(built, seen))
+    if not documents:
+        return ""
+    lines = [
+        "### Findings from every document",
+        "",
+        "Findings a reader chose from each document of the room, by document in the room's order, "
+        "that the sections above do not carry. A row is `- <finding> | <doc> | <words> | <anchor>`, "
+        "the words copied from the document.",
+        "",
+    ]
+    for place, (doc, items) in enumerate(documents, start=1):
+        lines += [f"#### {place}. {doc} | {field(named.get(doc, doc))}", ""]
+        lines += [f"- {field(item['finding'])} | {doc} | {clean(item['quote'])} | {item['anchor']}" for item in items]
+        lines.append("")
+    return "\n".join(lines).rstrip("\n") + "\n"
+
+
+def unseen_evidence(room: Path, built: dict, seen: str) -> str:
+    """The schedule lines of the findings unseen_digest carries, or an empty string."""
+    kept = unseen(built, seen)
+    return tree_evidence(room, Path("."), kept) if by_document(room, kept) else ""
 
 
 def tree_evidence(room: Path, run_dir: Path, built: dict) -> str:

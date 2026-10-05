@@ -51,6 +51,11 @@ dossier, and the schedule is those findings' own quotes. The report has no openi
 writer's model, its tokens and what they would cost on the model maker's API are written into
 tree.json under writer, beside the group calls' own.
 
+`--both` writes from the dossier as a run without a flag does and adds, after the digest, the
+findings of tree.json whose quote the digest does not hold; the verifier reads the dossier and
+those rows, and the schedule carries their quotes after the dossier's. The prompt and the model
+are the ones above.
+
 Both calls run inside one ledger batch, which prints the estimated tokens and the price before
 anything is sent and writes one phase 5 row of LEDGER.md, summed over the calls, when they
 return.
@@ -85,7 +90,7 @@ from itertools import zip_longest
 from pathlib import Path
 
 from rlm.amounts import normalise_amount
-from rlm.gateway import PHASE_CAPS, Gateway, Ledger, api_price, estimate_tokens, price, priced
+from rlm.gateway import PHASE_CAPS, Completion, Gateway, Ledger, NoReply, api_price, estimate_tokens, price, priced
 from rlm.notes import reask_messages
 
 PHASE = 5
@@ -1191,6 +1196,16 @@ def summary_line(summary: dict) -> str:
     )
 
 
+def paid_call(batch, gateway: Gateway, model: str, messages: list[dict]) -> Completion:
+    """One writer call recorded on the batch; draws that came back with no reply were paid for
+    and are recorded too before the error goes on."""
+    try:
+        return batch.record(gateway.complete(model, messages, max_tokens=MAX_OUTPUT_TOKENS, json=False))
+    except NoReply as exc:
+        batch.record(Completion("", exc.tokens_in, exc.tokens_out, exc.seconds, model, cost=exc.cost))
+        raise
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     """Reads the command line of one write run."""
     parser = argparse.ArgumentParser(prog="python -m rlm.write")
@@ -1237,6 +1252,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--tree",
         action="store_true",
         help="write from the findings tree.json kept, in place of the dossier",
+    )
+    parser.add_argument(
+        "--both",
+        action="store_true",
+        help="write from the dossier and add the findings tree.json kept that the dossier digest lacks",
     )
     return parser.parse_args(argv)
 
@@ -1288,6 +1308,9 @@ def main(
     brief = brief_path(sample_dir)
     source = "pick" if args.pick else "tree" if args.tree else "dossier"
     dossier_path = run_dir / {"pick": "pick.json", "tree": "tree.json", "dossier": "dossier.md"}[source]
+    if args.both and not (run_dir / "tree.json").exists():
+        print(f"no tree at {run_dir / 'tree.json'}")
+        return 2
     sections_path = run_dir / "sections.jsonl"
     index_path = run_dir / "index.jsonl"
     if not dossier_path.exists():
@@ -1330,9 +1353,22 @@ def main(
     else:
         dossier = dossier_path.read_text(encoding="utf-8")
         digest = digest_markdown(dossier)
+        plain_digest = digest
         rows = build_digest(dossier)
         evidence, cut = evidence_within_reach(dossier)
         mapping = verifier.read_mapping(run_dir / "map.json")
+        if args.both:
+            # The tree's findings the dossier digest lacks follow it, and the verifier reads
+            # them with the dossier.
+            from rlm import tree as tree_stage
+
+            built = tree_stage.read_tree(run_dir)
+            extra = tree_stage.unseen_digest(sample_dir, built, digest)
+            if extra:
+                digest = f"{digest}\n{extra}"
+                dossier = f"{dossier}\n{extra}"
+                rows = [*rows, *tree_stage.digest_rows(extra)]
+                evidence = f"{evidence}\n{tree_stage.unseen_evidence(sample_dir, built, plain_digest)}"
 
     messages = build_messages(brief.read_text(encoding="utf-8"), digest)
 
@@ -1389,13 +1425,7 @@ def main(
                 tokens_in=estimated_in,
                 tokens_out=MAX_OUTPUT_TOKENS,
             ) as batch:
-                completions.append(
-                    batch.record(
-                        gateway.complete(
-                            args.model, messages, max_tokens=MAX_OUTPUT_TOKENS, json=False
-                        )
-                    )
-                )
+                completions.append(paid_call(batch, gateway, args.model, messages))
                 replies.append(completions[0].text)
                 rounds.append(check(build(replies[0])))
                 if rounds[0]:
@@ -1404,14 +1434,7 @@ def main(
                     # the rest of its report alone. Both calls pay on this batch's one row.
                     asking = REASK_FAILURES.format(items=failure_items(rounds[0]))
                     completions.append(
-                        batch.record(
-                            gateway.complete(
-                                args.model,
-                                reask_messages(messages, replies[0], asking),
-                                max_tokens=MAX_OUTPUT_TOKENS,
-                                json=False,
-                            )
-                        )
+                        paid_call(batch, gateway, args.model, reask_messages(messages, replies[0], asking))
                     )
                     replies.append(completions[1].text)
             seconds = time.monotonic() - started
@@ -1504,7 +1527,7 @@ def main(
             grades.append(result)
             print(graded_line(sample_dir.name, letter, result, record["passes"]))
 
-    if args.tree:
+    if args.tree or args.both:
         path = run_dir / "tree.json"
         written = json.loads(path.read_text(encoding="utf-8"))
         tokens_in = sum(summary["tokens_in"] for summary in summaries)

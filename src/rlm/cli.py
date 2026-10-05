@@ -15,7 +15,9 @@ one above and `--deal` changes nothing.
 `--write tree` runs rlm.tree in place of the map and the dossier: the stages are ingest, notes,
 tree, write and export, the room's notes are read in groups by a model that keeps the findings
 a deal committee must see, and the writer reads those findings. tree is done when tree.json is
-there. It does not go with `--rank`. `--middle-model` names the group calls' model and
+there. It does not go with `--rank`. `--write both` runs the map, the dossier and the tree,
+and the writer reads the dossier digest followed by the tree's kept findings whose quote the
+dossier digest does not hold. `--middle-model` names the group calls' model and
 `--writer-model` the writer's, each defaulting to its module's DEFAULT_MODEL; either may be a
 Claude Code model on the founder's subscription.
 
@@ -91,6 +93,9 @@ PICK_STAGES = ("ingest", "notes", "pick", "write", "export")
 # The stages of a run given the tree writer: tree stands where the map and the dossier stood.
 TREE_STAGES = ("ingest", "notes", "tree", "write", "export")
 
+# The stages of a run given both writers: the tree stands after the dossier.
+BOTH_STAGES = ("ingest", "notes", "map", "dossier", "tree", "write", "export")
+
 # The codes a failed run ends on, one per failure, each with its fix in the README.
 ERROR_CODES = (
     "key-refused",
@@ -165,10 +170,12 @@ def read_json(path: Path) -> dict | None:
 
 
 def stages_for(rank: str | None, write: str | None = None) -> tuple[str, ...]:
-    """The stages a run takes: TREE_STAGES with the tree writer, PICK_STAGES with a ranker,
-    STAGES otherwise."""
+    """The stages a run takes: TREE_STAGES with the tree writer, BOTH_STAGES with both writers,
+    PICK_STAGES with a ranker, STAGES otherwise."""
     if write == "tree":
         return TREE_STAGES
+    if write == "both":
+        return BOTH_STAGES
     return STAGES if rank is None else PICK_STAGES
 
 
@@ -318,8 +325,8 @@ def run(args: argparse.Namespace, gateway: Gateway | None, ledger: Ledger | None
     if not room.is_dir():
         print(f"no room at {room}")
         return 2
-    if args.write == "tree" and args.rank is not None:
-        print("--write tree does not go with --rank")
+    if args.write is not None and args.rank is not None:
+        print(f"--write {args.write} does not go with --rank")
         return 2
     if args.phase is not None and ledger is None:
         ledger = Ledger(Path(__file__).resolve().parents[2] / "LEDGER.md")
@@ -376,6 +383,14 @@ def run(args: argparse.Namespace, gateway: Gateway | None, ledger: Ledger | None
                 state.write("running")
                 if dossier_stage.main([str(room), str(run_dir)]) != 0:
                     raise Stopped("unexpected", "the dossier did not run")
+
+            if args.write == "both":
+                state.stage = "tree"
+                if not done("tree", run_dir):
+                    state.write("running")
+                    tree_argv = [str(room), str(run_dir), "--phase", phase, "--model", args.middle_model]
+                    if tree_stage.main(tree_argv, gateway=gateway, ledger=meter) != 0:
+                        raise Stopped("unexpected", "the tree did not run")
         else:
             state.stage = "pick"
             if not done("pick", run_dir):
@@ -391,6 +406,8 @@ def run(args: argparse.Namespace, gateway: Gateway | None, ledger: Ledger | None
             write_argv = stage_argv
             if args.write == "tree":
                 write_argv = [*stage_argv, "--tree", "--model", args.writer_model]
+            elif args.write == "both":
+                write_argv = [*stage_argv, "--both", "--model", args.writer_model]
             elif args.rank is not None:
                 write_argv = [*stage_argv, "--pick"]
             if write_stage.main(write_argv, gateway=gateway, ledger=meter, grader=grader) != 0:
@@ -454,23 +471,24 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     runner.add_argument(
         "--write",
-        choices=("tree",),
+        choices=("tree", "both"),
         default=None,
-        help="tree: models read the notes in groups and keep what the report reads, in place of the map",
+        help="tree: models read the notes in groups and keep what the report reads, in place of the "
+        "map; both: the report reads the dossier digest and the tree's findings it lacks",
     )
     runner.add_argument(
         "--middle-model",
         dest="middle_model",
         choices=sorted(tree_stage.CONTEXT_WINDOWS),
         default=tree_stage.DEFAULT_MODEL,
-        help="the model of the group calls with --write tree",
+        help="the model of the group calls with --write tree or both",
     )
     runner.add_argument(
         "--writer-model",
         dest="writer_model",
         choices=sorted({*PRICES, *CLAUDE_CODE_MODELS} - {pick_stage.JEV_MODEL}),
         default=write_stage.DEFAULT_MODEL,
-        help="the writer's model with --write tree",
+        help="the writer's model with --write tree or both",
     )
     args = parser.parse_args(argv)
     if args.command is None:
