@@ -360,7 +360,8 @@ class ClaudeCode:
 
     def complete(self, model: str, messages: list[dict], max_tokens: int, json: bool = True) -> Completion:
         """One call, its reply text and its usage. Raises WrongModel when the reply names
-        another model, ClaudeCodeError when the command fails, NoReply when it returns no text."""
+        another model, ClaudeCodeError when the command fails, NoReply when it returns no text
+        or a reply continued past its cap, of which only the last part comes back."""
         system = "\n\n".join(message["content"] for message in messages if message["role"] == "system")
         args = [
             "claude", "-p",
@@ -404,6 +405,11 @@ class ClaudeCode:
                         ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"))
         tokens_out = int(usage.get("output_tokens") or 0)
         text = reply.get("result") or ""
+        if int(reply.get("num_turns") or 1) > 1:
+            # A reply that ran past its cap is continued in a further turn, and the result holds
+            # only the last turn's text: the rest of the reply is lost.
+            raise NoReply(f"{model} ran past its reply cap and was continued", tokens_in=tokens_in,
+                          tokens_out=tokens_out, seconds=seconds)
         if not text.strip():
             raise NoReply(f"{model} returned no reply", tokens_in=tokens_in, tokens_out=tokens_out,
                           seconds=seconds)
