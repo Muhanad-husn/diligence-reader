@@ -222,7 +222,7 @@ def test_the_tree_refuses_past_the_phase_cap_and_sends_nothing(tmp_path):
     room, run_dir = small_room(tmp_path)
     ledger = write_ledger(tmp_path / "LEDGER.md")
     with ledger.path.open("a", encoding="utf-8") as handle:
-        handle.write("| 2026-10-05 | x | 8 | z-ai/glm-5.3 | 0 | 0 | 9.0000 | 41.0000 |\n")
+        handle.write("| 2026-10-05 | x | 8 | z-ai/glm-5.3 | 0 | 0 | 11.5000 | 38.5000 |\n")
     transport = TreeTransport(one_per_doc)
     with pytest.raises(CapExceeded):
         tree.tree(room, run_dir, gateway=gateway_for(transport), ledger=ledger)
