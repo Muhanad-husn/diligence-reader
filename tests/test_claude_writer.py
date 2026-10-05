@@ -11,8 +11,10 @@ Every test here is free: the subprocess is a fake runner and the ledger a tempor
 import json
 import math
 
+import pytest
+
 from rlm import tree, write
-from rlm.gateway import ClaudeCode, Gateway
+from rlm.gateway import ClaudeCode, Gateway, NoReply
 from test_claude_code import SONNET, FakeRunner, cli_reply, gateway_with, system_of, tree_answer
 from test_phase8_command import write_ledger
 from test_pick import small_room
@@ -98,15 +100,17 @@ def both_room(tmp_path):
     return room, run_dir
 
 
-HEAD = (
+FIRST = (
     "## Executive summary\n\nRecommendation: proceed.\n\n"
     f'The loan says "{LOAN[:-1]}" [a.txt | a.txt#l1].\n\n'
     "## Findings ranked by materiality\n\n"
     f'1. The loan is repaid on a change of control, "{LOAN[:-1]}" [a.txt | a.txt#l1].\n\n'
     "## The most material issue quantified\n\nNone [a.txt | a.txt#l1].\n"
 )
-TAIL = "## Lesser issues\n\n1. None [c.txt | c.txt#l1].\n\n## Open items\n\n1. None [c.txt | c.txt#l1].\n"
-REPORT = HEAD + "\n" + TAIL
+OPEN = "## Open items\n\n1. None [c.txt | c.txt#l1].\n"
+HEAD = FIRST + "\n" + OPEN
+TAIL = "## Lesser issues\n\n1. None [c.txt | c.txt#l1].\n"
+REPORT = FIRST + "\n" + TAIL + "\n" + OPEN
 
 
 def run_both(tmp_path, replies, model=SONNET):
@@ -141,26 +145,47 @@ def test_a_sonnet_writer_of_both_reads_every_tree_finding_first_with_its_own_pro
     assert json.loads((run_dir / "verify.json").read_text(encoding="utf-8"))["passes"] is True
 
 
-def test_a_sonnet_writer_writes_the_first_sections_then_the_last_two_in_a_second_call(tmp_path):
-    code, run_dir, gateway = run_both(tmp_path, [HEAD, TAIL])
+def test_the_first_call_writes_a_bounded_list_of_findings_and_the_open_items():
+    shape = write.FULL_PROMPT.split("THE SHAPE", 1)[1].split("THE NUMBER", 1)[0]
+    assert f"at most {write.FINDINGS_ITEMS}" in shape
+    assert "## Open items" in shape
+    assert "## Lesser issues" not in shape
+    assert shape.index("## The most material issue quantified") < shape.index("## Open items")
+
+
+def test_the_lesser_issues_are_written_in_parts_of_documents_and_placed_before_the_open_items(tmp_path, monkeypatch):
+    # three documents of one finding each, two findings to a part: a and b, then c
+    monkeypatch.setattr(write, "TAIL_ROWS", 2)
+    part_one = "## Lesser issues\n\n1. The lease [b.txt | b.txt#l1].\n"
+    part_two = "## Lesser issues\n\n1. The bonus [c.txt | c.txt#l1].\n"
+    code, run_dir, gateway = run_both(tmp_path, [HEAD, part_one, part_two])
     assert code == 0
-    assert len(gateway.calls) == 2
-    head_system = gateway.calls[0]["messages"][0]["content"]
-    assert "## Lesser issues" not in write.FULL_PROMPT.split("THE SHAPE", 1)[1].split("THE NUMBER", 1)[0]
-    second = gateway.calls[1]
-    assert second["max_tokens"] == write.FULL_OUTPUT_TOKENS
-    assert second["messages"][0]["content"].startswith(write.FULL_TAIL_PROMPT)
-    assert second["messages"][0]["content"] != head_system
-    user = second["messages"][1]["content"]
-    assert user.startswith(gateway.calls[0]["messages"][1]["content"])
-    assert user.rstrip().endswith(HEAD.rstrip())
-    assert narrative(run_dir) == REPORT
+    assert len(gateway.calls) == 3
+    for call, mine, other in ((gateway.calls[1], ["a.txt", "b.txt"], "c.txt"), (gateway.calls[2], ["c.txt"], "a.txt")):
+        assert call["max_tokens"] == write.FULL_OUTPUT_TOKENS
+        assert call["messages"][0]["content"].startswith(write.FULL_TAIL_PROMPT)
+        user = call["messages"][1]["content"]
+        assert user.startswith(gateway.calls[0]["messages"][1]["content"])
+        assert FIRST.rstrip() in user
+        yours = user.split(write.YOUR_DOCUMENTS, 1)[1]
+        assert all(f"- {doc}" in yours for doc in mine)
+        assert f"- {other}" not in yours
+    assert narrative(run_dir) == (
+        FIRST + "\n## Lesser issues\n\n1. The lease [b.txt | b.txt#l1].\n2. The bonus [c.txt | c.txt#l1].\n\n" + OPEN
+    )
     record = json.loads((run_dir / "verify.json").read_text(encoding="utf-8"))
-    assert record["passes"] is True and record["calls"] == 2
+    assert record["passes"] is True and record["calls"] == 3
+
+
+def test_parts_take_whole_documents_in_the_room_order_within_the_rows():
+    counts = [("a", 1), ("b", 3), ("c", 1), ("d", 5), ("e", 1)]
+    assert write.document_parts(counts, 4) == [["a", "b"], ["c"], ["d"], ["e"]]
+    assert write.document_parts(counts, 100) == [["a", "b", "c", "d", "e"]]
+    assert write.document_parts([], 4) == []
 
 
 def test_a_failing_sentence_is_fixed_in_place_from_a_numbered_list(tmp_path):
-    tail = TAIL.replace("1. None [c.txt | c.txt#l1].\n\n## Open", "1. An uncited sentence.\n\n## Open")
+    tail = TAIL.replace("1. None [c.txt | c.txt#l1].", "1. An uncited sentence.")
     fixes = json.dumps({"fixes": [{"n": 1, "sentence": "A cited sentence [c.txt | c.txt#l1]."}]})
     code, run_dir, gateway = run_both(tmp_path, [HEAD, tail, fixes])
     assert code == 0
@@ -168,7 +193,7 @@ def test_a_failing_sentence_is_fixed_in_place_from_a_numbered_list(tmp_path):
     asked = gateway.calls[2]["messages"][-1]["content"]
     assert asked.startswith(write.FULL_REASK.split("{items}")[0])
     assert "1. An uncited sentence." in asked
-    assert gateway.calls[2]["messages"][-2]["content"] == HEAD + "\n" + tail
+    assert gateway.calls[2]["messages"][-2]["content"] == FIRST + "\n" + tail + "\n" + OPEN
     written = narrative(run_dir)
     assert "1. A cited sentence [c.txt | c.txt#l1]." in written
     assert "uncited" not in written
@@ -178,7 +203,7 @@ def test_a_failing_sentence_is_fixed_in_place_from_a_numbered_list(tmp_path):
 
 
 def test_a_sentence_the_fixes_leave_failing_is_left_out(tmp_path):
-    tail = TAIL.replace("1. None [c.txt | c.txt#l1].\n\n## Open", "1. None [c.txt | c.txt#l1]. An uncited sentence.\n\n## Open")
+    tail = TAIL.replace("1. None [c.txt | c.txt#l1].", "1. None [c.txt | c.txt#l1]. An uncited sentence.")
     code, run_dir, gateway = run_both(tmp_path, [HEAD, tail, "not json"])
     assert code == 0
     written = narrative(run_dir)
@@ -198,6 +223,16 @@ def test_fixes_replace_each_listed_sentence_once_and_an_empty_one_takes_it_out()
     assert fixed == "## A\n\n1. First fixed. Second one.\n"
     assert write.apply_fixes(text, ["First one."], "not json") == text
     assert write.leave_out(text, ["Second one."]) == "## A\n\n1. First one.\n2. Third one.\n"
+
+
+def test_a_reply_headless_claude_continued_past_its_cap_is_no_reply():
+    def continued(args, stdin):
+        reply = json.loads(cli_reply("## Open items\n\nthe last part only"))
+        reply["num_turns"] = 3
+        return json.dumps(reply)
+
+    with pytest.raises(NoReply):
+        gateway_with(FakeRunner(continued)).complete(SONNET, [{"role": "user", "content": "x"}], max_tokens=10, json=False)
 
 
 def test_a_glm_writer_of_both_is_unchanged(tmp_path):
