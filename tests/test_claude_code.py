@@ -102,7 +102,7 @@ def test_a_claude_code_model_is_sent_to_headless_claude_with_no_tools_from_an_em
     assert REPO not in call["cwd"].resolve().parents
     assert not call["cwd"].exists()
     assert "CLAUDECODE" not in call["env"]
-    assert not any(name.startswith("CLAUDE_CODE_") for name in call["env"])
+    assert [name for name in call["env"] if name.startswith("CLAUDE_CODE_")] == ["CLAUDE_CODE_MAX_OUTPUT_TOKENS"]
 
     assert completion.text == '{"a": 1}'
     assert completion.tokens_in == 1000
@@ -211,7 +211,7 @@ def test_the_writer_on_sonnet_in_tree_mode_records_its_api_price_in_tree_json(tm
     code = write.main([str(room), str(run_dir), "--tree", "--phase", "8", "--model", SONNET],
                       gateway=gateway_with(runner), ledger=ledger)
     assert code == 0
-    assert system_of(runner.calls[0]["args"]).startswith(write.PROMPT)
+    assert system_of(runner.calls[0]["args"]).startswith(write.FULL_PROMPT)
     assert runner.calls[0]["stdin"] == (run_dir / "digest.md").read_text(encoding="utf-8")
     assert float(ledger.rows()[-1]["dollars"]) == 0.0
     written = json.loads((run_dir / tree.TREE_FILE).read_text(encoding="utf-8"))
