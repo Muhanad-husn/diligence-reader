@@ -20,6 +20,7 @@ from rlm import bakeoff
 from rlm.amounts import AMOUNT
 from rlm.gateway import (
     IGNORED_PROVIDERS,
+    OFF_GATEWAY,
     PAST_PRICES,
     PRICES,
     REASONING,
@@ -182,7 +183,9 @@ def test_gateway_price_table_is_plan_section_5():
         "deepseek/deepseek-v4-pro": (0.2088, 0.4176),
         "z-ai/glm-5.3": (1.400, 4.400),
         "z-ai/glm-5.3-flash": (0.150, 0.500),
+        "typesafe/jev-1.13.0": (0.042, 0.0),
     }
+    assert OFF_GATEWAY == {"typesafe/jev-1.13.0"}
     assert price(MODEL, 1_000_000, 1_000_000) == pytest.approx(1.2952)
     assert price(MODEL, 90_000, 60_000) == pytest.approx(0.001368 + 0.0768)
     assert price("z-ai/glm-5.3", 0, 0) == 0.0
@@ -266,7 +269,7 @@ def test_gateway_complete_turns_reasoning_off():
 
 def test_gateway_complete_sends_low_effort_reasoning_to_glm():
     """The GLM endpoints refuse reasoning off, so they carry a low effort object instead."""
-    assert set(REASONING) == set(PRICES)
+    assert set(REASONING) == set(PRICES) - OFF_GATEWAY
     for model in ("z-ai/glm-5.3", "z-ai/glm-5.3-flash"):
         transport = FakeTransport([reply('{"what": "x"}')])
         gateway = Gateway(api_key="test-key", transport=transport)
@@ -3087,7 +3090,7 @@ def test_bakeoff_slug_and_the_tiers_run_in_price_order():
     # went from 0.050 to 0.140 in on 2026-09-07.
     assert bakeoff.TIERS["flash"] == (GLM_FLASH, DS_FLASH, LUNA)
     assert bakeoff.TIERS["pro"] == (DS_PRO, GLM)
-    assert set(bakeoff.TIERS["flash"]) | set(bakeoff.TIERS["pro"]) == set(PRICES)
+    assert set(bakeoff.TIERS["flash"]) | set(bakeoff.TIERS["pro"]) == set(PRICES) - OFF_GATEWAY
     for tier in bakeoff.TIERS.values():
         costs = [price(model, 90_000, 60_000) for model in tier]
         assert costs == sorted(costs), tier
@@ -3272,7 +3275,7 @@ def test_bakeoff_two_passes_on_two_samples_fill_one_row_and_name_the_winner(tmp_
     table = json.loads(first.decode("utf-8"))
     assert table["samples"] == ["northwind", "northstar-dental"]
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", table["date"])
-    assert set(table["prices"]) == set(PRICES)
+    assert set(table["prices"]) == set(PRICES) - OFF_GATEWAY
     assert table["prices"][GLM_FLASH] == [0.150, 0.500]
     assert (runs_root / "northwind" / "bakeoff.json").read_text(encoding="utf-8").endswith("}\n")
 
@@ -3518,7 +3521,7 @@ def test_bakeoff_dry_run_writes_a_table_of_not_run_rows_and_makes_no_request(tmp
     for row in table["rows"]:
         assert all(row[field] == "not run" for field in MEASURED), row["model"]
     assert table["winner"] is None
-    for model in PRICES:
+    for model in set(PRICES) - OFF_GATEWAY:
         assert model in printed, model
     assert "$" in printed
 

@@ -40,6 +40,11 @@ the first in report-raw-1.txt when there were two, the whole report in report.md
 rounds in verify.json. A second reply that lost any of the five headings was cut short at the
 cap, and then the first reply is the report and verify.json's report_round says so.
 
+`--pick` writes from pick.json in place of the dossier: the digest is the notes of the documents
+rlm.pick chose, whole and in rank order, the verifier reads that digest as its dossier, the
+schedule is those notes' own words, and the report opens with one line naming the deal type.
+The prompt, the model and the verifier are the ones above.
+
 Both calls run inside one ledger batch, which prints the estimated tokens and the price before
 anything is sent and writes one phase 5 row of LEDGER.md, summed over the calls, when they
 return.
@@ -1217,6 +1222,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="the phase the ledger books this run to, so that a phase 6 variant pays out "
         "of phase 6's cap",
     )
+    parser.add_argument(
+        "--pick",
+        action="store_true",
+        help="write from the documents pick.json chose, their notes whole, in place of the dossier",
+    )
     return parser.parse_args(argv)
 
 
@@ -1265,11 +1275,11 @@ def main(
     sample_dir = Path(args.sample_dir)
     run_dir = Path(args.run_dir)
     brief = brief_path(sample_dir)
-    dossier_path = run_dir / "dossier.md"
+    dossier_path = run_dir / ("pick.json" if args.pick else "dossier.md")
     sections_path = run_dir / "sections.jsonl"
     index_path = run_dir / "index.jsonl"
     if not dossier_path.exists():
-        print(f"no dossier at {dossier_path}")
+        print(f"no {'pick' if args.pick else 'dossier'} at {dossier_path}")
         return 2
     if not sections_path.exists():
         print(f"no sections.jsonl at {sections_path}")
@@ -1278,20 +1288,34 @@ def main(
         print(f"no index.jsonl at {index_path}")
         return 2
 
-    dossier = dossier_path.read_text(encoding="utf-8")
-    digest = digest_markdown(dossier)
-    rows = build_digest(dossier)
+    sections = verifier.read_jsonl(sections_path)
+    index = verifier.read_jsonl(index_path)
+    opening = ""
+    if args.pick:
+        # The chosen documents' notes are the digest, whole, and the verifier reads the same
+        # text as its dossier: its Documents list is the chosen set. There is no map, so no
+        # citation's document is checked against one.
+        from rlm import pick as pick_stage
+
+        picked = pick_stage.read_pick(run_dir)
+        digest = pick_stage.pick_digest(sample_dir, run_dir, picked)
+        dossier = digest
+        rows = pick_stage.digest_rows(digest)
+        evidence, cut = pick_stage.pick_evidence(sample_dir, run_dir, picked), 0
+        mapping = None
+        opening = pick_stage.deal_line(picked["deal"]) + "\n\n"
+    else:
+        dossier = dossier_path.read_text(encoding="utf-8")
+        digest = digest_markdown(dossier)
+        rows = build_digest(dossier)
+        evidence, cut = evidence_within_reach(dossier)
+        mapping = verifier.read_mapping(run_dir / "map.json")
 
     messages = build_messages(brief.read_text(encoding="utf-8"), digest)
 
-    evidence, cut = evidence_within_reach(dossier)
-    sections = verifier.read_jsonl(sections_path)
-    index = verifier.read_jsonl(index_path)
-    mapping = verifier.read_mapping(run_dir / "map.json")
-
     def build(text: str) -> str:
         """The whole report of one reply: the narrative it holds and the schedule under it."""
-        return f"{parse_reply(text)}\n## {EVIDENCE_HEADING}\n\n{evidence}"
+        return f"{opening}{parse_reply(text)}\n## {EVIDENCE_HEADING}\n\n{evidence}"
 
     def check(text: str) -> list[dict]:
         """The failures of one report, read against the room the dossier was built from."""

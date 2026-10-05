@@ -19,6 +19,15 @@ from typing import Protocol
 
 from fastapi import APIRouter
 
+# The file in a run folder holding the deal type the page chose, share or asset.
+DEAL_FILE = "deal.txt"
+
+
+def deal_args(run_dir: Path) -> list[str]:
+    """`--deal <type>` when the run folder names a deal type, else nothing."""
+    path = Path(run_dir) / DEAL_FILE
+    return ["--deal", path.read_text(encoding="utf-8").strip()] if path.exists() else []
+
 
 class Runner(Protocol):
     """Starts, watches and stops one run per run id. router, when set, is mounted on the app."""
@@ -49,7 +58,7 @@ class LocalRunner:
         argv = [*self.command, "run", str(room), "--out", str(run_dir), "--yes"]
         if os.environ.get("RLM_PHASE") == "8":
             argv += ["--phase", "8"]
-        return argv
+        return argv + deal_args(run_dir)
 
     def start(self, run_id: str, room: Path, run_dir: Path, key: str) -> None:
         """Starts the command on the room with the key in the child's environment alone."""

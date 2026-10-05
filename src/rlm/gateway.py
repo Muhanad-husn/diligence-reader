@@ -62,7 +62,13 @@ PRICES: dict[str, tuple[float, float]] = {
     "deepseek/deepseek-v4-pro": (0.2088, 0.4176),
     "z-ai/glm-5.3": (1.400, 4.400),
     "z-ai/glm-5.3-flash": (0.150, 0.500),
+    # TypeSafe's Jev on TypeSafe's own API, not the gateway: input tokens only, output free.
+    "typesafe/jev-1.13.0": (0.042, 0.0),
 }
+
+# The models PRICES carries that the gateway does not serve. Their calls are priced and booked
+# like any other, but Gateway.complete never sends them and no bake-off chooses between them.
+OFF_GATEWAY = frozenset({"typesafe/jev-1.13.0"})
 
 # The tables the repository has priced a call at before, newest first. A ledger row written
 # before a price moved reconciles at one of these, so it is kept here.
