@@ -57,9 +57,14 @@ those rows, and the schedule carries their quotes after the dossier's. The promp
 are the ones above.
 
 A writer on a Claude Code model is asked on FULL_PROMPT instead: every finding the digest
-carries, each naming its people, its documents, its dates and its figures, in a numbered list,
-with FULL_OUTPUT_TOKENS for its reply and FULL_REASK for its second call. Given `--both` it
-reads every finding tree.json kept, not only those whose quote the dossier digest lacks.
+carries, each naming its people, its documents, its dates and its figures, in numbered lists,
+with FULL_OUTPUT_TOKENS for each reply. It writes in two calls: the executive summary, the
+findings and the quantified issue, then, on FULL_TAIL_PROMPT and reading those, the lesser
+issues and the open items. Where the report fails the verifier, a third call is given the
+failing sentences numbered, on FULL_REASK, and answers with a fix for each, which code puts in
+place; a sentence still failing after that is taken out, and verify.json lists it under
+left_out. Given `--both` it reads every finding tree.json kept, not only those whose quote the
+dossier digest lacks.
 
 Both calls run inside one ledger batch, which prints the estimated tokens and the price before
 anything is sent and writes one phase 5 row of LEDGER.md, summed over the calls, when they
@@ -1023,70 +1028,20 @@ its row, every quotation the room's own words, and every certainty word the room
 number, a date or a certainty word that its row does not carry goes out of the sentence. You
 have 12000 tokens for the whole reply, so do not deliberate and do not lengthen anything."""
 
-# The prompt of a writer whose reply is not held to MAX_OUTPUT_TOKENS: a Claude Code model on
+# The prompts of a writer whose reply is not held to MAX_OUTPUT_TOKENS: a Claude Code model on
 # the founder's subscription. It is asked for every finding of the digest, each naming its
 # facts, rather than for about a hundred short sentences, because the GLM writer's cap is what
 # kept its reports short and this writer has no such cap. The citations, the words, the
 # comparisons and the number are asked for as PROMPT asks for them, so the verifier reads its
 # report the same way.
-FULL_SHAPE_ONE_MATTER = """Five second level headings, in this order, and nothing after the fifth:
+#
+# The report is written in two calls. Headless Claude Code hands back only the last message of
+# a reply that runs past its cap and is continued, and a report of every finding of a hundred
+# document room ran past sixty-four thousand tokens on 2026-10-05. So the first call writes the
+# executive summary, the findings and the quantified issue, and the second, reading the digest
+# and those sections, writes the lesser issues and the open items.
 
-## Executive summary
-  A first line beginning `Recommendation:`, then up to eight sentences, each cited, on what
-  moves the price or the terms most.
-## Findings ranked by materiality
-  A numbered list, the finding that costs the buyer most first. One item a finding, on one
-  line: a first sentence saying what it is with its names, its dates and its figures, then a
-  sentence quoting the decisive words. Each of the two sentences ends in its own citation,
-  so an item carries its citation twice. Where the digest carries a Timeline, Names, Figures
-  or Comparisons section, the first item cites a document whose rows stand there.
-## The most material issue quantified
-  Three cited sentences on the largest exposure, then the `Calculation:` line, then one
-  `Recommendation:` line.
-## Lesser issues
-  A numbered list of every row the findings above do not carry, one item a finding, on one
-  line: one sentence with its names, its dates and its figures, ending in its citation. Say
-  why it is smaller inside that sentence, before the citation, never in a sentence of its
-  own.
-## Open items
-  A numbered list of what you would still need to confirm, one cited sentence each."""
-
-FULL_SHAPE_TWO_MATTERS = """Six second level headings, in this order, and nothing after the sixth:
-
-## Executive summary
-  A first line beginning `Recommendation:`, then up to eight sentences, each cited, on what
-  moves the price or the terms most.
-## Findings ranked by materiality
-  A numbered list, the finding that costs the buyer most first. One item a finding, on one
-  line: a first sentence saying what it is with its names, its dates and its figures, then a
-  sentence quoting the decisive words. Each of the two sentences ends in its own citation,
-  so an item carries its citation twice. Where the digest carries a Timeline, Names, Figures
-  or Comparisons section, the first item cites a document whose rows stand there.
-## The most material issue quantified
-  Three cited sentences on the largest exposure, then the `Calculation:` line, then one
-  `Recommendation:` line.
-## The second matter
-  The rows the digest writes under its own second level heading, a numbered list, one cited
-  sentence each, in the order the digest gives them. Write them here and nowhere else.
-## Lesser issues
-  A numbered list of every row the findings above do not carry, one item a finding, on one
-  line: one sentence with its names, its dates and its figures, ending in its citation. Say
-  why it is smaller inside that sentence, before the citation, never in a sentence of its
-  own.
-## Open items
-  A numbered list of what you would still need to confirm, one cited sentence each."""
-
-FULL_PROMPT = """You are the buy-side diligence lead. You write the findings report on a data room for the deal
-committee from two things and nothing else: the brief below, and the digest in the next message.
-The committee reads your report in place of the room, so a finding you leave out is a finding
-the committee never sees.
-
-ANSWER WITH THE REPORT AND NOTHING ELSE
-
-Do not plan aloud and do not say what you are about to do. The first characters of your reply
-are `## Executive summary`.
-
-THE DIGEST
+FULL_RULES = """THE DIGEST
 
 Under `### Findings from every document`, by document in the room's order, stand the findings
 readers chose from each document of the room. A row is
@@ -1110,18 +1065,17 @@ WHAT GOES IN
 Go through the findings document by document. Every row under `### Findings from every
 document` is written in the report, in Findings ranked by materiality when it bears on the
 price, the terms of the deal or what the buyer inherits, and in Lesser issues otherwise. A row
-leaves the report only where an item you have already written carries the same term, and then
-that item names each person or party the term covers and cites each of their documents. The
-report is as long as the rows make it: a room of many documents gives many items, and a short
-report that leaves rows out has failed the committee. The matter after the findings adds to
-them; write its rows where they add a fact the findings do not carry.
+leaves the report only where an item already written carries the same term, and then that item
+names each person or party the term covers and cites each of their documents. The report is as
+long as the rows make it: a room of many documents gives many items, and a short report that
+leaves rows out has failed the committee. The matter after the findings adds to them; write its
+rows where they add a fact the findings do not carry.
 
 A finding names its facts the way its rows give them: the people and the companies by name,
-the agreement, plan or instrument by its title and its date, and every amount, share count,
-multiple, percentage, period and trigger. A reader who never opens the room has to know from
-the finding alone who is owed or owes what, under which document, from when and on what
-event. Writing "the executive", "the company" or "the agreement" where the row names them
-loses the finding.
+the agreement, plan or instrument by its title, and every amount, share count, multiple,
+percentage, period and trigger. A reader who never opens the room has to know from the finding
+alone who is owed or owes what, under which document and on what event. Writing "the
+executive", "the company" or "the agreement" where the row names them loses the finding.
 
 CITATIONS
 
@@ -1137,9 +1091,10 @@ the address of a file. Put the citation at the end of the sentence, never in the
 Nothing follows it but the full stop. A sentence drawn from several rows ends with each of
 their citations, one after the other.
 
-Every figure and every date in a sentence is cited on a row that carries it, and a sentence
-carrying figures from two rows cites both rows. A figure no cited row carries goes out of the
-sentence.
+Every figure, every year and every date in a sentence stands in a row the sentence cites, and
+a sentence carrying figures from two rows cites both rows. A figure, a year or a date that no
+cited row carries goes out of the sentence: name an agreement by its title and its parties,
+and give its year or its date only where a cited row writes it.
 
 Two lines carry no citation, and only two: the line beginning `Recommendation:` and the line
 beginning `Calculation:`. No summary sentence and no judgement of your own is exempt. If you
@@ -1154,10 +1109,12 @@ its own, keep it and everything after it inside the quotation marks.
 
 Every identifier, name, title, file name and figure you write appears as its row writes it,
 character for character, with the unit its row gives it. Certainty words are the room's: write
-"may", "could", "likely", "potential", "probable", "expected", "estimated", "approximately",
-"confirmed" or "certain" only where the words of the row you cite carry that word or a
-stronger one. Do not write "e.g.", "i.e." or "approx." inside a sentence, and write no em
-dash of your own.
+"may", "might", "could", "possible", "potential", "likely", "probable", "expected",
+"estimated", "approximately", "confirmed", "conclusive", "definitive", "established" or
+"certain" only where the words of the row you cite carry that word or a stronger one. The word
+counts wherever it stands, inside a quotation, a title or a capitalised defined term too, and
+in the reason a lesser issue is smaller. Do not write "e.g.", "i.e." or "approx." inside a
+sentence, and write no em dash of your own.
 
 COMPARISONS
 
@@ -1169,16 +1126,37 @@ Each comparison row you write gives one sentence, in this form:
 Each side is a plain statement of at most eight words built from its own triple: the number,
 the date, the identifier and the two or three words that name them.
 
-THE SHAPE
+"""
 
-""" + FULL_SHAPE_ONE_MATTER + """
+FULL_FINDINGS_SHAPE = """## Executive summary
+  A first line beginning `Recommendation:`, then up to eight sentences, each cited, on what
+  moves the price or the terms most.
+## Findings ranked by materiality
+  A numbered list of every finding that bears on the price, the terms of the deal or what the
+  buyer inherits, the one that costs the buyer most first. One item a finding, on one line: a
+  first sentence saying what it is with its names, its dates and its figures, then a sentence
+  quoting the decisive words. Each of the two sentences ends in its own citation, so an item
+  carries its citation twice. Where the digest carries a Timeline, Names, Figures or
+  Comparisons section, the first item cites a document whose rows stand there.
+## The most material issue quantified
+  Three cited sentences on the largest exposure, then the `Calculation:` line, then one
+  `Recommendation:` line."""
 
-Write no sixth heading. A schedule of the room's own words is added under `## Evidence` after
-your reply by the code that calls you; do not write it and do not refer to it.
+FULL_SHAPE_ONE_MATTER = (
+    "Three second level headings, in this order, and nothing after the third:\n\n"
+    + FULL_FINDINGS_SHAPE
+)
 
-Write no table, no block quote and no bold label on a line of its own.
+FULL_SHAPE_TWO_MATTERS = (
+    "Four second level headings, in this order, and nothing after the fourth:\n\n"
+    + FULL_FINDINGS_SHAPE
+    + """
+## The second matter
+  The rows the digest writes under its own second level heading, a numbered list, one cited
+  sentence each, in the order the digest gives them. Write them here and nowhere else."""
+)
 
-THE NUMBER
+FULL_NUMBER = """THE NUMBER
 
 The most material issue carries one dollar number and a range. The number is the middle of the
 exposure the room itself writes, rounded to the nearest whole hundred in the unit the room
@@ -1190,33 +1168,166 @@ and the `Recommendation:` line under it names the deal action and repeats the ro
 The low and the high are two amounts the cited sentences above it write, copied from the room.
 Where the room writes one amount and not a range, the low and the high are both that amount.
 
-Begin now, with `## Executive summary`.
+"""
+
+FULL_OPENING = """You are the buy-side diligence lead. You write the findings report on a data room for the deal
+committee from two things and nothing else: the brief below, and the digest in the next message.
+The committee reads your report in place of the room, so a finding left out is a finding the
+committee never sees.
+
+ANSWER WITH THE SECTIONS AND NOTHING ELSE
+
+Do not plan aloud and do not say what you are about to do. The first characters of your reply
+are `{first}`.
+
+"""
+
+FULL_PROMPT = (
+    FULL_OPENING.replace("{first}", "## Executive summary")
+    + FULL_RULES
+    + "THE SHAPE\n\nYou write the report's first sections. "
+    + FULL_SHAPE_ONE_MATTER
+    + """
+
+Write no further heading. The lesser issues and the open items are written after your reply by
+a second call, and a schedule of the room's own words is added under `## Evidence` by the code
+that calls you; do not write them and do not refer to them.
+
+Write no table, no block quote and no bold label on a line of its own.
+
+"""
+    + FULL_NUMBER
+    + "Begin now, with `## Executive summary`.\n\nTHE BRIEF\n\n"
+)
+
+# The first call's prompt where the digest holds a second matter.
+FULL_PROMPT_TWO_MATTERS = FULL_PROMPT.replace(FULL_SHAPE_ONE_MATTER, FULL_SHAPE_TWO_MATTERS, 1)
+
+FULL_TAIL_PROMPT = (
+    FULL_OPENING.replace("{first}", "## Lesser issues")
+    + FULL_RULES
+    + """THE SHAPE
+
+The next message holds the digest and, after it under `THE REPORT SO FAR`, the report's first
+sections as they were written. You write its last two sections, two second level headings, in
+this order, and nothing after the second:
+
+## Lesser issues
+  A numbered list of every row of the digest's findings that the report so far does not carry,
+  one item a finding, on one line: one sentence with its names, its dates and its figures,
+  ending in its citation. Say why it is smaller inside that sentence, before the citation,
+  never in a sentence of its own.
+## Open items
+  A numbered list of what you would still need to confirm, one cited sentence each.
+
+Do not repeat the report so far and do not refer to it. A schedule of the room's own words is
+added under `## Evidence` by the code that calls you; do not write it.
+
+Write no table, no block quote and no bold label on a line of its own.
+
+Begin now, with `## Lesser issues`.
 
 THE BRIEF
 
 """
-
-# The second matter's prompt differs in the shape and in the heading it names last.
-FULL_PROMPT_TWO_MATTERS = FULL_PROMPT.replace(FULL_SHAPE_ONE_MATTER, FULL_SHAPE_TWO_MATTERS, 1).replace(
-    "Write no sixth heading.", "Write no seventh heading.", 1
 )
 
-FULL_REASK = """These sentences of your report did not verify. Each line is the check, the reason, then the
-sentence as you wrote it:
+# The second call's user message: the digest, then the first call's sections.
+REPORT_SO_FAR = "THE REPORT SO FAR"
+
+FULL_REASK = """These sentences of your report did not verify. Each is numbered and written as you
+wrote it, with the checks it failed and why on the line under it:
 
 {items}
 
-Return the whole report again, from `## Executive summary`, and do not rewrite it: copy your
-first reply line for line and change only the sentences listed above, each one either fixed
-from its row or left out. Keep the same headings in the same order, every item and every
-sentence as before, every sentence ending in its citation copied character for character off
-its row, every quotation the room's own words, and every certainty word the room's own. A
-number, a date or a certainty word that its row does not carry goes out of the sentence."""
+Answer with one JSON object and nothing else:
 
-# The reply cap of a writer on FULL_PROMPT. A report of every finding of a hundred document
-# room ran to about thirty thousand tokens on 2026-10-05, the anchors of its citations long, and
-# the re-ask returns the whole report again.
+{{"fixes": [{{"n": <number>, "sentence": "<the sentence fixed from its row>"}}]}}
+
+one fix for each number. A fixed sentence keeps its facts and its citation copied character
+for character off its row, and drops the number, the date or the certainty word its cited row
+does not carry. Where a sentence cannot be fixed from its rows, its sentence is "", and it is
+left out of the report."""
+
+# The reply cap of each call of a writer in full. A report of every finding of a hundred
+# document room ran to about forty thousand tokens in one call on 2026-10-05, the anchors of
+# its citations long.
 FULL_OUTPUT_TOKENS = 64000
+
+
+def tail_messages(brief: str, digest: str, head: str) -> list[dict]:
+    """The second call of a writer in full: FULL_TAIL_PROMPT with the brief, then the digest
+    and the sections the first call wrote."""
+    return [
+        {"role": "system", "content": FULL_TAIL_PROMPT + brief},
+        {"role": "user", "content": f"{digest.rstrip()}\n\n{REPORT_SO_FAR}\n\n{head.rstrip()}\n"},
+    ]
+
+
+def failing_sentences(failures: list[dict]) -> tuple[list[str], str]:
+    """The distinct sentences of a round's failures, in order, and the numbered list FULL_REASK
+    carries: each sentence once, with every check and reason it failed on."""
+    sentences_found: list[str] = []
+    reasons: dict[str, list[str]] = {}
+    for item in failures:
+        line = item["line"]
+        if line not in reasons:
+            sentences_found.append(line)
+            reasons[line] = []
+        reasons[line].append(f"{item['check']}: {item['reason']}")
+    items = "\n".join(
+        f"{number}. {line}\n   {'; '.join(reasons[line])}"
+        for number, line in enumerate(sentences_found, start=1)
+    )
+    return sentences_found, items
+
+
+# A line left with nothing but its list marker, or nothing at all.
+_EMPTY_ITEM = re.compile(r"\s*(?:[-*+]|\d+[.)])?\s*")
+
+
+def take_out(text: str, sentence: str) -> str:
+    """The text with one sentence taken out of the first line holding it, and that line too
+    where it is left with nothing but its list marker."""
+    found = []
+    for line in text.splitlines():
+        if sentence and sentence in line:
+            line = re.sub(r"(?<=\S)  +", " ", line.replace(sentence, "", 1).rstrip())
+            sentence = ""
+            if _EMPTY_ITEM.fullmatch(line):
+                continue
+        found.append(line)
+    return "\n".join(found) + ("\n" if text.endswith("\n") else "")
+
+
+def apply_fixes(text: str, sentences_listed: list[str], reply: str) -> str:
+    """The narrative with each numbered sentence replaced, once, by the fix the reply gives for
+    its number, and taken out where the fix is empty. A reply that cannot be read, and a number
+    that names no sentence, change nothing."""
+    try:
+        fixes = json.loads(reply).get("fixes", [])
+    except (ValueError, AttributeError):
+        return text
+    for fix in fixes if isinstance(fixes, list) else []:
+        if not isinstance(fix, dict):
+            continue
+        number = fix.get("n")
+        if not isinstance(number, int) or not 1 <= number <= len(sentences_listed):
+            continue
+        old = sentences_listed[number - 1]
+        new = str(fix.get("sentence") or "").strip()
+        if old not in text:
+            continue
+        text = text.replace(old, new, 1) if new else take_out(text, old)
+    return text
+
+
+def leave_out(text: str, sentences_failing: list[str]) -> str:
+    """The narrative with every sentence that still fails taken out, as FULL_REASK told the
+    writer a sentence it cannot fix is."""
+    for sentence in sentences_failing:
+        text = take_out(text, sentence)
+    return text
 
 
 def failure_items(failures: list[dict]) -> str:
@@ -1411,11 +1522,11 @@ def reply_cap(model: str) -> int:
     return FULL_OUTPUT_TOKENS if writes_in_full(model) else MAX_OUTPUT_TOKENS
 
 
-def paid_call(batch, gateway: Gateway, model: str, messages: list[dict]) -> Completion:
-    """One writer call recorded on the batch; draws that came back with no reply were paid for
-    and are recorded too before the error goes on."""
+def paid_call(batch, gateway: Gateway, model: str, messages: list[dict], json: bool = False) -> Completion:
+    """One writer call recorded on the batch, prose unless json is asked for; draws that came
+    back with no reply were paid for and are recorded too before the error goes on."""
     try:
-        return batch.record(gateway.complete(model, messages, max_tokens=reply_cap(model), json=False))
+        return batch.record(gateway.complete(model, messages, max_tokens=reply_cap(model), json=json))
     except NoReply as exc:
         batch.record(Completion("", exc.tokens_in, exc.tokens_out, exc.seconds, model, cost=exc.cost))
         raise
@@ -1594,7 +1705,9 @@ def main(
                 rows = [*rows, *tree_stage.digest_rows(extra)]
                 evidence = f"{evidence}\n{tree_stage.unseen_evidence(sample_dir, built, plain_digest)}"
 
-    messages = build_messages(brief.read_text(encoding="utf-8"), digest, full=writes_in_full(args.model))
+    full = writes_in_full(args.model)
+    brief_text = brief.read_text(encoding="utf-8")
+    messages = build_messages(brief_text, digest, full=full)
 
     def build(text: str) -> str:
         """The whole report of one reply: the narrative it holds and the schedule under it."""
@@ -1619,6 +1732,8 @@ def main(
 
         rounds: list[list[dict]] = []
         replies: list[str] = []
+        completions: list[Completion] = []
+        left_out: list[str] = []
 
         if args.from_reply:
             # A saved reply rebuilds the report with no call and no ledger row, which is how
@@ -1641,7 +1756,6 @@ def main(
 
             estimated_in = estimate_tokens("\n".join(message["content"] for message in messages))
             started = time.monotonic()
-            completions = []
             with ledger.batch(
                 sample_dir.name,
                 args.phase,
@@ -1649,19 +1763,44 @@ def main(
                 tokens_in=estimated_in,
                 tokens_out=reply_cap(args.model),
             ) as batch:
-                completions.append(paid_call(batch, gateway, args.model, messages))
-                replies.append(completions[0].text)
-                rounds.append(check(build(replies[0])))
-                if rounds[0]:
-                    # One second call, and only one: the first reply and the failures under it,
-                    # so that the model fixes the sentences the room does not carry and leaves
-                    # the rest of its report alone. Both calls pay on this batch's one row.
-                    reask = FULL_REASK if writes_in_full(args.model) else REASK_FAILURES
-                    asking = reask.format(items=failure_items(rounds[0]))
-                    completions.append(
-                        paid_call(batch, gateway, args.model, reask_messages(messages, replies[0], asking))
-                    )
-                    replies.append(completions[1].text)
+                if full:
+                    # The first sections, then the last two from a second call that reads them.
+                    # Where the report fails, one more call is given the failing sentences
+                    # numbered and fixes them in place; a sentence its fix leaves failing is
+                    # taken out, as that call was told it would be. Every call pays on this
+                    # batch's one row.
+                    completions.append(paid_call(batch, gateway, args.model, messages))
+                    head = parse_reply(completions[0].text)
+                    completions.append(paid_call(batch, gateway, args.model, tail_messages(brief_text, digest, head)))
+                    replies.append(head.rstrip("\n") + "\n\n" + parse_reply(completions[1].text))
+                    rounds.append(check(build(replies[0])))
+                    if rounds[0]:
+                        listed, items = failing_sentences(rounds[0])
+                        asking = FULL_REASK.format(items=items)
+                        completions.append(paid_call(
+                            batch, gateway, args.model, reask_messages(messages, replies[0], asking), json=True
+                        ))
+                        (out_dir / "report-fixes.txt").write_text(completions[-1].text, encoding="utf-8")
+                        replies.append(apply_fixes(replies[0], listed, completions[-1].text))
+                        rounds.append(check(build(replies[1])))
+                        if rounds[1]:
+                            left_out = failing_sentences(rounds[1])[0]
+                            replies.append(leave_out(replies[1], left_out))
+                            rounds.append(check(build(replies[2])))
+                else:
+                    completions.append(paid_call(batch, gateway, args.model, messages))
+                    replies.append(completions[0].text)
+                    rounds.append(check(build(replies[0])))
+                    if rounds[0]:
+                        # One second call, and only one: the first reply and the failures under
+                        # it, so that the model fixes the sentences the room does not carry and
+                        # leaves the rest of its report alone. Both calls pay on this batch's
+                        # one row.
+                        asking = REASK_FAILURES.format(items=failure_items(rounds[0]))
+                        completions.append(
+                            paid_call(batch, gateway, args.model, reask_messages(messages, replies[0], asking))
+                        )
+                        replies.append(completions[1].text)
             seconds = time.monotonic() - started
             tokens_in = sum(completion.tokens_in for completion in completions)
             tokens_out = sum(completion.tokens_out for completion in completions)
@@ -1670,7 +1809,7 @@ def main(
                 (out_dir / "report-raw-1.txt").write_text(replies[0], encoding="utf-8")
 
         kept = len(replies)
-        if len(replies) > 1:
+        if len(replies) > 1 and not full:
             rounds.append(check(build(replies[1])))
             if not is_whole(parse_reply(replies[1])):
                 # The second reply lost headings, which is what a reply cut short at the cap
@@ -1693,7 +1832,7 @@ def main(
         if args.out:
             (out_dir / args.out).write_text(report, encoding="utf-8")
 
-        calls = 0 if args.from_reply else len(replies)
+        calls = 0 if args.from_reply else len(completions) if full else len(replies)
         record = {
             "sample": sample_dir.name,
             "model": args.model,
@@ -1702,6 +1841,8 @@ def main(
             "passes": not rounds[kept - 1],
             "calls": calls,
         }
+        if full:
+            record["left_out"] = left_out
         (out_dir / "verify.json").write_text(
             json.dumps(record, indent=2) + "\n", encoding="utf-8"
         )
