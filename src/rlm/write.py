@@ -51,7 +51,7 @@ dossier, and the schedule is those findings' own quotes. The report has no openi
 writer's model, its tokens and what they would cost on the model maker's API are written into
 tree.json under writer, beside the group calls' own.
 
-`--both` writes from the dossier as a run without a flag does and adds, after the digest, the
+`--both --tree-first` puts those findings before the digest. `--both` writes from the dossier as a run without a flag does and adds, after the digest, the
 findings of tree.json whose quote the digest does not hold; the verifier reads the dossier and
 those rows, and the schedule carries their quotes after the dossier's. The prompt and the model
 are the ones above.
@@ -1258,6 +1258,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help="write from the dossier and add the findings tree.json kept that the dossier digest lacks",
     )
+    parser.add_argument(
+        "--tree-first",
+        dest="tree_first",
+        action="store_true",
+        help="with --both, put the tree's findings before the dossier digest instead of after it",
+    )
     return parser.parse_args(argv)
 
 
@@ -1365,7 +1371,7 @@ def main(
             built = tree_stage.read_tree(run_dir)
             extra = tree_stage.unseen_digest(sample_dir, built, digest)
             if extra:
-                digest = f"{digest}\n{extra}"
+                digest = f"{extra}\n{digest}" if args.tree_first else f"{digest}\n{extra}"
                 dossier = f"{dossier}\n{extra}"
                 rows = [*rows, *tree_stage.digest_rows(extra)]
                 evidence = f"{evidence}\n{tree_stage.unseen_evidence(sample_dir, built, plain_digest)}"

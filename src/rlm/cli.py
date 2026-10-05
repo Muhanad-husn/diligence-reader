@@ -174,7 +174,7 @@ def stages_for(rank: str | None, write: str | None = None) -> tuple[str, ...]:
     PICK_STAGES with a ranker, STAGES otherwise."""
     if write == "tree":
         return TREE_STAGES
-    if write == "both":
+    if write in ("both", "both-tree-first"):
         return BOTH_STAGES
     return STAGES if rank is None else PICK_STAGES
 
@@ -384,7 +384,7 @@ def run(args: argparse.Namespace, gateway: Gateway | None, ledger: Ledger | None
                 if dossier_stage.main([str(room), str(run_dir)]) != 0:
                     raise Stopped("unexpected", "the dossier did not run")
 
-            if args.write == "both":
+            if args.write in ("both", "both-tree-first"):
                 state.stage = "tree"
                 if not done("tree", run_dir):
                     state.write("running")
@@ -406,8 +406,10 @@ def run(args: argparse.Namespace, gateway: Gateway | None, ledger: Ledger | None
             write_argv = stage_argv
             if args.write == "tree":
                 write_argv = [*stage_argv, "--tree", "--model", args.writer_model]
-            elif args.write == "both":
+            elif args.write in ("both", "both-tree-first"):
                 write_argv = [*stage_argv, "--both", "--model", args.writer_model]
+                if args.write == "both-tree-first":
+                    write_argv.append("--tree-first")
             elif args.rank is not None:
                 write_argv = [*stage_argv, "--pick"]
             if write_stage.main(write_argv, gateway=gateway, ledger=meter, grader=grader) != 0:
@@ -471,10 +473,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     runner.add_argument(
         "--write",
-        choices=("tree", "both"),
+        choices=("tree", "both", "both-tree-first"),
         default=None,
         help="tree: models read the notes in groups and keep what the report reads, in place of the "
-        "map; both: the report reads the dossier digest and the tree's findings it lacks",
+        "map; both: the report reads the dossier digest and the tree's findings it lacks; "
+        "both-tree-first: the same, the tree's findings first",
     )
     runner.add_argument(
         "--middle-model",
