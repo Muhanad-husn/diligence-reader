@@ -366,3 +366,16 @@ Approved by the founder on 2026-10-05 for #160. The reserve stands at $5 of $15.
 | 2026-10-05 | northwind | 8 | z-ai/glm-5.3 | 13306 | 8038 | 0.0540 | 26.2415 |
 | 2026-10-05 | northstar-dental | 8 | z-ai/glm-5.3-flash | 11416 | 1731 | 0.0026 | 26.2389 |
 | 2026-10-05 | northstar-dental | 8 | z-ai/glm-5.3 | 11673 | 9382 | 0.0576 | 26.1813 |
+| 2026-10-05 | room | 8 | claude-code/claude-sonnet-5-5 | 1065401 | 25424 | 0.0000 | 26.1813 |
+| 2026-10-05 | room | 8 | claude-code/claude-sonnet-5-5 | 94088 | 17402 | 0.0000 | 26.1813 |
+| 2026-10-05 | atlas | 8 | claude-code/claude-sonnet-5-5 | 226008 | 15792 | 0.0000 | 26.1813 |
+| 2026-10-05 | atlas | 8 | claude-code/claude-sonnet-5-5 | 66100 | 13250 | 0.0000 | 26.1813 |
+| 2026-10-05 | northwind | 8 | claude-code/claude-sonnet-5-5 | 74401 | 3648 | 0.0000 | 26.1813 |
+| 2026-10-05 | northwind | 8 | claude-code/claude-sonnet-5-5 | 21399 | 5449 | 0.0000 | 26.1813 |
+| 2026-10-05 | northstar-dental | 8 | claude-code/claude-sonnet-5-5 | 18022 | 2406 | 0.0000 | 26.1813 |
+| 2026-10-05 | northstar-dental | 8 | claude-code/claude-sonnet-5-5 | 17399 | 8245 | 0.0000 | 26.1813 |
+Rows below this line book the cost the gateway reported for the call (#160), not the PRICES rate of its tokens.
+| 2026-10-05 | northwind | 8 | z-ai/glm-5.3 | 37371 | 6402 | 0.0376 | 26.1437 |
+| 2026-10-05 | northstar-dental | 8 | z-ai/glm-5.3 | 22376 | 5019 | 0.0209 | 26.1228 |
+| 2026-10-05 | atlas | 8 | z-ai/glm-5.3 | 62706 | 12012 | 0.0519 | 26.0709 |
+| 2026-10-05 | room | 8 | z-ai/glm-5.3 | 109771 | 21122 | 0.0966 | 25.9743 |
