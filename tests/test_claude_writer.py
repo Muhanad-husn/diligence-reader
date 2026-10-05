@@ -207,3 +207,11 @@ def test_a_glm_writer_of_both_is_unchanged(tmp_path):
     assert call["max_tokens"] == write.MAX_OUTPUT_TOKENS
     assert call["messages"][0]["content"].startswith(write.PROMPT)
     assert "the loan is repaid" not in call["messages"][1]["content"]
+
+
+def test_the_group_prompt_asks_for_each_flag_that_bears_on_the_deal_with_its_facts_named():
+    prompt = tree.TREE_PROMPT
+    assert "one at a time" in prompt
+    assert "a finding of its own" in prompt
+    assert "the parties and the people by name" in prompt
+    assert prompt.index("one at a time") < prompt.index("Answer with one JSON object")
