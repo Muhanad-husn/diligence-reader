@@ -45,6 +45,10 @@ rlm.pick chose, whole and in rank order, the verifier reads that digest as its d
 schedule is those notes' own words, and the report opens with one line naming the deal type.
 The prompt, the model and the verifier are the ones above.
 
+`--tree` writes from tree.json in the same way: the digest is the findings rlm.tree's group
+calls kept, grouped by document in the room's order, the verifier reads that digest as its
+dossier, and the schedule is those findings' own quotes. The report has no opening line.
+
 Both calls run inside one ledger batch, which prints the estimated tokens and the price before
 anything is sent and writes one phase 5 row of LEDGER.md, summed over the calls, when they
 return.
@@ -1227,6 +1231,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help="write from the documents pick.json chose, their notes whole, in place of the dossier",
     )
+    parser.add_argument(
+        "--tree",
+        action="store_true",
+        help="write from the findings tree.json kept, in place of the dossier",
+    )
     return parser.parse_args(argv)
 
 
@@ -1275,11 +1284,12 @@ def main(
     sample_dir = Path(args.sample_dir)
     run_dir = Path(args.run_dir)
     brief = brief_path(sample_dir)
-    dossier_path = run_dir / ("pick.json" if args.pick else "dossier.md")
+    source = "pick" if args.pick else "tree" if args.tree else "dossier"
+    dossier_path = run_dir / {"pick": "pick.json", "tree": "tree.json", "dossier": "dossier.md"}[source]
     sections_path = run_dir / "sections.jsonl"
     index_path = run_dir / "index.jsonl"
     if not dossier_path.exists():
-        print(f"no {'pick' if args.pick else 'dossier'} at {dossier_path}")
+        print(f"no {source} at {dossier_path}")
         return 2
     if not sections_path.exists():
         print(f"no sections.jsonl at {sections_path}")
@@ -1304,6 +1314,17 @@ def main(
         evidence, cut = pick_stage.pick_evidence(sample_dir, run_dir, picked), 0
         mapping = None
         opening = pick_stage.deal_line(picked["deal"]) + "\n\n"
+    elif args.tree:
+        # The findings the group calls kept are the digest, and the verifier reads the same
+        # text as its dossier, as in pick mode.
+        from rlm import tree as tree_stage
+
+        built = tree_stage.read_tree(run_dir)
+        digest = tree_stage.tree_digest(sample_dir, run_dir, built)
+        dossier = digest
+        rows = tree_stage.digest_rows(digest)
+        evidence, cut = tree_stage.tree_evidence(sample_dir, run_dir, built), 0
+        mapping = None
     else:
         dossier = dossier_path.read_text(encoding="utf-8")
         digest = digest_markdown(dossier)

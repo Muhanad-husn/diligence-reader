@@ -12,6 +12,11 @@ checklist for the deal `--deal` names, share by default, and the writer reads th
 documents' notes whole. pick is done when pick.json is there. Without `--rank` the run is the
 one above and `--deal` changes nothing.
 
+`--write tree` runs rlm.tree in place of the map and the dossier: the stages are ingest, notes,
+tree, write and export, the room's notes are read in groups by a model that keeps the findings
+a deal committee must see, and the writer reads those findings. tree is done when tree.json is
+there. It does not go with `--rank`.
+
 Before the first model call the command prints what the calls ahead will cost: the input tokens
 counted by the gateway's counter and the dollars, then asks y/N. `--yes` answers for the user.
 Anything but y stops the run as declined with nothing sent. The notes are priced on the counted
@@ -59,6 +64,7 @@ from rlm import ingest as ingest_stage
 from rlm import map as map_stage
 from rlm import notes as notes_stage
 from rlm import pick as pick_stage
+from rlm import tree as tree_stage
 from rlm import write as write_stage
 from rlm.gateway import (
     PHASE_CAPS,
@@ -77,6 +83,9 @@ STAGES = ("ingest", "notes", "map", "dossier", "write", "export")
 
 # The stages of a run given a ranker: pick stands where the map and the dossier stood.
 PICK_STAGES = ("ingest", "notes", "pick", "write", "export")
+
+# The stages of a run given the tree writer: tree stands where the map and the dossier stood.
+TREE_STAGES = ("ingest", "notes", "tree", "write", "export")
 
 # The codes a failed run ends on, one per failure, each with its fix in the README.
 ERROR_CODES = (
@@ -151,8 +160,11 @@ def read_json(path: Path) -> dict | None:
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
-def stages_for(rank: str | None) -> tuple[str, ...]:
-    """The stages a run takes: STAGES without a ranker, PICK_STAGES with one."""
+def stages_for(rank: str | None, write: str | None = None) -> tuple[str, ...]:
+    """The stages a run takes: TREE_STAGES with the tree writer, PICK_STAGES with a ranker,
+    STAGES otherwise."""
+    if write == "tree":
+        return TREE_STAGES
     return STAGES if rank is None else PICK_STAGES
 
 
@@ -169,6 +181,8 @@ def done(stage: str, run_dir: Path) -> bool:
         return (run_dir / "dossier.md").exists()
     if stage == "pick":
         return (run_dir / pick_stage.PICK_FILE).exists()
+    if stage == "tree":
+        return (run_dir / tree_stage.TREE_FILE).exists()
     if stage == "write":
         record = read_json(run_dir / "verify.json")
         return bool(record) and record.get("passes") is True
@@ -300,6 +314,9 @@ def run(args: argparse.Namespace, gateway: Gateway | None, ledger: Ledger | None
     if not room.is_dir():
         print(f"no room at {room}")
         return 2
+    if args.write == "tree" and args.rank is not None:
+        print("--write tree does not go with --rank")
+        return 2
     if args.phase is not None and ledger is None:
         ledger = Ledger(Path(__file__).resolve().parents[2] / "LEDGER.md")
     meter = Meter(ledger if args.phase is not None else None)
@@ -336,7 +353,13 @@ def run(args: argparse.Namespace, gateway: Gateway | None, ledger: Ledger | None
             if not done("notes", run_dir):
                 raise Stopped("empty-reply", "no document of the room was noted")
 
-        if args.rank is None:
+        if args.write == "tree":
+            state.stage = "tree"
+            if not done("tree", run_dir):
+                state.write("running")
+                if tree_stage.main([str(room), str(run_dir), "--phase", phase], gateway=gateway, ledger=meter) != 0:
+                    raise Stopped("unexpected", "the tree did not run")
+        elif args.rank is None:
             state.stage = "map"
             if not done("map", run_dir):
                 state.write("running")
@@ -360,7 +383,11 @@ def run(args: argparse.Namespace, gateway: Gateway | None, ledger: Ledger | None
         if write_left:
             state.write("running")
             grader = grade_recall if has_key(room) else None
-            write_argv = stage_argv if args.rank is None else [*stage_argv, "--pick"]
+            write_argv = stage_argv
+            if args.write == "tree":
+                write_argv = [*stage_argv, "--tree"]
+            elif args.rank is not None:
+                write_argv = [*stage_argv, "--pick"]
             if write_stage.main(write_argv, gateway=gateway, ledger=meter, grader=grader) != 0:
                 raise Stopped("unexpected", "the write did not start")
             if not done("write", run_dir):
@@ -419,6 +446,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         choices=pick_stage.DEALS,
         default="share",
         help="the deal type the checklist is asked for; it matters only with --rank",
+    )
+    runner.add_argument(
+        "--write",
+        choices=("tree",),
+        default=None,
+        help="tree: models read the notes in groups and keep what the report reads, in place of the map",
     )
     args = parser.parse_args(argv)
     if args.command is None:
