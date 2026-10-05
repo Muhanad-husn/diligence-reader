@@ -53,9 +53,10 @@ def check_pick(room: Path, run_dir: Path, arm: str) -> dict:
     ranked = [row["doc"] for row in picked["ranked"]]
     assert sorted(ranked) == sorted(room_documents(room))
     chosen = picked["chosen"]
-    assert chosen == ranked[: len(chosen)]
+    assert chosen and chosen == ranked[: len(chosen)]
     rows = sum(flag_count(run_dir, doc) for doc in chosen)
-    assert picked["rows"] == rows <= pick.DIGEST_ROWS
+    assert picked["rows"] == rows
+    assert rows <= pick.DIGEST_ROWS or len(chosen) == 1
     if len(chosen) < len(ranked):
         assert rows + flag_count(run_dir, ranked[len(chosen)]) > pick.DIGEST_ROWS
     return picked

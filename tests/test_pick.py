@@ -86,6 +86,13 @@ def test_choosing_counts_a_document_with_no_note_as_no_rows():
     assert rows == 15
 
 
+def test_the_first_document_is_taken_whole_even_past_the_rows():
+    notes = notes_with({"a": 300, "b": 5})
+    chosen, rows = pick.choose(["a", "b"], notes, cap=150)
+    assert chosen == ["a"]
+    assert rows == 300
+
+
 def test_choosing_uses_the_digest_rows_by_default():
     assert pick.choose.__defaults__[0] == write.DIGEST_ROWS == 150
 
