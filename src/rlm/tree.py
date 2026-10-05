@@ -101,6 +101,12 @@ from its `id: ` line, the finding in one or two sentences with its numbers and n
 quote copied character for character from that document's note, the quote of one of its flags
 or figures or a part of one.
 
+Go through the documents one at a time. Each risk flagged in a document that bears on the
+price, the terms of the deal, what a buyer inherits or what has to be settled before signing is
+a finding of its own; flags of one document that say the same thing are one finding. A finding
+names its facts as the note gives them: the parties and the people by name, the document by its
+title and its date, and every amount, share count, multiple, percentage, period and trigger.
+
 Answer with one JSON object and nothing else:
 
 {{"findings": [{{"doc": "<id>", "finding": "<one or two sentences>", "quote": "<words copied from the note>"}}]}}
