@@ -54,9 +54,11 @@ from rlm.notes import (
     harvest_figures,
     item_detail,
     locate_quote,
+    halve,
     main,
     model_note,
     named_values,
+    note_and_write,
     note_document,
     note_name,
     split_sections,
@@ -374,6 +376,46 @@ def test_gateway_complete_refuses_two_draws_with_no_reply_and_names_what_it_saw(
     assert len(transport.requests) == 2
     for named in (MODEL, "Wafer", "Kestrel", "length", "6000", "24000", "no content", "20 characters"):
         assert named in said, named
+
+
+
+def test_gateway_complete_two_cut_off_draws_raise_no_reply_that_says_it_ran_out_of_room():
+    """Both draws finishing on length is a request that ran out of room: the error carries the
+    summed tokens and cut_off, so a caller can split the request and the draws are booked."""
+    transport = FakeTransport(
+        [cut_off_reply(tokens_in=500, tokens_out=6000), cut_off_reply(tokens_in=500, tokens_out=5900)]
+    )
+    gateway = Gateway(api_key="test-key", transport=transport)
+
+    with pytest.raises(NoReply) as raised:
+        gateway.complete(MODEL, [{"role": "user", "content": "u"}], max_tokens=6000)
+
+    assert raised.value.cut_off is True
+    assert raised.value.tokens_in == 1000
+    assert raised.value.tokens_out == 11900
+    assert raised.value.seconds >= 0
+
+
+def test_gateway_complete_a_draw_that_stopped_with_no_content_is_not_a_cut_off():
+    """One draw cut off and one that stopped on its own with null content did not both run out
+    of room, so cut_off is false and the tokens are still summed."""
+    stopped = reply("placeholder", tokens_in=500, tokens_out=30)
+    stopped["choices"][0]["message"]["content"] = None
+    transport = FakeTransport([cut_off_reply(tokens_in=500, tokens_out=6000), stopped])
+    gateway = Gateway(api_key="test-key", transport=transport)
+
+    with pytest.raises(NoReply) as raised:
+        gateway.complete(MODEL, [{"role": "user", "content": "u"}], max_tokens=6000)
+
+    assert raised.value.cut_off is False
+    assert raised.value.tokens_in == 1000
+    assert raised.value.tokens_out == 6030
+
+
+def test_no_reply_with_a_message_alone_still_builds():
+    error = NoReply("no reply")
+    assert str(error) == "no reply"
+    assert (error.tokens_in, error.tokens_out, error.seconds, error.cut_off) == (0, 0, 0.0, False)
 
 
 def test_gateway_complete_says_so_where_the_body_names_no_provider():
@@ -1222,6 +1264,228 @@ def test_one_document_the_reask_lists_the_failed_items_then_the_uncovered_values
     assert asked.index("These items of your reply") < asked.index(opening)
     assert "286m" in asked
 
+
+
+# ---------------------------------------------------------------- one document: a piece that runs out of room
+# A call on a piece of dense text can spend all of MAX_OUTPUT_TOKENS on both draws, and the
+# gateway then raises NoReply with cut_off true. The piece is cut in two at a section boundary
+# and each half is noted, down to one section; only a single section that still runs out is
+# dropped.
+
+RUN_OUT = "run out of room"
+CLAUSE_C = "The indemnity cap is $3m for all claims."
+CLAUSE_D = "Notice of termination must be given within 30 days."
+
+
+class RunsOut:
+    """A note call that answers each scripted entry in turn: RUN_OUT raises the NoReply the
+    gateway raises when both draws were cut off, any other entry is the reply text."""
+
+    def __init__(self, script: list[str], cut_off: bool = True):
+        self.script = list(script)
+        self.cut_off = cut_off
+        self.messages: list[list[dict]] = []
+
+    def __call__(self, messages: list[dict]) -> Completion:
+        self.messages.append(messages)
+        entry = self.script.pop(0)
+        if entry == RUN_OUT:
+            raise NoReply(
+                "no reply", tokens_in=1000, tokens_out=12000, seconds=0.2, cut_off=self.cut_off
+            )
+        return Completion(text=entry, tokens_in=1000, tokens_out=200, seconds=0.1, model=MODEL)
+
+
+def flag_reply(what: str, name: str, quote: str) -> str:
+    return json.dumps(
+        {
+            "what": what,
+            "flags": [{"flag": name, "quote": quote, "consequence": "c", "about": []}],
+            "figures": [],
+            "cross_references": [],
+            "concealed": [],
+        }
+    )
+
+
+def four_sections() -> list[dict]:
+    """Four sections of the same length, so the balanced cut is after the second."""
+    return [
+        section(ordinal, text.ljust(80, "."))
+        for ordinal, text in enumerate([SENTENCE, EGRESS, CLAUSE_C, CLAUSE_D], start=1)
+    ]
+
+
+def dropped_whole(doc: str) -> dict:
+    return {
+        "doc": doc,
+        "field": None,
+        "item": None,
+        "quote": None,
+        "detail": None,
+        "outcome": "note-dropped",
+        "attempt": 1,
+    }
+
+
+def test_halve_cuts_at_the_boundary_that_balances_the_two_halves_and_keeps_order():
+    sections = [section(1, "x" * 40), section(2, "x" * 10), section(3, "x" * 10), section(4, "x" * 40)]
+    first, second = halve(sections)
+    assert [s["ordinal"] for s in first] == [1, 2]
+    assert [s["ordinal"] for s in second] == [3, 4]
+    lopsided = [section(1, "x" * 100), section(2, "x" * 10), section(3, "x" * 10)]
+    first, second = halve(lopsided)
+    assert [s["ordinal"] for s in first] == [1]
+    assert [s["ordinal"] for s in second] == [2, 3]
+
+
+def test_halve_takes_the_first_boundary_on_a_tie():
+    sections = [section(1, "x" * 10), section(2, "x" * 10), section(3, "x" * 10)]
+    first, second = halve(sections)
+    assert [s["ordinal"] for s in first] == [1]
+    assert [s["ordinal"] for s in second] == [2, 3]
+
+
+def test_a_short_document_that_runs_out_of_room_is_noted_in_two_halves():
+    """Three calls: the whole, then each half seeing only its own sections. The flags of both
+    halves are in the note in document order, and nothing is dropped."""
+    sections = four_sections()
+    calls = RunsOut(
+        [RUN_OUT, flag_reply("first half", "f", SENTENCE), flag_reply("second half", "g", CLAUSE_C)]
+    )
+    note, records = note_document(DR_069, MODEL, "a", sections, calls, named=[])
+    assert len(calls.messages) == 3
+    first_half = calls.messages[1][-1]["content"]
+    second_half = calls.messages[2][-1]["content"]
+    assert SENTENCE in first_half and EGRESS in first_half
+    assert CLAUSE_C not in first_half and CLAUSE_D not in first_half
+    assert CLAUSE_C in second_half and CLAUSE_D in second_half
+    assert SENTENCE not in second_half and EGRESS not in second_half
+    assert note["what"] == "first half"
+    assert [flag["flag"] for flag in note["flags"]] == ["f", "g"]
+    assert note["flags"][1]["anchor"] == sections[2]["anchor"]
+    assert [figure["surface"] for figure in note["figures"]] == ["$12m", "$3m"]
+    assert note["usage"] == {}
+    assert records == []
+
+
+def test_a_half_that_runs_out_of_room_is_halved_again():
+    sections = four_sections()
+    calls = RunsOut(
+        [
+            RUN_OUT,
+            RUN_OUT,
+            flag_reply("one", "a", SENTENCE),
+            flag_reply("two", "b", EGRESS),
+            flag_reply("three", "c", CLAUSE_C),
+        ]
+    )
+    note, records = note_document(DR_069, MODEL, "a", sections, calls, named=[])
+    assert len(calls.messages) == 5
+    assert EGRESS not in calls.messages[2][-1]["content"]
+    assert SENTENCE not in calls.messages[3][-1]["content"]
+    assert [flag["flag"] for flag in note["flags"]] == ["a", "b", "c"]
+    assert records == []
+
+
+def test_a_section_that_runs_out_of_room_is_dropped_alone():
+    sections = four_sections()[:2]
+    calls = RunsOut([RUN_OUT, RUN_OUT, flag_reply("second", "g", EGRESS)])
+    note, records = note_document(DR_069, MODEL, "a", sections, calls, named=[])
+    assert len(calls.messages) == 3
+    assert [flag["flag"] for flag in note["flags"]] == ["g"]
+    assert note["what"] == "second"
+    assert records == [dropped_whole(DR_069)]
+
+
+def test_a_document_whose_only_section_runs_out_of_room_gives_no_note():
+    calls = RunsOut([RUN_OUT])
+    note, records = note_document(DR_069, MODEL, "a", [section(1, SENTENCE)], calls, named=[])
+    assert note is None
+    assert len(calls.messages) == 1
+    assert records == [dropped_whole(DR_069)]
+
+
+def test_a_no_reply_that_did_not_run_out_of_room_still_propagates():
+    calls = RunsOut([RUN_OUT], cut_off=False)
+    with pytest.raises(NoReply):
+        note_document(DR_069, MODEL, "a", four_sections(), calls, named=[])
+    assert len(calls.messages) == 1
+
+
+def test_a_long_document_piece_that_runs_out_of_room_is_halved_inside_its_piece():
+    """The first piece (two sections) is halved on its own; the second piece is one call."""
+    sections = long_sections(3, 9000)
+    sections[0]["text"] = sections[0]["text"] + " " + SENTENCE
+    sections[2]["text"] = sections[2]["text"] + " " + EGRESS
+    calls = RunsOut(
+        [
+            RUN_OUT,
+            flag_reply("a", "f", SENTENCE),
+            flag_reply("b", "h", LONG_WORDS.strip()),
+            flag_reply("c", "g", EGRESS),
+        ]
+    )
+    note, records = note_document(DR_069, MODEL, "a", sections, calls, named=[])
+    assert len(calls.messages) == 4
+    assert [flag["flag"] for flag in note["flags"]] == ["f", "h", "g"]
+    assert records == []
+
+
+class FakeGateway:
+    """Answers each scripted outcome in turn: an exception is raised, a text is a reply."""
+
+    def __init__(self, script: list):
+        self.script = list(script)
+
+    def complete(self, model, messages, max_tokens, json=True):
+        entry = self.script.pop(0)
+        if isinstance(entry, Exception):
+            raise entry
+        return Completion(text=entry, tokens_in=1000, tokens_out=200, seconds=0.1, model=model)
+
+
+class FakeBatch:
+    def __init__(self):
+        self.tokens_in = 0
+        self.tokens_out = 0
+
+    def record(self, completion: Completion) -> Completion:
+        self.tokens_in += completion.tokens_in
+        self.tokens_out += completion.tokens_out
+        return completion
+
+
+def test_note_and_write_books_the_draws_a_cut_off_no_reply_was_paid(tmp_path):
+    """The two cut-off draws are in the batch and in the note's usage, though they gave no text."""
+    ran_out = NoReply("no reply", tokens_in=1000, tokens_out=12000, seconds=0.2, cut_off=True)
+    gateway = FakeGateway(
+        [ran_out, flag_reply("first", "f", SENTENCE), flag_reply("second", "g", EGRESS)]
+    )
+    batch = FakeBatch()
+    sections = [section(1, SENTENCE), section(2, EGRESS)]
+    doc_id, note, records = note_and_write(
+        "DR-069", DR_069, sections, MODEL, "a", tmp_path, gateway, batch, named=[]
+    )
+    assert records == []
+    assert [flag["flag"] for flag in note["flags"]] == ["f", "g"]
+    assert batch.tokens_in == 3000
+    assert batch.tokens_out == 12400
+    assert note["usage"]["tokens_in"] == 3000
+    assert note["usage"]["tokens_out"] == 12400
+    assert note["usage"]["calls"] == 3
+
+
+def test_note_and_write_books_a_dropped_section_and_drops_only_it(tmp_path):
+    ran_out = NoReply("no reply", tokens_in=1000, tokens_out=12000, seconds=0.2, cut_off=True)
+    gateway = FakeGateway([ran_out])
+    batch = FakeBatch()
+    doc_id, note, records = note_and_write(
+        "DR-069", DR_069, [section(1, SENTENCE)], MODEL, "a", tmp_path, gateway, batch
+    )
+    assert note is None
+    assert records == [dropped_whole(DR_069)]
+    assert (batch.tokens_in, batch.tokens_out) == (1000, 12000)
 
 
 # ---------------------------------------------------------------- notes: main with a fake gateway
