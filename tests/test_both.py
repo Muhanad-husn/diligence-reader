@@ -104,3 +104,28 @@ def test_the_writer_of_both_records_its_cost_in_tree_json(tmp_path):
     argv = ["run", str(room), "--out", str(run_dir), "--yes", "--write", "both"]
     cli.main(argv, gateway=gateway_for(TreeRoomTransport()), ledger=write_ledger(tmp_path / "L.md"))
     assert json.loads((run_dir / tree.TREE_FILE).read_text(encoding="utf-8"))["writer"]["model"] == write.DEFAULT_MODEL
+
+
+def test_the_stages_and_flag_of_the_tree_first_order():
+    assert cli.stages_for(None, "both-tree-first") == cli.BOTH_STAGES
+    assert cli.parse_args(["run", "room", "--write", "both-tree-first"]).write == "both-tree-first"
+
+
+def test_the_command_with_both_tree_first_puts_the_tree_section_before_the_dossier_digest(tmp_path):
+    room = copy_room(tmp_path)
+    run_dir = tmp_path / "run"
+    transport = TreeRoomTransport()
+    argv = ["run", str(room), "--out", str(run_dir), "--yes", "--write", "both-tree-first"]
+    code = cli.main(argv, gateway=gateway_for(transport), ledger=write_ledger(tmp_path / "L.md"))
+
+    assert code == 0, (run_dir / "run.json").read_text(encoding="utf-8")
+    dossier = (run_dir / "dossier.md").read_text(encoding="utf-8")
+    plain = write.digest_markdown(dossier)
+    digest = (run_dir / "digest.md").read_text(encoding="utf-8")
+    built = tree.read_tree(run_dir)
+    section = tree.unseen_digest(room, built, plain)
+    assert section
+    assert digest == f"{section}\n{plain}"
+    writer_message = [b for b in transport.requests if b["model"] == write.DEFAULT_MODEL][0]["messages"][1]["content"]
+    assert writer_message == digest
+    assert json.loads((run_dir / "verify.json").read_text(encoding="utf-8"))["passes"] is True
