@@ -98,6 +98,7 @@ rubric are on sample 1's variants; its dollars are every phase 6 row of `LEDGER.
 | 6 Widen | Phase 6 | done | recall 100 / 100 / 97.9 / 98.5 / 98.1, rubric 100 / 94 / 98 / 99 / 100 | 7.78 | 0 / 6 / 2 / 1 / 1 | 2026-09-09 |
 | 7 Compare | Phase 7 | done | sample 4 recall 86.4 | 0.26 | one run | 2026-09-09 |
 | 8 Product | Phase 8 | done | 100 / 87.5 / 100 | 2.51 | 1.9 / 6.3 / 0 | 2026-10-04 |
+| 8 #160 new room | Phase 8 | done | sensar 74, mri 81, avid 84 (Claude) | 8.30 | one run | 2026-10-06 |
 
 Phase 5's row was restated on 2026-09-09 by the phase 6 gate, which rewrote the three gate
 samples' reports after PR #119 changed the map under them: rubric 90 to 100, spread 4 / 0 / 0
@@ -188,6 +189,46 @@ A citation in the report viewer opens the source page with the cited line marked
 The gate: the closing issue `Phase 8 gate` runs the three gate samples through the Docker image
 from the web interface, checks recall against the command line's 100 / 100 / 100 and every
 planted fact out of the three export files, and writes the row in 4a.
+
+### 4d. Issue #160, a new room
+
+Why: the first blind room (Avid, 100 contracts from the Stanford Material Contracts Corpus)
+held 22 of 25 key facts in its notes but the report carried 7. The map, set and dossier rules
+that choose what the writer reads were tuned on the three samples.
+
+Two sealed rooms were picked by metadata with a fixed seed: MRI Interventions (mri) and Sensar
+Corp (sensar), each a company's earliest 100 contracts. A separate agent built their keys
+(26 and 27 facts) and stored them outside the repository.
+
+Tried and failed: ranking the room against a fixed acquisition checklist (src/rlm/checklists/
+acquisition.md, 34 questions) with a model or with Jev. Neither held the samples (atlas 7.55
+and 20.75). The open-model tree writer (GLM 5.3 Flash picks findings by group, GLM 5.3 writes,
+frozen at tag 160-frozen) held the samples at 100 / 100 / 100 but failed both sealed rooms:
+mri 4 of 26 and sensar 0 of 27 in the written analysis.
+
+What works: the same tree with Sonnet 5.5 through Claude Code for the group step and the
+writer (`--write both-tree-first --middle-model claude-code/claude-sonnet-5-5 --writer-model
+claude-code/claude-sonnet-5-5`, frozen at tag 160-claude-frozen). Notes stay on GLM 5.3 Flash.
+
+| Room | Before | Open models | Claude |
+|---|---|---|---|
+| Avid (practice) | 2/25 | 11/25 | 21/25 |
+| MRI (practice for Claude) | not run | 4/26 | 21/26 |
+| Sensar (sealed) | not run | 0/27 | 20/27 (74%) |
+| Samples | 100 / 87.5 / 100 | 100 / 100 / 100 | 100 / 100 / 100 |
+
+Scores count key facts in the written analysis, before the Evidence section.
+
+Caveat: only sensar was sealed for the Claude version; mri was used while building it, after
+the open-model run had read its score. The issue's rule asked for two.
+
+Money: the issue spent its 6 dollars from the reserve plus 2.50 more, raised to fit the credits
+left on OpenRouter with no top-up; the Sonnet steps ran at 0 dollars on the founder's
+subscription. Notes cost about 2.30 to 2.70 per 100-document room on GLM 5.3 Flash.
+
+What follows: the writer keeps its default until the model configuration issue (#161) lands, since the
+Docker image has no Claude Code; the founder will open a separate experiment on more general
+questions.
 
 ## 5. Models
 

@@ -86,7 +86,9 @@ def test_each_sample_recall_in_each_arm_is_the_recorded_result(sample, arm):
 def test_each_sample_run_ranks_every_document_and_chooses_by_the_rule(sample, arm):
     run_dir = sample_run(sample, arm)
     check_pick(ROOT / "samples" / sample, run_dir, arm)
-    assert read(run_dir / "run.json")["status"] == "done"
+    # The recorded result: northwind's model-ranked report failed the verifier.
+    expected = "failed" if (sample, arm) == ("northwind", "llm") else "done"
+    assert read(run_dir / "run.json")["status"] == expected
     assert not (run_dir / "map.json").exists()
     assert not (run_dir / "dossier.md").exists()
     report = (run_dir / "report.md").read_text(encoding="utf-8")
