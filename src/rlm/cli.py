@@ -39,7 +39,8 @@ A report that failed the verifier is a stopped stage; running again writes it ag
 run.json in the run folder is written at every stage boundary: the stage, the status (running,
 done or failed), the error code (null when there is none), the documents noted, the dollars
 spent, the version, the estimate and, where the room has a key, the recall. The dollars are
-everything this run folder's calls cost, carried across every start of it.
+everything this run's own calls cost, carried across every start of it by run.json. Notes
+copied in from an earlier run are not this run's spend.
 
 Every failure exits non-zero and writes one code to run.json, from ERROR_CODES. The message
 printed with it is the exception's, which names a status, a file or a model and never the key.
@@ -282,18 +283,9 @@ class RunState:
         self.run_dir = run_dir
         self.meter = meter
         before = read_json(run_dir / RUN_FILE) or {}
-        self.carried = float(before.get("dollars", 0.0)) if before else self.summaries_dollars()
+        self.carried = float(before.get("dollars", 0.0))
         self.estimate = before.get("estimate")
         self.stage = "ingest"
-
-    def summaries_dollars(self) -> float:
-        """What a run folder with no run.json already paid, as its summaries record it."""
-        total = 0.0
-        for name in ("notes-summary.json", "write-summary.json"):
-            summary = read_json(self.run_dir / name)
-            if summary:
-                total += float(summary.get("dollars", 0.0))
-        return total
 
     def write(self, status: str, code: str | None = None) -> None:
         """Writes run.json with this stage, this status and the counts read off the run folder."""

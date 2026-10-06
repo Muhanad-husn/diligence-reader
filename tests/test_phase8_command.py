@@ -536,3 +536,18 @@ def readout(terminalreporter):
             f"phase 8 {sample} command line: status {state['status']}, recall {state.get('recall')}, "
             f"estimate ${state['estimate']:.4f}, spent ${state['dollars']:.4f}"
         )
+
+
+def test_a_run_folder_with_summaries_and_no_run_json_counts_only_this_runs_calls(tmp_path):
+    """Notes copied into a folder were paid for by an earlier run; this run did not spend them."""
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "notes-summary.json").write_text(json.dumps({"noted": 3, "dollars": 5.9}), encoding="utf-8")
+    (run_dir / "write-summary.json").write_text(json.dumps({"dollars": 1.25}), encoding="utf-8")
+    meter = cli.Meter()
+    meter.add(NOTES_MODEL, 0, 0, 0.0)
+
+    state = cli.RunState(run_dir, meter)
+    state.write("done")
+
+    assert run_json(run_dir)["dollars"] == 0.0
