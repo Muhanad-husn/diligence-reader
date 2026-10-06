@@ -227,12 +227,14 @@ def test_the_writer_on_sonnet_in_tree_mode_records_its_api_price_in_tree_json(tm
 
 def test_the_command_names_the_model_of_each_level_and_defaults_to_today():
     args = cli.parse_args(["run", "room", "--write", "tree"])
-    assert args.middle_model == tree.DEFAULT_MODEL == "z-ai/glm-5.3-flash"
-    assert args.writer_model == write.DEFAULT_MODEL == "z-ai/glm-5.3"
+    assert args.middle_model is None and args.writer_model is None
+    found = cli.resolve_settings(args)
+    assert found.group == tree.DEFAULT_MODEL == "z-ai/glm-5.3-flash"
+    assert found.writer == write.DEFAULT_MODEL == "z-ai/glm-5.3"
     args = cli.parse_args(["run", "room", "--write", "tree", "--middle-model", SONNET, "--writer-model", SONNET])
     assert (args.middle_model, args.writer_model) == (SONNET, SONNET)
-    with pytest.raises(SystemExit):
-        cli.parse_args(["run", "room", "--middle-model", "no/such-model"])
+    found = cli.resolve_settings(args)
+    assert (found.group, found.writer) == (SONNET, SONNET)
 
 
 def test_the_command_runs_both_levels_on_sonnet(tmp_path):

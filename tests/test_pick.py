@@ -486,7 +486,10 @@ def test_the_command_with_a_ranker_runs_pick_in_place_of_map_and_dossier(tmp_pat
         assert (run_dir / name).exists(), name
     state = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
     assert state["status"] == "done"
-    assert (run_dir / "report.md").read_text(encoding="utf-8").startswith(pick.deal_line("asset"))
+    # the models line opens every report; the deal line follows it
+    report = (run_dir / "report.md").read_text(encoding="utf-8")
+    assert report.startswith("Models: ")
+    assert report.split("\n\n", 1)[1].startswith(pick.deal_line("asset"))
 
 
 def test_the_command_without_a_ranker_runs_the_map_and_the_dossier_as_before(tmp_path):
