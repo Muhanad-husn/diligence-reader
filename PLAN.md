@@ -250,6 +250,19 @@ rewritten here the day a bake-off runs, and the day the weekly model check finds
 price moved, since the estimate a user confirms is built from this table. A bake-off's winner
 stands at the prices of its day.
 
+**Client rooms, founder's decision of 2026-10-06.** A room that must not leave Anthropic's
+terms runs all on Claude: Claude Haiku 4.5 for the notes and Claude Sonnet 5.5 for the group step
+and the writer, through the Anthropic API directly (Claude for Startups credits), with AWS
+Bedrock as the second route (Activate credits). The ids are `anthropic/<model>` and
+`bedrock/<model>`, kept in `src/rlm/models.py`, which refuses any other. Per million tokens,
+Anthropic's pricing page of 2026-10-06: Haiku 4.5 is $1 in and $5 out, a cache read $0.10 and a
+five minute cache write $1.25; Sonnet 5.5 is $2 in and $10 out, $0.20 and $2.50. The Message
+Batches API takes half off every rate, for the notes only, and stacks with caching. Bedrock's
+global profile is priced as Anthropic's; a geographic profile (the default region is
+eu-central-1, so `eu.`) carries a ten percent premium, which the estimate and the books apply to
+both models. These two models are the client preset; the defaults above are unchanged, and the
+bake-off tables above were not rerun for them.
+
 What one full note pass on sample 1 cost at the prices of 2026-09-06 (about 90k tokens in, about
 60k out
 with a tight schema): DeepSeek Flash $0.01, GLM Flash $0.02, Luna $0.09, DeepSeek Pro $0.14,

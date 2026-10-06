@@ -47,9 +47,13 @@ The prompt, the model and the verifier are the ones above.
 
 `--tree` writes from tree.json in the same way: the digest is the findings rlm.tree's group
 calls kept, grouped by document in the room's order, the verifier reads that digest as its
-dossier, and the schedule is those findings' own quotes. The report has no opening line. The
-writer's model, its tokens and what they would cost on the model maker's API are written into
+dossier, and the schedule is those findings' own quotes. The report has no opening line of its
+own. The writer's model, its tokens and what they would cost on the model maker's API are written into
 tree.json under writer, beside the group calls' own.
+
+`--models-line` opens the report with one line naming the model of each task, ahead of any other
+opening line; the command passes it on every run so a reader sees what wrote the report. The line
+carries no citation and the verifier reads only the sentences that do.
 
 `--both --tree-first` puts those findings before the digest. `--both` writes from the dossier as a run without a flag does and adds, after the digest, the
 findings of tree.json whose quote the digest does not hold; the verifier reads the dossier and
@@ -102,6 +106,7 @@ from pathlib import Path
 
 from rlm.amounts import normalise_amount
 from rlm.gateway import CLAUDE_CODE_MODELS, PHASE_CAPS, Completion, Gateway, Ledger, NoReply, api_price, estimate_tokens, price, priced
+from rlm.models import is_sonnet_tier
 from rlm.notes import reask_messages
 
 PHASE = 5
@@ -1592,9 +1597,10 @@ def summary_line(summary: dict) -> str:
 
 
 def writes_in_full(model: str) -> bool:
-    """Says whether a writer model is asked for every finding, on FULL_PROMPT: a Claude Code
-    model, whose reply is not held to MAX_OUTPUT_TOKENS."""
-    return model in CLAUDE_CODE_MODELS
+    """Says whether a writer model is asked for every finding, on FULL_PROMPT: Sonnet 5.5 by any
+    route, a Claude Code model or one of the Anthropic API or Bedrock, whose reply is not held
+    to MAX_OUTPUT_TOKENS."""
+    return model in CLAUDE_CODE_MODELS or is_sonnet_tier(model)
 
 
 def reply_cap(model: str) -> int:
@@ -1663,6 +1669,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--both",
         action="store_true",
         help="write from the dossier and add the findings tree.json kept that the dossier digest lacks",
+    )
+    parser.add_argument(
+        "--models-line",
+        dest="models_line",
+        default=None,
+        help="a line to open the report with, naming the model of each task",
     )
     parser.add_argument(
         "--tree-first",
@@ -1788,6 +1800,9 @@ def main(
                 dossier = f"{dossier}\n{extra}"
                 rows = [*rows, *tree_stage.digest_rows(extra)]
                 evidence = f"{evidence}\n{tree_stage.unseen_evidence(sample_dir, built, plain_digest)}"
+
+    if args.models_line:
+        opening = args.models_line + "\n\n" + opening
 
     full = writes_in_full(args.model)
     brief_text = brief.read_text(encoding="utf-8")

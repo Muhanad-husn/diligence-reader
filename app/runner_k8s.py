@@ -7,9 +7,12 @@ chart writes), so it reads the room from and writes the run into the API's runs 
 
 The key never goes into the Job. The Job carries a one-time run token instead, and its command,
 `python -m app.runner_k8s`, posts that token to the API pod's /runner/key over the cluster
-network once. The API hands the key over, forgets the token, and forgets the key it held for the
-run, so a retry sends the key again. The Job holds the key in its own memory and builds the
-gateway with it; it is never set in an environment, written to a file or logged.
+network once. The API hands the key over, forgets the token, and forgets the keys it held for the
+run, so a retry sends the keys again. A run on the Anthropic API has a second key, which comes
+over with the first under "env" and which the Job gives the gateway directly. The Job holds the
+keys in its own memory; they are never set in an environment, written to a file or logged.
+The run's model settings are in the run folder as models.json and the Job passes them to the
+command. AWS credentials of a bedrock/ model are the pod's own, from its service account role.
 
 A watcher thread per run reads the Job's status every poll seconds and deletes the Job, with its
 pod, when it has succeeded or failed.
@@ -32,7 +35,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from app.runner import deal_args
+from app.runner import deal_args, models_args
 
 # Where Kubernetes mounts a pod's service account: its token, its namespace and the cluster CA.
 ACCOUNT_DIR = Path("/var/run/secrets/kubernetes.io/serviceaccount")
@@ -86,7 +89,7 @@ class KubernetesRunner:
         self._client = httpx.Client(transport=transport, verify=verify, timeout=30)
         self.jobs: dict[str, str] = {}
         self.states: dict[str, str] = {}
-        self.tokens: dict[str, tuple[str, str]] = {}
+        self.tokens: dict[str, tuple[str, str, dict[str, str]]] = {}
         self._lock = threading.Lock()
         self._closing = threading.Event()
         self._watchers: list[threading.Thread] = []
@@ -157,14 +160,16 @@ class KubernetesRunner:
             },
         }
 
-    def start(self, run_id: str, room: Path, run_dir: Path, key: str) -> None:
-        """Creates the run's Job with a fresh one-time token held against the key, and watches it."""
+    def start(
+        self, run_id: str, room: Path, run_dir: Path, key: str, extra_env: dict[str, str] | None = None
+    ) -> None:
+        """Creates the run's Job with a fresh one-time token held against the keys, and watches it."""
         with self._lock:
             if self.states.get(run_id) == "running":
                 raise RuntimeError(f"run {run_id} is already running")
             token = secrets.token_urlsafe(32)
             name = f"run-{run_id}"[:57].rstrip("-") + "-" + secrets.token_hex(2)
-            self.tokens[token] = (run_id, key)
+            self.tokens[token] = (run_id, key, dict(extra_env or {}))
             self.states[run_id] = "running"
         try:
             response = self._client.post(
@@ -207,7 +212,7 @@ class KubernetesRunner:
         with self._lock:
             if self.jobs.get(run_id) == name:
                 self.states[run_id] = "exited"
-            for token, (held, _) in list(self.tokens.items()):
+            for token, (held, _, _) in list(self.tokens.items()):
                 if held == run_id:
                     self.tokens.pop(token)
 
@@ -242,11 +247,12 @@ class KubernetesRunner:
                 return JSONResponse(
                     {"code": "no-token", "message": "no key is held for this token"}, status_code=404
                 )
-            run_id, key = held
-            keys = getattr(request.app.state, "keys", None)
-            if keys is not None:
-                keys.pop(run_id, None)
-            return {"key": key}
+            run_id, key, env = held
+            for name in ("keys", "anthropic_keys"):
+                held_keys = getattr(request.app.state, name, None)
+                if held_keys is not None:
+                    held_keys.pop(run_id, None)
+            return {"key": key, "env": env} if env else {"key": key}
 
         return router
 
@@ -264,17 +270,23 @@ def ended(status: dict) -> bool:
 # ---------------------------------------------------------------- the Job's command
 
 
-def fetch_key(api_url: str, token: str, client: httpx.Client | None = None) -> str:
-    """Posts the one-time token to the API and returns the key it hands over."""
+def fetch_keys(api_url: str, token: str, client: httpx.Client | None = None) -> tuple[str, dict[str, str]]:
+    """Posts the one-time token to the API and returns the key it hands over and the other keys."""
     own = client is None
     client = client if client is not None else httpx.Client(timeout=30)
     try:
         response = client.post(f"{api_url.rstrip('/')}/runner/key", json={"token": token})
         response.raise_for_status()
-        return response.json()["key"]
+        body = response.json()
+        return body["key"], dict(body.get("env") or {})
     finally:
         if own:
             client.close()
+
+
+def fetch_key(api_url: str, token: str, client: httpx.Client | None = None) -> str:
+    """Posts the one-time token to the API and returns the OpenRouter key it hands over."""
+    return fetch_keys(api_url, token, client)[0]
 
 
 def main(
@@ -297,7 +309,7 @@ def main(
     run_dir.mkdir(parents=True, exist_ok=True)
     with (run_dir / "run.log").open("a", encoding="utf-8") as log, redirect_stdout(log), redirect_stderr(log):
         try:
-            key = fetch_key(args.api, token, client)
+            key, env = fetch_keys(args.api, token, client)
         except (httpx.HTTPError, KeyError, ValueError) as exc:
             status = getattr(getattr(exc, "response", None), "status_code", "")
             print(f"error: the API did not hand the run's key over: {type(exc).__name__} {status}".rstrip())
@@ -305,8 +317,10 @@ def main(
         command = ["run", args.room, "--out", str(run_dir), "--yes"]
         if args.phase is not None:
             command += ["--phase", args.phase]
+        command += models_args(run_dir)
         command += deal_args(run_dir)
-        return cli.main(command, gateway=Gateway(api_key=key, transport=transport))
+        gateway = Gateway(api_key=key, anthropic_key=env.get("ANTHROPIC_API_KEY"), transport=transport)
+        return cli.main(command, gateway=gateway)
 
 
 if __name__ == "__main__":

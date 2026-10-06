@@ -8,7 +8,11 @@
 # Layers go in the order they change: the system layer, then the Python packages read from
 # pyproject.toml alone, then the code. A code-only change rebuilds the last layer only. The
 # build context is the whitelist in Dockerfile.dockerignore. The PDF export needs no system
-# library: pandoc ships inside pypandoc-binary and Typst inside the typst wheel.
+# library: pandoc ships inside pypandoc-binary and Typst inside the typst wheel. The anthropic
+# and boto3 packages come in with the rest from pyproject.toml, for the anthropic/ and bedrock/
+# models; Claude Code is not in the image, so claude-code/ models are for a local install.
+# The saved model settings live in the runs volume so that they outlive the container. AWS
+# credentials for bedrock/ models are the container's own (environment, shared file or role).
 
 FROM python:3.13-slim@sha256:3dd7cc108ec1493442514f5c2a871af6af0ec31d768ff6e378a93340c3b3db5f AS deps
 
@@ -49,7 +53,8 @@ USER app
 
 FROM deps AS runtime
 ENV PYTHONPATH=/app/src:/app \
-    RLM_RUNS=/app/runs
+    RLM_RUNS=/app/runs \
+    RLM_SETTINGS=/app/runs/settings.json
 COPY . /app/
 USER app
 EXPOSE 8000

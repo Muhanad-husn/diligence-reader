@@ -55,9 +55,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import httpx
@@ -67,20 +68,21 @@ from rlm import dossier as dossier_stage
 from rlm import export as export_stage
 from rlm import ingest as ingest_stage
 from rlm import map as map_stage
+from rlm import settings
 from rlm import notes as notes_stage
 from rlm import pick as pick_stage
 from rlm import tree as tree_stage
 from rlm import write as write_stage
 from rlm.gateway import (
-    CLAUDE_CODE_MODELS,
     PHASE_CAPS,
-    PRICES,
     Gateway,
     Ledger,
     Meter,
     NoReply,
+    ProviderError,
     estimate_tokens,
     price,
+    register_listing,
 )
 from rlm.grade import measure_recall
 from rlm.key import has_key, load_key, room_documents
@@ -106,6 +108,8 @@ ERROR_CODES = (
     "unreadable-file",
     "verify-failed",
     "declined",
+    "unknown-model",
+    "bad-settings",
     "unexpected",
 )
 
@@ -139,17 +143,32 @@ class Stopped(Exception):
         self.code = code
 
 
+# What the group step reads and writes, as shares of what the estimate already counts. The notes
+# of a room come to about this share of its documents' tokens, which is what the group calls
+# read; a finding is about this many tokens of reply. Both are assumptions until a priced run of
+# the sample rooms replaces them; the estimate is a ceiling to confirm, and what a run costs is
+# counted from its own calls.
+GROUP_BILLED_IN = 0.6
+TOKENS_PER_FINDING = 120
+
+# The calls a writer in full makes: the first sections and the lesser issues, each reading the digest.
+FULL_WRITER_CALLS = 3
+
+
 @dataclass(frozen=True)
 class Estimate:
-    """What the model calls ahead are expected to cost: counted input tokens and dollars."""
+    """What the model calls ahead are expected to cost: counted input tokens and dollars, in all
+    and for each task that is still to run, with the model each is priced at."""
 
     notes_tokens: int
     write_tokens: int
     dollars: float
+    group_tokens: int = 0
+    tasks: dict = field(default_factory=dict)
 
     @property
     def tokens(self) -> int:
-        return self.notes_tokens + self.write_tokens
+        return self.notes_tokens + self.group_tokens + self.write_tokens
 
 
 def code_of(exc: BaseException) -> str:
@@ -158,6 +177,8 @@ def code_of(exc: BaseException) -> str:
         return exc.code
     if isinstance(exc, httpx.HTTPStatusError):
         return STATUS_CODES.get(exc.response.status_code, "unexpected")
+    if isinstance(exc, ProviderError):
+        return STATUS_CODES.get(exc.status, "unexpected")
     if isinstance(exc, NoReply):
         return "empty-reply"
     if isinstance(exc, ingest_stage.UnreadableFile):
@@ -203,45 +224,97 @@ def done(stage: str, run_dir: Path) -> bool:
     raise ValueError(f"no such stage: {stage}")
 
 
-def estimate(room: Path, run_dir: Path, notes_left: bool, write_left: bool) -> Estimate:
-    """Prices the model stages still to run, from what ingest has written.
+def estimate(
+    room: Path,
+    run_dir: Path,
+    notes_left: bool,
+    write_left: bool,
+    chosen: settings.Settings | None = None,
+) -> Estimate:
+    """Prices the model stages still to run, each at its own model, from what ingest has written.
 
     The notes are every document of the room that has sections, counted the way the notes pass
-    counts its own request, and billed at NOTES_BILLED_IN and NOTES_BILLED_OUT of that count.
-    The report is the instructions and the room's brief plus DIGEST_ROWS rows of
-    DIGEST_ROW_TOKENS, and MAX_OUTPUT_TOKENS back.
+    counts its own request, and billed at NOTES_BILLED_IN and NOTES_BILLED_OUT of that count; a
+    batch takes half off. The group step, where the report is built on the tree, reads
+    GROUP_BILLED_IN of the documents' tokens in groups the model's window allows and writes the
+    findings it keeps. The report is the instructions and the room's brief plus the digest's
+    rows of DIGEST_ROW_TOKENS, and the writer's reply cap back, as often as the writer calls:
+    once, or FULL_WRITER_CALLS times for a writer in full. A direct model is priced at its input
+    and output rates and a Claude Code model at zero. chosen is the settings, else the saved ones.
     """
+    chosen = chosen if chosen is not None else settings.current()
+    sections = notes_stage.read_sections(run_dir)
+    room_tokens = sum(
+        notes_stage.request_tokens(sections[doc])
+        for doc in room_documents(room).values()
+        if sections.get(doc)
+    )
+    tasks: dict[str, dict] = {}
     notes_tokens = 0
-    dollars = 0.0
     if notes_left:
-        sections = notes_stage.read_sections(run_dir)
-        notes_tokens = sum(
-            notes_stage.request_tokens(sections[doc])
-            for doc in room_documents(room).values()
-            if sections.get(doc)
-        )
-        dollars += price(
-            notes_stage.DEFAULT_MODEL,
-            round(notes_tokens * NOTES_BILLED_IN),
-            round(notes_tokens * NOTES_BILLED_OUT),
-        )
+        notes_tokens = room_tokens
+        tasks["notes"] = {
+            "model": chosen.notes,
+            "dollars": price(
+                chosen.notes,
+                round(notes_tokens * NOTES_BILLED_IN),
+                round(notes_tokens * NOTES_BILLED_OUT),
+                batch=chosen.batch,
+                region=chosen.region,
+            ),
+        }
+    group_tokens = 0
+    findings = 0
+    if chosen.write in settings.TREE_MODES:
+        findings = tree_stage.FINDING_ROWS.get(tree_stage.tuned(chosen.group), write_stage.DIGEST_ROWS)
+        if not done("tree", run_dir):
+            system = tree_stage.instructions(room, len(room_documents(room)), findings)
+            reads = round(room_tokens * GROUP_BILLED_IN)
+            groups = max(1, math.ceil(reads / max(1, tree_stage.group_budget(chosen.group, system))))
+            group_tokens = reads + groups * estimate_tokens(system)
+            tasks["group"] = {
+                "model": chosen.group,
+                "dollars": price(
+                    chosen.group,
+                    group_tokens,
+                    min(findings * TOKENS_PER_FINDING, groups * tree_stage.MAX_OUTPUT_TOKENS),
+                    region=chosen.region,
+                ),
+            }
     write_tokens = 0
     if write_left:
         brief = write_stage.brief_path(room).read_text(encoding="utf-8")
-        write_tokens = (
-            estimate_tokens(write_stage.PROMPT + brief)
-            + write_stage.DIGEST_ROWS * DIGEST_ROW_TOKENS
-        )
-        dollars += price(write_stage.DEFAULT_MODEL, write_tokens, write_stage.MAX_OUTPUT_TOKENS)
-    return Estimate(notes_tokens=notes_tokens, write_tokens=write_tokens, dollars=dollars)
+        rows = write_stage.DIGEST_ROWS if chosen.write != "tree" else 0
+        rows += findings
+        write_tokens = estimate_tokens(write_stage.PROMPT + brief) + rows * DIGEST_ROW_TOKENS
+        calls = FULL_WRITER_CALLS if write_stage.writes_in_full(chosen.writer) else 1
+        tasks["writer"] = {
+            "model": chosen.writer,
+            "dollars": price(
+                chosen.writer, write_tokens * calls, write_stage.reply_cap(chosen.writer), region=chosen.region
+            ),
+        }
+    return Estimate(
+        notes_tokens=notes_tokens,
+        write_tokens=write_tokens,
+        dollars=sum(task["dollars"] for task in tasks.values()),
+        group_tokens=group_tokens,
+        tasks=tasks,
+    )
 
 
 def confirm(found: Estimate, yes: bool) -> None:
     """Prints the estimate and asks y/N, raising Stopped as declined on anything but y."""
+    counted = [f"{found.notes_tokens} for the notes"]
+    if "group" in found.tasks:
+        counted.append(f"{found.group_tokens} for the group step")
+    counted.append(f"{found.write_tokens} for the report")
+    priced = "; ".join(
+        f"{settings.TASK_NAMES[task]} {info['model']} ${info['dollars']:.2f}" for task, info in found.tasks.items()
+    )
     print(
-        f"estimate: {found.tokens} input tokens counted ({found.notes_tokens} for the notes, "
-        f"{found.write_tokens} for the report), about ${found.dollars:.2f} "
-        f"on {notes_stage.DEFAULT_MODEL} and {write_stage.DEFAULT_MODEL}"
+        f"estimate: {found.tokens} input tokens counted ({', '.join(counted)}), "
+        f"about ${found.dollars:.2f} on {priced}"
     )
     if yes:
         return
@@ -285,6 +358,7 @@ class RunState:
         before = read_json(run_dir / RUN_FILE) or {}
         self.carried = float(before.get("dollars", 0.0))
         self.estimate = before.get("estimate")
+        self.models = before.get("models")
         self.stage = "ingest"
 
     def write(self, status: str, code: str | None = None) -> None:
@@ -299,12 +373,80 @@ class RunState:
             "dollars": round(self.carried + self.meter.dollars, 6),
             "estimate": self.estimate,
             "recall": grade["recall"] if grade else None,
+            "models": self.models,
             "version": __version__,
         }
         self.run_dir.mkdir(parents=True, exist_ok=True)
         (self.run_dir / RUN_FILE).write_text(
             json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
+
+
+def resolve_settings(args: argparse.Namespace) -> settings.Settings:
+    """The models and the build of this run, from the first of these that names each field: a
+    flag, the preset, the run's own settings file, the settings saved on this machine, the
+    defaults. A ranker's run builds no tree, so the saved way of writing does not carry over to it."""
+    found = settings.current()
+    if args.settings:
+        found = settings.from_dict(json.loads(Path(args.settings).read_text(encoding="utf-8")), found)
+    if args.preset:
+        found = settings.preset(args.preset)
+    flags = {
+        "notes": args.notes_model,
+        "group": args.middle_model,
+        "writer": args.writer_model,
+        "write": args.write,
+        "batch": args.batch,
+        "region": args.region,
+    }
+    flags = {name: value for name, value in flags.items() if value is not None}
+    if args.rank is not None and "write" not in flags:
+        flags["write"] = ""
+    if flags:
+        found = settings.from_dict({**flags, "preset": ""}, found)
+    return found
+
+
+def check_settings(found: settings.Settings, gateway: Gateway | None) -> None:
+    """Refuses settings that cannot run before any model call: a model no provider serves, a
+    batch on notes that are not on the Anthropic API, a region or a way of writing that is none.
+
+    An OpenRouter id the five models of PRICES do not vouch for is looked up in OpenRouter's own
+    model list, which is free to read and needs no key; the list also gives its price and window.
+    """
+    listing = None
+    if settings.needs_listing(found):
+        lister = gateway if gateway is not None else Gateway()
+        try:
+            listing = lister.models()
+        except httpx.HTTPError as exc:
+            raise Stopped(
+                "unexpected", f"OpenRouter's model list could not be read to check the models: {type(exc).__name__}"
+            ) from exc
+        register_listing(listing, lister.context_lengths)
+    try:
+        settings.validate(found, listing)
+    except settings.UnknownModel as exc:
+        raise Stopped("unknown-model", str(exc)) from exc
+    except settings.SettingsError as exc:
+        raise Stopped("bad-settings", str(exc)) from exc
+
+
+def gateway_for(found: settings.Settings, gateway: Gateway | None, ranked: bool = False) -> Gateway:
+    """The gateway of this run: the one given, else one on the keys the used tasks need.
+
+    Raises Stopped as a refused key when a key a used task needs is not in the environment.
+    """
+    if gateway is None:
+        needed = settings.needs(found)
+        # the ranker's calls are the pick stage's own, on OpenRouter
+        needed["openrouter"] = needed["openrouter"] or ranked
+        for provider, variable in (("openrouter", "OPENROUTER_API_KEY"), ("anthropic", "ANTHROPIC_API_KEY")):
+            if needed[provider] and not os.environ.get(variable):
+                raise Stopped("key-refused", f"{variable} is not set")
+        gateway = Gateway()
+    gateway.region = found.region
+    return gateway
 
 
 def run(args: argparse.Namespace, gateway: Gateway | None, ledger: Ledger | None) -> int:
@@ -330,7 +472,14 @@ def run(args: argparse.Namespace, gateway: Gateway | None, ledger: Ledger | None
 
     state = RunState(run_dir, meter)
     try:
+        try:
+            chosen = resolve_settings(args)
+        except (settings.SettingsError, OSError, ValueError) as exc:
+            raise Stopped("bad-settings", str(exc)) from exc
+        state.models = chosen.to_dict()
         state.stage = "ingest"
+        check_settings(chosen, gateway)
+
         if not done("ingest", run_dir):
             state.write("running")
             print(ingest_stage.coverage_line(ingest_stage.ingest(room, run_dir)))
@@ -339,28 +488,31 @@ def run(args: argparse.Namespace, gateway: Gateway | None, ledger: Ledger | None
         write_left = not done("write", run_dir)
         if notes_left or write_left:
             state.stage = "notes" if notes_left else "write"
-            found = estimate(room, run_dir, notes_left, write_left)
+            found = estimate(room, run_dir, notes_left, write_left, chosen)
             state.estimate = round(found.dollars, 6)
             state.write("running")
             confirm(found, args.yes)
-            if gateway is None:
-                if not os.environ.get("OPENROUTER_API_KEY"):
-                    raise Stopped("key-refused", "OPENROUTER_API_KEY is not set")
-                gateway = Gateway()
+            gateway = gateway_for(chosen, gateway, args.rank is not None)
+        elif gateway is not None:
+            gateway.region = chosen.region
 
+        mode = chosen.write
         state.stage = "notes"
         if notes_left:
             state.write("running")
-            if notes_stage.main(stage_argv, gateway=gateway, ledger=meter) != 0:
+            notes_argv = [*stage_argv, "--model", chosen.notes]
+            if chosen.batch:
+                notes_argv.append("--batch")
+            if notes_stage.main(notes_argv, gateway=gateway, ledger=meter) != 0:
                 raise Stopped("unexpected", "the notes pass did not start")
             if not done("notes", run_dir):
                 raise Stopped("empty-reply", "no document of the room was noted")
 
-        if args.write == "tree":
+        if mode == "tree":
             state.stage = "tree"
             if not done("tree", run_dir):
                 state.write("running")
-                tree_argv = [str(room), str(run_dir), "--phase", phase, "--model", args.middle_model]
+                tree_argv = [str(room), str(run_dir), "--phase", phase, "--model", chosen.group]
                 if tree_stage.main(tree_argv, gateway=gateway, ledger=meter) != 0:
                     raise Stopped("unexpected", "the tree did not run")
         elif args.rank is None:
@@ -376,11 +528,11 @@ def run(args: argparse.Namespace, gateway: Gateway | None, ledger: Ledger | None
                 if dossier_stage.main([str(room), str(run_dir)]) != 0:
                     raise Stopped("unexpected", "the dossier did not run")
 
-            if args.write in ("both", "both-tree-first"):
+            if mode in ("both", "both-tree-first"):
                 state.stage = "tree"
                 if not done("tree", run_dir):
                     state.write("running")
-                    tree_argv = [str(room), str(run_dir), "--phase", phase, "--model", args.middle_model]
+                    tree_argv = [str(room), str(run_dir), "--phase", phase, "--model", chosen.group]
                     if tree_stage.main(tree_argv, gateway=gateway, ledger=meter) != 0:
                         raise Stopped("unexpected", "the tree did not run")
         else:
@@ -395,15 +547,17 @@ def run(args: argparse.Namespace, gateway: Gateway | None, ledger: Ledger | None
         if write_left:
             state.write("running")
             grader = grade_recall if has_key(room) else None
-            write_argv = stage_argv
-            if args.write == "tree":
-                write_argv = [*stage_argv, "--tree", "--model", args.writer_model]
-            elif args.write in ("both", "both-tree-first"):
-                write_argv = [*stage_argv, "--both", "--model", args.writer_model]
-                if args.write == "both-tree-first":
+            write_argv = [
+                *stage_argv, "--model", chosen.writer, "--models-line", settings.models_line(chosen)
+            ]
+            if mode == "tree":
+                write_argv.append("--tree")
+            elif mode in ("both", "both-tree-first"):
+                write_argv.append("--both")
+                if mode == "both-tree-first":
                     write_argv.append("--tree-first")
             elif args.rank is not None:
-                write_argv = [*stage_argv, "--pick"]
+                write_argv.append("--pick")
             if write_stage.main(write_argv, gateway=gateway, ledger=meter, grader=grader) != 0:
                 raise Stopped("unexpected", "the write did not start")
             if not done("write", run_dir):
@@ -472,18 +626,47 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "both-tree-first: the same, the tree's findings first",
     )
     runner.add_argument(
+        "--notes-model",
+        dest="notes_model",
+        default=None,
+        help="the model of the notes: an OpenRouter id, claude-code/<model>, anthropic/<model> or "
+        "bedrock/<model>; the saved or default model when left off",
+    )
+    runner.add_argument(
         "--middle-model",
         dest="middle_model",
-        choices=sorted(tree_stage.CONTEXT_WINDOWS),
-        default=tree_stage.DEFAULT_MODEL,
-        help="the model of the group calls with --write tree or both",
+        default=None,
+        help="the model of the group step, which runs with --write tree or both; same choices as --notes-model",
     )
     runner.add_argument(
         "--writer-model",
         dest="writer_model",
-        choices=sorted({*PRICES, *CLAUDE_CODE_MODELS} - {pick_stage.JEV_MODEL}),
-        default=write_stage.DEFAULT_MODEL,
-        help="the writer's model with --write tree or both",
+        default=None,
+        help="the model of the writer; same choices as --notes-model",
+    )
+    runner.add_argument(
+        "--preset",
+        choices=settings.PRESET_NAMES,
+        default=None,
+        help="a named set of models: default, or client, all Claude through the Anthropic API with "
+        "the notes in a batch",
+    )
+    runner.add_argument(
+        "--settings",
+        default=None,
+        help="a JSON file of model settings for this run, laid over the saved settings",
+    )
+    runner.add_argument(
+        "--batch",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="send the notes through the Message Batches API at half price; needs notes on an "
+        "anthropic/ model",
+    )
+    runner.add_argument(
+        "--region",
+        default=None,
+        help="the AWS region of bedrock/ models, eu-central-1 when left off",
     )
     args = parser.parse_args(argv)
     if args.command is None:
