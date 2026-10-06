@@ -414,3 +414,11 @@ Rows below this line book the cost the gateway reported for the call (#160), not
 | 2026-10-06 | room | 8 | claude-code/claude-sonnet-5-5 | 546766 | 101355 | 0.0000 | 23.1553 |
 | 2026-10-06 | room | 8 | claude-code/claude-sonnet-5-5 | 864684 | 122015 | 0.0000 | 23.1553 |
 | 2026-10-06 | room | 8 | claude-code/claude-sonnet-5-5 | 951842 | 129959 | 0.0000 | 23.1553 |
+| 2026-10-06 | room | 8 | z-ai/glm-5.3-flash | 5759006 | 4181306 | 2.6908 | 20.4645 |
+| 2026-10-06 | room | 8 | z-ai/glm-5.3-flash | 1009968 | 21642 | 0.1591 | 20.3054 |
+| 2026-10-06 | room | 8 | z-ai/glm-5.3 | 117010 | 15778 | 0.0842 | 20.2212 |
+| 2026-10-06 | northwind | 8 | claude-code/claude-sonnet-5-5 | 116016 | 20520 | 0.0000 | 20.2212 |
+| 2026-10-06 | northstar-dental | 8 | claude-code/claude-sonnet-5-5 | 62085 | 11772 | 0.0000 | 20.2212 |
+| 2026-10-06 | atlas | 8 | claude-code/claude-sonnet-5-5 | 291221 | 54052 | 0.0000 | 20.2212 |
+| 2026-10-06 | room | 8 | claude-code/claude-sonnet-5-5 | 1684285 | 81149 | 0.0000 | 20.2212 |
+| 2026-10-06 | room | 8 | claude-code/claude-sonnet-5-5 | 1055488 | 101981 | 0.0000 | 20.2212 |
