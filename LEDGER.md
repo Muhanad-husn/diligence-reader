@@ -17,6 +17,20 @@ $0.50; the slices each run sample 1 once and the gate runs the three samples twi
 the founder on 2026-10-04 with the phase 8 plan. The reserve stands at $11 of $15. Added by
 hand.
 
+**Six dollars borrowed from the reserve, 2026-10-05.** Phase 8's cap goes from $3 to $9 for
+issue #160. Its model calls rank a room against a fixed acquisition checklist in two arms, one
+model call and TypeSafe's Jev, and both are tried on Avid for practice, rechecked on the three
+samples, and then run once each on two sealed rooms, which are noted once. The issue estimates
+about $5.50 in all: noting the two sealed rooms $3.60, Avid practice $0.45, the sealed ranking
+and writing $0.70 and the three samples $0.70. Jev's calls are booked here like any other.
+Approved by the founder on 2026-10-05 for #160. The reserve stands at $5 of $15. Added by hand.
+
+**Two and a half dollars more from the reserve, 2026-10-05.** Phase 8's cap goes from $9 to
+$11.50 so the second sealed room of #160 (sensar) can run after the first (mri). The founder set
+the limit as the credits left on OpenRouter, with no top-up: $5.49 when this was written, after
+mri's notes cost $1.99 at OpenRouter's own prices. The reserve stands at $2.50 of $15. Added by
+hand.
+
 | date | sample | phase | model | tokens in | tokens out | dollars | balance |
 |---|---|---|---|---|---|---|---|
 | 2026-09-05 | | | | 0 | 0 | 0.0000 | 50.0000 |
@@ -330,3 +344,81 @@ hand.
 | 2026-10-04 | 5479364cdafd | 8 | z-ai/glm-5.3 | 29837 | 25334 | 0.1532 | 28.5426 |
 | 2026-10-05 | avid | 8 | z-ai/glm-5.3-flash | 15603 | 436 | 0.0026 | 28.5400 |
 | 2026-10-05 | avid | 8 | z-ai/glm-5.3-flash | 107085 | 6780 | 0.0195 | 28.5205 |
+| 2026-10-05 | room | 8 | typesafe/jev-1.13.0 | 2108 | 0 | 0.0001 | 28.5204 |
+| 2026-10-05 | room | 8 | typesafe/jev-1.13.0 | 1576526 | 0 | 0.0662 | 28.4542 |
+| 2026-10-05 | room | 8 | z-ai/glm-5.3 | 4427 | 191 | 0.0070 | 28.4472 |
+| 2026-10-05 | room | 8 | z-ai/glm-5.3-flash | 83788 | 2974 | 0.0141 | 28.4331 |
+| 2026-10-05 | room | 8 | z-ai/glm-5.3 | 4913 | 503 | 0.0091 | 28.4240 |
+| 2026-10-05 | northwind | 8 | typesafe/jev-1.13.0 | 80658 | 0 | 0.0034 | 28.4206 |
+| 2026-10-05 | northstar-dental | 8 | typesafe/jev-1.13.0 | 32012 | 0 | 0.0013 | 28.4193 |
+| 2026-10-05 | northwind | 8 | z-ai/glm-5.3-flash | 6213 | 329 | 0.0011 | 28.4182 |
+| 2026-10-05 | atlas | 8 | typesafe/jev-1.13.0 | 419612 | 0 | 0.0176 | 28.4006 |
+| 2026-10-05 | northstar-dental | 8 | z-ai/glm-5.3 | 34052 | 7049 | 0.0787 | 28.3219 |
+| 2026-10-05 | northstar-dental | 8 | z-ai/glm-5.3-flash | 2837 | 383 | 0.0006 | 28.3213 |
+| 2026-10-05 | room | 8 | typesafe/jev-1.13.0 | 1576526 | 0 | 0.0662 | 28.2551 |
+| 2026-10-05 | northwind | 8 | z-ai/glm-5.3 | 69739 | 9642 | 0.1401 | 28.1150 |
+| 2026-10-05 | northwind | 8 | z-ai/glm-5.3 | 53133 | 10908 | 0.1224 | 27.9926 |
+| 2026-10-05 | room | 8 | z-ai/glm-5.3 | 180796 | 20567 | 0.3436 | 27.6490 |
+| 2026-10-05 | northstar-dental | 8 | z-ai/glm-5.3 | 33184 | 5670 | 0.0714 | 27.5776 |
+| 2026-10-05 | atlas | 8 | z-ai/glm-5.3-flash | 25483 | 2410 | 0.0050 | 27.5726 |
+| 2026-10-05 | atlas | 8 | z-ai/glm-5.3 | 70811 | 10381 | 0.1448 | 27.4278 |
+| 2026-10-05 | atlas | 8 | z-ai/glm-5.3 | 61026 | 10036 | 0.1296 | 27.2982 |
+| 2026-10-05 | room | 8 | z-ai/glm-5.3 | 265810 | 32646 | 0.5158 | 26.7824 |
+| 2026-10-05 | room | 8 | z-ai/glm-5.3-flash | 676067 | 19558 | 0.1112 | 26.6712 |
+| 2026-10-05 | room | 8 | z-ai/glm-5.3 | 99716 | 33204 | 0.2857 | 26.3855 |
+| 2026-10-05 | atlas | 8 | z-ai/glm-5.3-flash | 149443 | 4850 | 0.0248 | 26.3607 |
+| 2026-10-05 | atlas | 8 | z-ai/glm-5.3 | 20718 | 6440 | 0.0573 | 26.3034 |
+| 2026-10-05 | northwind | 8 | z-ai/glm-5.3-flash | 47525 | 1541 | 0.0079 | 26.2955 |
+| 2026-10-05 | northwind | 8 | z-ai/glm-5.3 | 13306 | 8038 | 0.0540 | 26.2415 |
+| 2026-10-05 | northstar-dental | 8 | z-ai/glm-5.3-flash | 11416 | 1731 | 0.0026 | 26.2389 |
+| 2026-10-05 | northstar-dental | 8 | z-ai/glm-5.3 | 11673 | 9382 | 0.0576 | 26.1813 |
+| 2026-10-05 | room | 8 | claude-code/claude-sonnet-5-5 | 1065401 | 25424 | 0.0000 | 26.1813 |
+| 2026-10-05 | room | 8 | claude-code/claude-sonnet-5-5 | 94088 | 17402 | 0.0000 | 26.1813 |
+| 2026-10-05 | atlas | 8 | claude-code/claude-sonnet-5-5 | 226008 | 15792 | 0.0000 | 26.1813 |
+| 2026-10-05 | atlas | 8 | claude-code/claude-sonnet-5-5 | 66100 | 13250 | 0.0000 | 26.1813 |
+| 2026-10-05 | northwind | 8 | claude-code/claude-sonnet-5-5 | 74401 | 3648 | 0.0000 | 26.1813 |
+| 2026-10-05 | northwind | 8 | claude-code/claude-sonnet-5-5 | 21399 | 5449 | 0.0000 | 26.1813 |
+| 2026-10-05 | northstar-dental | 8 | claude-code/claude-sonnet-5-5 | 18022 | 2406 | 0.0000 | 26.1813 |
+| 2026-10-05 | northstar-dental | 8 | claude-code/claude-sonnet-5-5 | 17399 | 8245 | 0.0000 | 26.1813 |
+Rows below this line book the cost the gateway reported for the call (#160), not the PRICES rate of its tokens.
+| 2026-10-05 | northwind | 8 | z-ai/glm-5.3 | 37371 | 6402 | 0.0376 | 26.1437 |
+| 2026-10-05 | northstar-dental | 8 | z-ai/glm-5.3 | 22376 | 5019 | 0.0209 | 26.1228 |
+| 2026-10-05 | atlas | 8 | z-ai/glm-5.3 | 62706 | 12012 | 0.0519 | 26.0709 |
+| 2026-10-05 | room | 8 | z-ai/glm-5.3 | 109771 | 21122 | 0.0966 | 25.9743 |
+| 2026-10-05 | room | 8 | z-ai/glm-5.3 | 103774 | 24000 | 0.1107 | 25.8636 |
+| 2026-10-05 | atlas | 8 | z-ai/glm-5.3 | 50831 | 9078 | 0.0351 | 25.8285 |
+| 2026-10-05 | northwind | 8 | z-ai/glm-5.3 | 36019 | 6363 | 0.0279 | 25.8006 |
+| 2026-10-05 | northstar-dental | 8 | z-ai/glm-5.3 | 22148 | 6514 | 0.0302 | 25.7704 |
+| 2026-10-05 | room | 8 | z-ai/glm-5.3 | 115173 | 18684 | 0.0814 | 25.6890 |
+| 2026-10-05 | room | 8 | z-ai/glm-5.3-flash | 4784583 | 3569499 | 2.3218 | 23.3672 |
+| 2026-10-05 | room | 8 | z-ai/glm-5.3-flash | 2491976 | 108353 | 0.1345 | 23.2327 |
+| 2026-10-05 | room | 8 | z-ai/glm-5.3 | 91051 | 15708 | 0.0774 | 23.1553 |
+| 2026-10-05 | room | 8 | claude-code/claude-sonnet-5-5 | 160068 | 12556 | 0.0000 | 23.1553 |
+| 2026-10-05 | room | 8 | claude-code/claude-sonnet-5-5 | 178487 | 61617 | 0.0000 | 23.1553 |
+| 2026-10-05 | room | 8 | claude-code/claude-sonnet-5-5 | 1540690 | 54018 | 0.0000 | 23.1553 |
+| 2026-10-05 | room | 8 | claude-code/claude-sonnet-5-5 | 1082699 | 47349 | 0.0000 | 23.1553 |
+| 2026-10-05 | room | 8 | claude-code/claude-sonnet-5-5 | 241867 | 85775 | 0.0000 | 23.1553 |
+| 2026-10-05 | room | 8 | claude-code/claude-sonnet-5-5 | 537373 | 136663 | 0.0000 | 23.1553 |
+| 2026-10-05 | room | 8 | claude-code/claude-sonnet-5-5 | 365255 | 74114 | 0.0000 | 23.1553 |
+| 2026-10-05 | room | 8 | claude-code/claude-sonnet-5-5 | 405431 | 90123 | 0.0000 | 23.1553 |
+| 2026-10-05 | room | 8 | claude-code/claude-sonnet-5-5 | 1083931 | 73531 | 0.0000 | 23.1553 |
+| 2026-10-05 | room | 8 | claude-code/claude-sonnet-5-5 | 1542468 | 70248 | 0.0000 | 23.1553 |
+| 2026-10-06 | room | 8 | claude-code/claude-sonnet-5-5 | 404041 | 63654 | 0.0000 | 23.1553 |
+| 2026-10-06 | room | 8 | claude-code/claude-sonnet-5-5 | 441092 | 109104 | 0.0000 | 23.1553 |
+| 2026-10-06 | northwind | 8 | claude-code/claude-sonnet-5-5 | 74538 | 4815 | 0.0000 | 23.1553 |
+| 2026-10-06 | atlas | 8 | claude-code/claude-sonnet-5-5 | 229262 | 20728 | 0.0000 | 23.1553 |
+| 2026-10-06 | northwind | 8 | claude-code/claude-sonnet-5-5 | 113425 | 16846 | 0.0000 | 23.1553 |
+| 2026-10-06 | atlas | 8 | claude-code/claude-sonnet-5-5 | 223639 | 44763 | 0.0000 | 23.1553 |
+| 2026-10-06 | northstar-dental | 8 | claude-code/claude-sonnet-5-5 | 18161 | 2714 | 0.0000 | 23.1553 |
+| 2026-10-06 | northstar-dental | 8 | claude-code/claude-sonnet-5-5 | 37799 | 11344 | 0.0000 | 23.1553 |
+| 2026-10-06 | room | 8 | claude-code/claude-sonnet-5-5 | 546766 | 101355 | 0.0000 | 23.1553 |
+| 2026-10-06 | room | 8 | claude-code/claude-sonnet-5-5 | 864684 | 122015 | 0.0000 | 23.1553 |
+| 2026-10-06 | room | 8 | claude-code/claude-sonnet-5-5 | 951842 | 129959 | 0.0000 | 23.1553 |
+| 2026-10-06 | room | 8 | z-ai/glm-5.3-flash | 5759006 | 4181306 | 2.6908 | 20.4645 |
+| 2026-10-06 | room | 8 | z-ai/glm-5.3-flash | 1009968 | 21642 | 0.1591 | 20.3054 |
+| 2026-10-06 | room | 8 | z-ai/glm-5.3 | 117010 | 15778 | 0.0842 | 20.2212 |
+| 2026-10-06 | northwind | 8 | claude-code/claude-sonnet-5-5 | 116016 | 20520 | 0.0000 | 20.2212 |
+| 2026-10-06 | northstar-dental | 8 | claude-code/claude-sonnet-5-5 | 62085 | 11772 | 0.0000 | 20.2212 |
+| 2026-10-06 | atlas | 8 | claude-code/claude-sonnet-5-5 | 291221 | 54052 | 0.0000 | 20.2212 |
+| 2026-10-06 | room | 8 | claude-code/claude-sonnet-5-5 | 1684285 | 81149 | 0.0000 | 20.2212 |
+| 2026-10-06 | room | 8 | claude-code/claude-sonnet-5-5 | 1055488 | 101981 | 0.0000 | 20.2212 |

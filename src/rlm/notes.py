@@ -1025,6 +1025,7 @@ def note_and_write(
                 tokens_out=exc.tokens_out,
                 seconds=exc.seconds,
                 model=model,
+                cost=exc.cost,
             )
             batch.record(paid)
             completions.append(paid)

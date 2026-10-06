@@ -73,7 +73,7 @@ from rlm import verify as verifier
 from rlm import write as writer
 from rlm import writebakeoff
 from rlm.carry import days_of, numbers_of, stem, words_of
-from rlm.gateway import PRICES, Gateway, Ledger, price
+from rlm.gateway import OFF_GATEWAY, PRICES, Gateway, Ledger, price
 from rlm.grade import CONNECTIVES, measure_recall, normalise, side_carried
 from rlm.key import load_key
 from rlm.notes import straighten
@@ -2011,7 +2011,7 @@ def test_writebakeoff_tiers_run_cheapest_first_inside_a_tier():
     assert set(writebakeoff.TIERS) == {"flash", "pro"}
     assert set(writebakeoff.TIERS["flash"]) == {DS_FLASH, GLM_FLASH, LUNA}
     assert set(writebakeoff.TIERS["pro"]) == {DS_PRO, GLM}
-    assert set(writebakeoff.TIERS["flash"]) | set(writebakeoff.TIERS["pro"]) == set(PRICES)
+    assert set(writebakeoff.TIERS["flash"]) | set(writebakeoff.TIERS["pro"]) == set(PRICES) - OFF_GATEWAY
     assert writebakeoff.WRITE_TOKENS == (37_000, 8_000)
     assert writebakeoff.RUBRIC_BAR == 85
     for tier in writebakeoff.TIERS.values():
@@ -2063,7 +2063,7 @@ def test_writebakeoff_two_passes_on_two_samples_fill_one_row_and_name_the_winner
     table = json.loads(first.decode("utf-8"))
     assert table["samples"] == list(BAKEOFF_SAMPLES)
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", table["date"])
-    assert set(table["prices"]) == set(PRICES)
+    assert set(table["prices"]) == set(PRICES) - OFF_GATEWAY
 
     row = bakeoff_row(table, GLM_FLASH)
     assert row["passes"] is True
@@ -2239,7 +2239,7 @@ def test_writebakeoff_writes_the_table_after_each_model(bakeoff_room, capsys):
 def test_writebakeoff_the_winner_is_the_cheapest_measured_row(bakeoff_room, capsys):
     """Two models pass; the winner is the one whose measured dollars are lower."""
     samples_root, runs_root, ledger = bakeoff_room
-    transport = WriteTransport(usage={DS_FLASH: (100, 100), GLM_FLASH: (100_000, 10_000)})
+    transport = WriteTransport(usage={DS_FLASH: (100_000, 10_000), GLM_FLASH: (100, 100)})
     gateway = Gateway(api_key="k", transport=transport)
     grader = BakeoffGrader(runs_root)
 
@@ -2261,14 +2261,14 @@ def test_writebakeoff_the_winner_is_the_cheapest_measured_row(bakeoff_room, caps
     assert code == 0
 
     table = read_table(runs_root)
-    cheap = bakeoff_row(table, DS_FLASH)
-    dear = bakeoff_row(table, GLM_FLASH)
+    cheap = bakeoff_row(table, GLM_FLASH)
+    dear = bakeoff_row(table, DS_FLASH)
     assert cheap["passes"] is True and dear["passes"] is True
     assert cheap["dollars"] < dear["dollars"]
-    assert table["winner"] == DS_FLASH
+    assert table["winner"] == GLM_FLASH
     # The winner is the row measured cheaper, not the one the price table calls cheaper.
-    assert price(DS_FLASH, *writebakeoff.WRITE_TOKENS) > price(
-        GLM_FLASH, *writebakeoff.WRITE_TOKENS
+    assert price(GLM_FLASH, *writebakeoff.WRITE_TOKENS) > price(
+        DS_FLASH, *writebakeoff.WRITE_TOKENS
     )
 
 
@@ -2441,7 +2441,7 @@ def test_writebakeoff_dry_run_writes_a_blank_table_and_makes_no_request(bakeoff_
     for row in table["rows"]:
         assert all(row[field] == "not run" for field in BAKEOFF_MEASURED), row["model"]
     assert table["winner"] is None
-    for model in PRICES:
+    for model in set(PRICES) - OFF_GATEWAY:
         assert model in printed, model
     assert "$" in printed
 

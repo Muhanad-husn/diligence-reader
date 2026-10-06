@@ -43,8 +43,12 @@ from __future__ import annotations
 
 import datetime
 import math
+import json as jsonlib
 import os
 import re
+import shutil
+import subprocess
+import tempfile
 import threading
 import time
 from dataclasses import dataclass
@@ -53,20 +57,48 @@ from types import TracebackType
 
 import httpx
 
-# Per million tokens, prompt then completion, as PLAN.md section 5 reads, from the gateway's
-# model list on 2026-09-07. DeepSeek V4 Flash and DeepSeek V4 Pro both went up; Luna and the
-# two GLM endpoints read what they read on 2026-09-06.
+# Per million tokens, prompt then completion: the estimate printed before a batch and the cap
+# check, never what a row of LEDGER.md books, which is the cost the gateway reports for the call.
+# The two GLM rows are the dearest rate over the providers the gateway may route to, the highest
+# input rate and the highest output rate on OpenRouter's endpoints list of 2026-10-05 with
+# IGNORED_PROVIDERS left out, so the cap check is never under. The others are from the gateway's
+# model list on 2026-09-07.
 PRICES: dict[str, tuple[float, float]] = {
     "openai/gpt-5.6-luna": (0.200, 1.200),
     "deepseek/deepseek-v4-flash-0731": (0.0152, 1.280),
     "deepseek/deepseek-v4-pro": (0.2088, 0.4176),
-    "z-ai/glm-5.3": (1.400, 4.400),
-    "z-ai/glm-5.3-flash": (0.150, 0.500),
+    "z-ai/glm-5.3": (2.800, 12.000),
+    "z-ai/glm-5.3-flash": (0.300, 1.000),
+    # TypeSafe's Jev on TypeSafe's own API, not the gateway: input tokens only, output free.
+    "typesafe/jev-1.13.0": (0.042, 0.0),
 }
+
+# The models PRICES carries that the gateway does not serve. Their calls are priced and booked
+# like any other, but Gateway.complete never sends them and no bake-off chooses between them.
+OFF_GATEWAY = frozenset({"typesafe/jev-1.13.0"})
+
+# The models served by headless Claude Code on the founder's subscription, by the id this
+# repository names them with, each with the id the claude command line takes. A call to one
+# costs no cash: price reads it at zero and the ledger books it at $0.00.
+CLAUDE_CODE_MODELS: dict[str, str] = {"claude-code/claude-sonnet-5-5": "claude-sonnet-5-5"}
+
+# What the same tokens would cost on Anthropic's API, per million tokens, prompt then completion.
+# It is written beside the run, never in the ledger.
+API_EQUIVALENT: dict[str, tuple[float, float]] = {"claude-code/claude-sonnet-5-5": (2.0, 10.0)}
+
+# The model id each Claude Code model's reply must name, from its usage by model.
+CLAUDE_CODE_REPLY = {"claude-code/claude-sonnet-5-5": re.compile(r"^claude-sonnet-5-5(?![0-9])")}
 
 # The tables the repository has priced a call at before, newest first. A ledger row written
 # before a price moved reconciles at one of these, so it is kept here.
 PAST_PRICES: tuple[dict[str, tuple[float, float]], ...] = (
+    {
+        "openai/gpt-5.6-luna": (0.200, 1.200),
+        "deepseek/deepseek-v4-flash-0731": (0.0152, 1.280),
+        "deepseek/deepseek-v4-pro": (0.2088, 0.4176),
+        "z-ai/glm-5.3": (1.400, 4.400),
+        "z-ai/glm-5.3-flash": (0.150, 0.500),
+    },
     {
         "openai/gpt-5.6-luna": (0.200, 1.200),
         "deepseek/deepseek-v4-flash-0731": (0.140, 0.280),
@@ -109,8 +141,10 @@ REASONING: dict[str, dict] = {
 # to 26; the same prompt had been answered a day earlier and the ten documents it hit came back
 # with no note at all, three runs in a row. GMICloud was found doing the same to
 # z-ai/glm-5.3-flash on 2026-10-04 in the phase 8 gate, twice on one atlas document (DR-029),
-# whose note was dropped and with it a planted fact.
-IGNORED_PROVIDERS = ("Wafer", "GMICloud")
+# whose note was dropped and with it a planted fact. Morph was found doing the same to
+# z-ai/glm-5.3 on 2026-10-05 in the Avid report write, twice, 12000 reasoning tokens each and
+# no content.
+IGNORED_PROVIDERS = ("Wafer", "GMICloud", "Morph")
 
 # The finish reason a draw carries when it ran out of the max_tokens budget. The reply then
 # stops wherever the budget ran out, which is usually mid sentence, and on a provider that
@@ -124,10 +158,12 @@ MAX_DRAWS = 2
 
 # The total ceiling and the per phase caps, from PLAN.md section 6. Phase 5 carries $1 borrowed
 # from the reserve on 2026-09-09 to rewrite the three gate samples' reports, whose artefacts were
-# lost with PR #119's worktree; the reason is written at the head of LEDGER.md.
+# lost with PR #119's worktree; the reason is written at the head of LEDGER.md. Phase 8 carries
+# $3 from the reserve on 2026-10-04 and $6 more on 2026-10-05 for #160, whose two rankers are
+# tried on two sealed rooms; that reason is written there too.
 TOTAL_CEILING = 50.0
 PHASE_CAPS: dict[int, float] = {
-    0: 0.0, 1: 0.0, 2: 8.0, 3: 0.0, 4: 0.0, 5: 9.0, 6: 15.0, 7: 4.0, 8: 3.0
+    0: 0.0, 1: 0.0, 2: 8.0, 3: 0.0, 4: 0.0, 5: 9.0, 6: 15.0, 7: 4.0, 8: 11.5
 }
 
 BASE_URL = "https://openrouter.ai/api/v1"
@@ -157,6 +193,7 @@ class NoReply(Exception):
     tokens_in, tokens_out and seconds are the sums over the draws, which were paid though they
     gave no text. cut_off is true when every draw finished on the length reason, which is a
     request too large for its max_tokens budget and not a gateway that answered with nothing.
+    cost is the dollars the gateway reported for the draws, or None where it reported none.
     """
 
     def __init__(
@@ -166,8 +203,10 @@ class NoReply(Exception):
         tokens_out: int = 0,
         seconds: float = 0.0,
         cut_off: bool = False,
+        cost: float | None = None,
     ):
         super().__init__(message)
+        self.cost = cost
         self.tokens_in = tokens_in
         self.tokens_out = tokens_out
         self.seconds = seconds
@@ -183,6 +222,7 @@ class Completion:
     tokens_out: int
     seconds: float
     model: str
+    cost: float | None = None
 
 
 def stops_every_call(exc: BaseException) -> bool:
@@ -216,9 +256,166 @@ def refused_draw(
 
 
 def price(model: str, tokens_in: int, tokens_out: int) -> float:
-    """Prices a call at the PRICES rate. Raises KeyError for a model outside the table."""
+    """Prices a call at the PRICES rate, a Claude Code model at zero. Raises KeyError for a
+    model in neither."""
+    if model in CLAUDE_CODE_MODELS:
+        return 0.0
     rate_in, rate_out = PRICES[model]
     return tokens_in * rate_in / 1_000_000 + tokens_out * rate_out / 1_000_000
+
+
+def reported_cost(costs: list[float | None]) -> float | None:
+    """The dollars the gateway reported for a call's draws, or None where any draw reported none."""
+    if not costs or any(cost is None for cost in costs):
+        return None
+    return sum(costs)
+
+
+def call_dollars(completion: Completion) -> float:
+    """What a completion cost: the gateway's reported cost, else the PRICES rate of its tokens."""
+    if completion.cost is not None:
+        return completion.cost
+    return price(completion.model, completion.tokens_in, completion.tokens_out)
+
+
+def priced(model: str) -> bool:
+    """Says whether price knows a model."""
+    return model in PRICES or model in CLAUDE_CODE_MODELS
+
+
+def api_price(model: str, tokens_in: int, tokens_out: int) -> float:
+    """What a call would cost on its maker's API: API_EQUIVALENT for a Claude Code model, the
+    PRICES rate for every other."""
+    if model not in API_EQUIVALENT:
+        return price(model, tokens_in, tokens_out)
+    rate_in, rate_out = API_EQUIVALENT[model]
+    return tokens_in * rate_in / 1_000_000 + tokens_out * rate_out / 1_000_000
+
+
+class WrongModel(Exception):
+    """Raised when a Claude Code reply names a model other than the one asked for."""
+
+
+class ClaudeCodeError(Exception):
+    """Raised when the claude command exits non-zero or reports an error."""
+
+
+# The parent session's variables that would tie the child to it.
+DROP_ENV_PREFIXES = ("CLAUDE_CODE_", "AEO_")
+DROP_ENV = frozenset({"CLAUDECODE", "CLAUDE_PID", "CLAUDE_EFFORT"})
+
+# The seconds one claude call may take, and the seconds waited between two calls.
+CLAUDE_TIMEOUT_SECONDS = 1800
+CLAUDE_PAUSE_SECONDS = 5.0
+
+# A command line on Windows ends at 32767 characters, and the system prompt rides on it.
+MAX_COMMAND_LINE = 32_000
+
+
+def run_claude(args: list[str], cwd: Path, env: dict, stdin: str) -> tuple[int, str, str]:
+    """Runs one claude command and returns its exit code, its output and its errors."""
+    done = subprocess.run(args, cwd=cwd, env=env, input=stdin, capture_output=True, text=True,
+                          encoding="utf-8", timeout=CLAUDE_TIMEOUT_SECONDS)
+    return done.returncode, done.stdout, done.stderr
+
+
+def json_object(text: str) -> str:
+    """The first JSON object a reply holds, as text, or the reply as it came when it holds none."""
+    decoder = jsonlib.JSONDecoder()
+    start = text.find("{")
+    while start >= 0:
+        try:
+            _, end = decoder.raw_decode(text, start)
+        except ValueError:
+            start = text.find("{", start + 1)
+            continue
+        return text[start:end]
+    return text
+
+
+class ClaudeCode:
+    """Sends a call to headless Claude Code: `claude -p` with no tools, no settings, no MCP and
+    no saved session, from an empty folder outside the repository, the system prompt on the
+    command line, the rest of the conversation on stdin and the call's max_tokens as the
+    reply cap. Calls go one at a time, with pause seconds between them. The runner is
+    injectable so a test can fake the subprocess."""
+
+    _lock = threading.Lock()
+
+    def __init__(self, runner=None, pause: float = CLAUDE_PAUSE_SECONDS):
+        self.runner = runner or run_claude
+        self.pause = pause
+        self._sent = 0
+
+    @staticmethod
+    def stdin_of(messages: list[dict]) -> str:
+        """The conversation after the system prompt as one text: the first message as it is,
+        and a later turn under a line saying whose it is."""
+        turns = [message for message in messages if message["role"] != "system"]
+        parts = [turns[0]["content"]] if turns else []
+        for message in turns[1:]:
+            who = "YOUR REPLY" if message["role"] == "assistant" else "THE NEXT MESSAGE"
+            parts.append(f"{who}\n\n{message['content']}")
+        return "\n\n".join(parts)
+
+    def complete(self, model: str, messages: list[dict], max_tokens: int, json: bool = True) -> Completion:
+        """One call, its reply text and its usage. Raises WrongModel when the reply names
+        another model, ClaudeCodeError when the command fails, NoReply when it returns no text
+        or a reply continued past its cap, of which only the last part comes back."""
+        system = "\n\n".join(message["content"] for message in messages if message["role"] == "system")
+        args = [
+            "claude", "-p",
+            "--output-format", "json",
+            "--model", CLAUDE_CODE_MODELS[model],
+            "--tools", "",
+            "--strict-mcp-config",
+            "--disable-slash-commands",
+            "--setting-sources", "",
+            "--no-session-persistence",
+            "--system-prompt", system,
+        ]
+        if len(subprocess.list2cmdline(args)) > MAX_COMMAND_LINE:
+            raise ClaudeCodeError("the system prompt is too long for one command line")
+        env = {name: value for name, value in os.environ.items()
+               if name not in DROP_ENV and not name.startswith(DROP_ENV_PREFIXES)}
+        # The command line takes no reply cap; headless Claude Code reads it from this variable.
+        env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = str(max_tokens)
+        with self._lock:
+            if self._sent and self.pause:
+                time.sleep(self.pause)
+            self._sent += 1
+            cwd = Path(tempfile.mkdtemp(prefix="rlm-claude-"))
+            started = time.monotonic()
+            try:
+                code, out, err = self.runner(args, cwd, env, self.stdin_of(messages))
+            finally:
+                shutil.rmtree(cwd, ignore_errors=True)
+            seconds = time.monotonic() - started
+        try:
+            reply = jsonlib.loads(out)
+        except (ValueError, TypeError):
+            reply = None
+        if code != 0 or not isinstance(reply, dict) or reply.get("is_error"):
+            raise ClaudeCodeError(f"claude exited {code}: {(err or out or '').strip()[:300]}")
+        named = sorted(reply.get("modelUsage") or {})
+        if not named or not all(CLAUDE_CODE_REPLY[model].match(name) for name in named):
+            raise WrongModel(f"the reply for {model} came from {named or 'no model named'}")
+        usage = reply.get("usage") or {}
+        tokens_in = sum(int(usage.get(name) or 0) for name in
+                        ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"))
+        tokens_out = int(usage.get("output_tokens") or 0)
+        text = reply.get("result") or ""
+        if int(reply.get("num_turns") or 1) > 1:
+            # A reply that ran past its cap is continued in a further turn, and the result holds
+            # only the last turn's text: the rest of the reply is lost.
+            raise NoReply(f"{model} ran past its reply cap and was continued", tokens_in=tokens_in,
+                          tokens_out=tokens_out, seconds=seconds)
+        if not text.strip():
+            raise NoReply(f"{model} returned no reply", tokens_in=tokens_in, tokens_out=tokens_out,
+                          seconds=seconds)
+        if json:
+            text = json_object(text)
+        return Completion(text=text, tokens_in=tokens_in, tokens_out=tokens_out, seconds=seconds, model=model)
 
 
 def known_prices(model: str) -> list[tuple[float, float]]:
@@ -244,7 +441,9 @@ class Gateway:
         transport: httpx.BaseTransport | None = None,
         base_url: str = BASE_URL,
         rate_limit_waits: tuple[float, ...] = RATE_LIMIT_WAITS,
+        claude_code: "ClaudeCode | None" = None,
     ):
+        self.claude_code = claude_code or ClaudeCode()
         self.api_key = api_key if api_key is not None else os.environ["OPENROUTER_API_KEY"]
         self.base_url = base_url.rstrip("/")
         self.rate_limit_waits = tuple(rate_limit_waits)
@@ -300,8 +499,11 @@ class Gateway:
         prose back is made. An answer carrying no content, and an answer cut off by the
         max_tokens budget, are not replies: either is sent again once, and two of them raise
         NoReply. The completion carries the tokens of every draw it took. Raises
-        httpx.HTTPStatusError when the gateway answers outside the 2xx range.
+        httpx.HTTPStatusError when the gateway answers outside the 2xx range. A Claude Code
+        model goes to headless Claude Code instead, through ClaudeCode.complete.
         """
+        if model in CLAUDE_CODE_MODELS:
+            return self.claude_code.complete(model, messages, max_tokens, json=json)
         body = {
             "model": model,
             "messages": messages,
@@ -310,6 +512,7 @@ class Gateway:
             "max_tokens": max_tokens,
             "reasoning": REASONING.get(model, {"enabled": False}),
             "provider": {"ignore": list(IGNORED_PROVIDERS)},
+            "usage": {"include": True},
         }
         if json:
             body["response_format"] = {"type": "json_object"}
@@ -317,6 +520,7 @@ class Gateway:
         tokens_in = 0
         tokens_out = 0
         refused: list[str] = []
+        costs: list[float | None] = []
         all_cut_off = True
         for _ in range(MAX_DRAWS):
             data, took = self._send(body)
@@ -325,6 +529,7 @@ class Gateway:
             drawn_out = int(usage.get("completion_tokens", 0))
             tokens_in += int(usage.get("prompt_tokens", 0))
             tokens_out += drawn_out
+            costs.append(None if usage.get("cost") is None else float(usage["cost"]))
             choice = (data.get("choices") or [{}])[0]
             text = (choice.get("message") or {}).get("content") or ""
             finish_reason = choice.get("finish_reason")
@@ -335,6 +540,7 @@ class Gateway:
                     tokens_out=tokens_out,
                     seconds=seconds,
                     model=model,
+                    cost=reported_cost(costs),
                 )
             all_cut_off = all_cut_off and finish_reason == CUT_OFF
             # OpenRouter names the provider that served the call at the top of the body, so
@@ -348,6 +554,7 @@ class Gateway:
             tokens_out=tokens_out,
             seconds=seconds,
             cut_off=all_cut_off,
+            cost=reported_cost(costs),
         )
 
 
@@ -367,13 +574,15 @@ class Batch:
         self.estimated_out = tokens_out
         self.tokens_in = 0
         self.tokens_out = 0
+        self.dollars = 0.0
         self._lock = threading.Lock()
 
     def record(self, completion: Completion) -> Completion:
-        """Adds one completion's reported tokens to the batch and returns it."""
+        """Adds one completion's reported tokens and its cost to the batch and returns it."""
         with self._lock:
             self.tokens_in += completion.tokens_in
             self.tokens_out += completion.tokens_out
+            self.dollars += call_dollars(completion)
         return completion
 
     def __enter__(self) -> "Batch":
@@ -403,8 +612,11 @@ class Batch:
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> bool:
-        if exc_type is None:
-            self._ledger.append(self.sample, self.phase, self.model, self.tokens_in, self.tokens_out)
+        paid_for_nothing = exc_type is not None and issubclass(exc_type, NoReply) and (self.tokens_in or self.tokens_out)
+        if exc_type is None or paid_for_nothing:
+            self._ledger.append(
+                self.sample, self.phase, self.model, self.tokens_in, self.tokens_out, dollars=self.dollars
+            )
         return False
 
 
@@ -449,9 +661,14 @@ class Ledger:
         """Opens a batch that prints its estimate, refuses past a cap, and writes one row."""
         return Batch(self, sample, phase, model, tokens_in, tokens_out)
 
-    def append(self, sample: str, phase: int, model: str, tokens_in: int, tokens_out: int) -> None:
-        """Appends one row with the reported tokens, the price and the new balance."""
-        dollars = round(price(model, tokens_in, tokens_out), 4)
+    def append(
+        self, sample: str, phase: int, model: str, tokens_in: int, tokens_out: int, dollars: float | None = None
+    ) -> None:
+        """Appends one row with the reported tokens, the dollars and the new balance. Without
+        dollars the row is priced at the PRICES rate."""
+        if dollars is None:
+            dollars = price(model, tokens_in, tokens_out)
+        dollars = round(dollars, 4)
         balance = round(self.balance() - dollars, 4)
         date = datetime.date.today().isoformat()
         row = (
@@ -496,7 +713,7 @@ class MeteredBatch:
         with self._lock:
             self.tokens_in += completion.tokens_in
             self.tokens_out += completion.tokens_out
-        self._meter.add(self.model, completion.tokens_in, completion.tokens_out)
+        self._meter.add(self.model, completion.tokens_in, completion.tokens_out, completion.cost)
         return completion
 
     def __enter__(self) -> "MeteredBatch":
@@ -522,7 +739,7 @@ class MeteredBatch:
 
 
 class Meter:
-    """Counts the dollars of every batch it opens, at the PRICES rate, whether the batch ends
+    """Counts the dollars of every batch it opens, as the gateway reported them, whether the batch ends
     cleanly or raises, since a call that returned was paid either way.
 
     It has the batch shape of Ledger, so a stage takes it where it takes a ledger. Without a
@@ -536,12 +753,12 @@ class Meter:
         self.dollars = 0.0
         self._lock = threading.Lock()
 
-    def add(self, model: str, tokens_in: int, tokens_out: int) -> None:
-        """Counts one call's reported tokens and their price."""
+    def add(self, model: str, tokens_in: int, tokens_out: int, cost: float | None = None) -> None:
+        """Counts one call's reported tokens and its cost, or their PRICES rate where it has none."""
         with self._lock:
             self.tokens_in += tokens_in
             self.tokens_out += tokens_out
-            self.dollars += price(model, tokens_in, tokens_out)
+            self.dollars += price(model, tokens_in, tokens_out) if cost is None else cost
 
     def batch(
         self, sample: str, phase: int, model: str, tokens_in: int, tokens_out: int

@@ -28,7 +28,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Str
 from fastapi.staticfiles import StaticFiles
 
 from app import events
-from app.runner import Runner, runner_from_env
+from app.runner import DEAL_FILE, Runner, runner_from_env
 from rlm import __version__, cli
 from rlm import ingest as ingest_stage
 from rlm import notes as notes_stage
@@ -147,11 +147,14 @@ def create_app(
     async def create_run(
         files: list[UploadFile] = File(...),
         name: str | None = Form(None),
+        deal: str = Form("share"),
         x_openrouter_key: str | None = Header(None),
     ):
         key = given(x_openrouter_key)
         if not key:
             raise Refused(400, "key-missing", "send the OpenRouter key in X-OpenRouter-Key")
+        if deal not in ("share", "asset"):
+            raise Refused(400, "bad-deal", "a deal type is share or asset")
         if name is not None and not NAME.match(name):
             raise Refused(400, "bad-name", "a name is lower case letters, digits and dashes")
         run_id = name or uuid.uuid4().hex[:12]
@@ -168,6 +171,7 @@ def create_app(
         except OSError:
             shutil.rmtree(runs_root / run_id, ignore_errors=True)
             raise
+        (runs_root / run_id / DEAL_FILE).write_text(deal + "\n", encoding="utf-8")
         keys[run_id] = key
         return {"id": run_id}
 

@@ -40,6 +40,33 @@ the first in report-raw-1.txt when there were two, the whole report in report.md
 rounds in verify.json. A second reply that lost any of the five headings was cut short at the
 cap, and then the first reply is the report and verify.json's report_round says so.
 
+`--pick` writes from pick.json in place of the dossier: the digest is the notes of the documents
+rlm.pick chose, whole and in rank order, the verifier reads that digest as its dossier, the
+schedule is those notes' own words, and the report opens with one line naming the deal type.
+The prompt, the model and the verifier are the ones above.
+
+`--tree` writes from tree.json in the same way: the digest is the findings rlm.tree's group
+calls kept, grouped by document in the room's order, the verifier reads that digest as its
+dossier, and the schedule is those findings' own quotes. The report has no opening line. The
+writer's model, its tokens and what they would cost on the model maker's API are written into
+tree.json under writer, beside the group calls' own.
+
+`--both --tree-first` puts those findings before the digest. `--both` writes from the dossier as a run without a flag does and adds, after the digest, the
+findings of tree.json whose quote the digest does not hold; the verifier reads the dossier and
+those rows, and the schedule carries their quotes after the dossier's. The prompt and the model
+are the ones above.
+
+A writer on a Claude Code model is asked on FULL_PROMPT instead: every finding the digest
+carries, each naming its people, its documents, its dates and its figures, in numbered lists,
+with FULL_OUTPUT_TOKENS for each reply. Its first call writes the executive summary, at most
+FINDINGS_ITEMS ranked findings, the quantified issue and the open items; then one call per part
+of the tree's documents, on FULL_TAIL_PROMPT and reading the first sections, writes the lesser
+issues of that part, and code puts them under one heading before the open items. Where the
+report fails the verifier, one more call is given the failing sentences numbered, on
+FULL_REASK, and answers with a fix for each, which code puts in place; a sentence still failing
+after that is taken out, and verify.json lists it under left_out. Given `--both` it reads every
+finding tree.json kept, not only those whose quote the dossier digest lacks.
+
 Both calls run inside one ledger batch, which prints the estimated tokens and the price before
 anything is sent and writes one phase 5 row of LEDGER.md, summed over the calls, when they
 return.
@@ -74,7 +101,7 @@ from itertools import zip_longest
 from pathlib import Path
 
 from rlm.amounts import normalise_amount
-from rlm.gateway import PHASE_CAPS, PRICES, Gateway, Ledger, estimate_tokens, price
+from rlm.gateway import CLAUDE_CODE_MODELS, PHASE_CAPS, Completion, Gateway, Ledger, NoReply, api_price, estimate_tokens, price, priced
 from rlm.notes import reask_messages
 
 PHASE = 5
@@ -1002,6 +1029,386 @@ its row, every quotation the room's own words, and every certainty word the room
 number, a date or a certainty word that its row does not carry goes out of the sentence. You
 have 12000 tokens for the whole reply, so do not deliberate and do not lengthen anything."""
 
+# The prompts of a writer whose reply is not held to MAX_OUTPUT_TOKENS: a Claude Code model on
+# the founder's subscription. It is asked for every finding of the digest, each naming its
+# facts, rather than for about a hundred short sentences, because the GLM writer's cap is what
+# kept its reports short and this writer has no such cap. The citations, the words, the
+# comparisons and the number are asked for as PROMPT asks for them, so the verifier reads its
+# report the same way.
+#
+# The report is written in two calls. Headless Claude Code hands back only the last message of
+# a reply that runs past its cap and is continued, and a report of every finding of a hundred
+# document room ran past sixty-four thousand tokens on 2026-10-05, and either half of it did
+# when the model put most rows on that side. So every call's share is bounded: the first call
+# writes the executive summary, at most FINDINGS_ITEMS ranked findings, the quantified issue and
+# the open items, and the lesser issues are written by further calls, each given the documents
+# of one part of at most TAIL_ROWS of the tree's findings, and placed before the open items.
+
+# The most findings the first call ranks. Forty items of two cited sentences ran to about
+# fifteen thousand tokens on the practice rooms, well inside the reply cap, and every other row
+# of the digest is written under the lesser issues.
+FINDINGS_ITEMS = 40
+
+# The most tree findings one lesser issues call is given documents for. Sixty one-sentence items
+# ran to about twenty-five thousand tokens on the practice rooms, inside the reply cap with room
+# for the model's thinking.
+TAIL_ROWS = 60
+
+# The heading of the documents a lesser issues call writes for, in its user message.
+YOUR_DOCUMENTS = "YOUR DOCUMENTS"
+
+FULL_RULES = """THE DIGEST
+
+Under `### Findings from every document`, by document in the room's order, stand the findings
+readers chose from each document of the room. A row is
+
+  - <finding> | <doc> | <words> | <anchor>
+
+the finding in the reader's words, then the words copied from the document and the place they
+stand.
+
+After them may come the matter the room's map found, chosen by code out of a larger dossier.
+Timeline, Names, Figures and Models blind to it hold rows of four fields:
+
+  - <date or figure or name> | <doc> | <words> | <anchor>
+
+Comparisons holds the room contradicting itself: a row is two or more
+`<doc> | <words> | <anchor>` triples joined by ` || `, each triple one half of what the room
+said twice. Lesser matters holds what the room carries outside that matter.
+
+WHAT GOES IN
+
+Go through the findings document by document. Every row under `### Findings from every
+document` is written in the report: the rows that bear most on the price, the terms of the deal
+or what the buyer inherits in Findings ranked by materiality, and every other row in Lesser
+issues. A row
+leaves the report only where an item already written carries the same term, and then that item
+names each person or party the term covers and cites each of their documents. The report is as
+long as the rows make it: a room of many documents gives many items, and a short report that
+leaves rows out has failed the committee. The matter after the findings adds to them; write its
+rows where they add a fact the findings do not carry.
+
+A finding names its facts the way its rows give them: the people and the companies by name,
+the agreement, plan or instrument by its title, and every amount, share count, multiple,
+percentage, period and trigger. A reader who never opens the room has to know from the finding
+alone who is owed or owes what, under which document and on what event. Writing "the
+executive", "the company" or "the agreement" where the row names them loses the finding.
+
+CITATIONS
+
+Every sentence ends with its citation and then the full stop:
+
+  The exception log records "Rotation blocked by legacy session compatibility" [<doc> |
+  <anchor>].
+
+A citation is `[<doc> | <anchor>]`, both halves copied character for character from the row
+the sentence came from: the doc as the row's doc field writes it, and the whole anchor, its
+path and its # and everything after it. Copy the
+anchor exactly, spelling and all, and where one looks misspelled copy the misspelling: it is
+the address of a file. Put the citation at the end of the sentence, never in the middle.
+Nothing follows it but the full stop. A sentence drawn from several rows ends with each of
+their citations, one after the other.
+
+Every figure, every year and every date in a sentence stands in a row the sentence cites, and
+a sentence carrying figures from two rows cites both rows. A figure, a year or a date that no
+cited row carries goes out of the sentence: name an agreement by its title and its parties,
+and give its year or its date only where a cited row writes it.
+
+Two lines carry no citation, and only two: the line beginning `Recommendation:` and the line
+beginning `Calculation:`. No summary sentence and no judgement of your own is exempt. If you
+cannot cite a sentence, do not write it.
+
+WORDS
+
+Quote the decisive clause of a row, in double quotation marks, copied character for character:
+the clause carrying the finding, the number, the date or the hedge, whole from its first word
+to its last. Never write three dots inside a quotation. Where the clause holds a full stop of
+its own, keep it and everything after it inside the quotation marks.
+
+Every identifier, name, title, file name and figure you write appears as its row writes it,
+character for character, with the unit its row gives it. Certainty words are the room's: write
+"may", "might", "could", "possible", "potential", "likely", "probable", "expected",
+"estimated", "approximately", "confirmed", "conclusive", "definitive", "established" or
+"certain" only where the words of the row you cite carry that word or a stronger one. The word
+counts wherever it stands, inside a quotation, a title or a capitalised defined term too, and
+in the reason a lesser issue is smaller. Do not write "e.g.", "i.e." or "approx." inside a
+sentence, and write no em dash of your own.
+
+COMPARISONS
+
+Each comparison row you write gives one sentence, in this form:
+
+  <side A> against <side B>, "<quote A>" and "<quote B>" [<doc A> | <anchor A>] [<doc B> |
+  <anchor B>].
+
+Each side is a plain statement of at most eight words built from its own triple: the number,
+the date, the identifier and the two or three words that name them.
+
+"""
+
+FULL_FINDINGS_SHAPE = """## Executive summary
+  A first line beginning `Recommendation:`, then up to eight sentences, each cited, on what
+  moves the price or the terms most.
+## Findings ranked by materiality
+  A numbered list of the findings that bear most on the price, the terms of the deal or what
+  the buyer inherits, at most """ + str(FINDINGS_ITEMS) + """ items, the one that costs the buyer most first.
+  One item a finding, on one line: a first sentence saying what it is with its names, its dates
+  and its figures, then a sentence quoting the decisive words. Each of the two sentences ends in
+  its own citation, so an item carries its citation twice. Where several documents carry the
+  same term, one item names each person or party and cites each document. Where the digest
+  carries a Timeline, Names, Figures or Comparisons section, the first item cites a document
+  whose rows stand there.
+## The most material issue quantified
+  Three cited sentences on the largest exposure, then the `Calculation:` line, then one
+  `Recommendation:` line."""
+
+FULL_OPEN_ITEMS_SHAPE = """
+## Open items
+  A numbered list of what you would still need to confirm, one cited sentence each."""
+
+FULL_SHAPE_ONE_MATTER = (
+    "Four second level headings, in this order, and nothing after the fourth:\n\n"
+    + FULL_FINDINGS_SHAPE
+    + FULL_OPEN_ITEMS_SHAPE
+)
+
+FULL_SHAPE_TWO_MATTERS = (
+    "Five second level headings, in this order, and nothing after the fifth:\n\n"
+    + FULL_FINDINGS_SHAPE
+    + """
+## The second matter
+  The rows the digest writes under its own second level heading, a numbered list, one cited
+  sentence each, in the order the digest gives them. Write them here and nowhere else."""
+    + FULL_OPEN_ITEMS_SHAPE
+)
+
+FULL_NUMBER = """THE NUMBER
+
+The most material issue carries one dollar number and a range. The number is the middle of the
+exposure the room itself writes, rounded to the nearest whole hundred in the unit the room
+writes its amounts in. Do not add an estimate of your own. The arithmetic line reads
+
+  Calculation: (<low> + <high>) / 2 = <middle>, rounded to <number>, range <low> to <high>.
+
+and the `Recommendation:` line under it names the deal action and repeats the rounded number.
+The low and the high are two amounts the cited sentences above it write, copied from the room.
+Where the room writes one amount and not a range, the low and the high are both that amount.
+
+"""
+
+FULL_OPENING = """You are the buy-side diligence lead. You write the findings report on a data room for the deal
+committee from two things and nothing else: the brief below, and the digest in the next message.
+The committee reads your report in place of the room, so a finding left out is a finding the
+committee never sees.
+
+ANSWER WITH THE SECTIONS AND NOTHING ELSE
+
+Do not plan aloud and do not say what you are about to do. The first characters of your reply
+are `{first}`.
+
+"""
+
+FULL_PROMPT = (
+    FULL_OPENING.replace("{first}", "## Executive summary")
+    + FULL_RULES
+    + "THE SHAPE\n\nYou write the report's first sections. "
+    + FULL_SHAPE_ONE_MATTER
+    + """
+
+Write no further heading. The lesser issues, every row your findings do not carry, are written
+after your reply by further calls and placed before your open items, and a schedule of the
+room's own words is added under `## Evidence` by the code that calls you; do not write them and
+do not refer to them.
+
+Write no table, no block quote and no bold label on a line of its own.
+
+"""
+    + FULL_NUMBER
+    + "Begin now, with `## Executive summary`.\n\nTHE BRIEF\n\n"
+)
+
+# The first call's prompt where the digest holds a second matter.
+FULL_PROMPT_TWO_MATTERS = FULL_PROMPT.replace(FULL_SHAPE_ONE_MATTER, FULL_SHAPE_TWO_MATTERS, 1)
+
+FULL_TAIL_PROMPT = (
+    FULL_OPENING.replace("{first}", "## Lesser issues")
+    + FULL_RULES
+    + """THE SHAPE
+
+The next message holds the digest, then under `THE REPORT SO FAR` the report's other sections
+as they were written, then under `YOUR DOCUMENTS` the documents whose rows you write, where it
+names any. You write one section, under one second level heading, and nothing after it:
+
+## Lesser issues
+  A numbered list of every row of your documents, under the findings or in the matter after
+  them, that the report so far does not carry, one item a finding, on one line: one sentence
+  with its names, its dates and its figures, ending in its citation. Say why it is smaller
+  inside that sentence, before the citation, never in a sentence of its own. Where no document
+  is named, every row of the digest is yours.
+
+Write no row of a document that is not yours: other calls write those. Do not repeat the report
+so far and do not refer to it. A schedule of the room's own words is
+added under `## Evidence` by the code that calls you; do not write it.
+
+Write no table, no block quote and no bold label on a line of its own.
+
+Begin now, with `## Lesser issues`.
+
+THE BRIEF
+
+"""
+)
+
+# A lesser issues call's user message: the digest, then the first call's sections.
+REPORT_SO_FAR = "THE REPORT SO FAR"
+
+FULL_REASK = """These sentences of your report did not verify. Each is numbered and written as you
+wrote it, with the checks it failed and why on the line under it:
+
+{items}
+
+Answer with one JSON object and nothing else:
+
+{{"fixes": [{{"n": <number>, "sentence": "<the sentence fixed from its row>"}}]}}
+
+one fix for each number. A fixed sentence keeps its facts and its citation copied character
+for character off its row, and drops the number, the date or the certainty word its cited row
+does not carry. Where a sentence cannot be fixed from its rows, its sentence is "", and it is
+left out of the report."""
+
+# The reply cap of each call of a writer in full. A report of every finding of a hundred
+# document room ran to about forty thousand tokens in one call on 2026-10-05, the anchors of
+# its citations long.
+FULL_OUTPUT_TOKENS = 64000
+
+
+def tail_messages(brief: str, digest: str, head: str, docs: list[str]) -> list[dict]:
+    """A lesser issues call of a writer in full: FULL_TAIL_PROMPT with the brief, then the
+    digest, the sections the first call wrote and the documents this call writes for, where it
+    is given any."""
+    user = f"{digest.rstrip()}\n\n{REPORT_SO_FAR}\n\n{head.rstrip()}\n"
+    if docs:
+        user += f"\n{YOUR_DOCUMENTS}\n\n" + "\n".join(f"- {doc}" for doc in docs) + "\n"
+    return [{"role": "system", "content": FULL_TAIL_PROMPT + brief}, {"role": "user", "content": user}]
+
+
+def document_parts(counts: list[tuple[str, int]], rows: int) -> list[list[str]]:
+    """The documents, in their order, cut into consecutive parts whose findings sum within rows;
+    a document past rows alone is a part of its own."""
+    parts: list[list[str]] = []
+    current: list[str] = []
+    used = 0
+    for doc, count in counts:
+        if current and used + count > rows:
+            parts.append(current)
+            current, used = [], 0
+        current.append(doc)
+        used += count
+    if current:
+        parts.append(current)
+    return parts
+
+
+def section_lines(text: str, heading: str) -> list[str]:
+    """The non-blank lines under one second level heading of a reply, up to the next."""
+    found: list[str] = []
+    inside = False
+    for line in text.splitlines():
+        if line.startswith("## "):
+            inside = line[3:].strip() == heading
+            continue
+        if inside and line.strip():
+            found.append(line)
+    return found
+
+
+def assemble(head: str, parts: list[str]) -> str:
+    """The narrative of a writer in full: the first call's sections, with the lesser issues of
+    every part, numbered in turn, under one heading before the open items."""
+    number = 0
+    items: list[str] = []
+    for part in parts:
+        for line in section_lines(part, "Lesser issues"):
+            if _NUMBERED.match(line):
+                number += 1
+                line = _NUMBERED.sub(f"{number}. ", line, count=1)
+            items.append(line)
+    lesser = "## Lesser issues\n\n" + "\n".join(items) + "\n"
+    before, mark, after = head.partition("\n## Open items")
+    if not mark:
+        return head.rstrip("\n") + "\n\n" + lesser
+    return before.rstrip("\n") + "\n\n" + lesser + "\n" + mark.lstrip("\n") + after
+
+
+# A numbered list item's marker.
+_NUMBERED = re.compile(r"^\s*\d+[.)]\s+")
+
+
+def failing_sentences(failures: list[dict]) -> tuple[list[str], str]:
+    """The distinct sentences of a round's failures, in order, and the numbered list FULL_REASK
+    carries: each sentence once, with every check and reason it failed on."""
+    sentences_found: list[str] = []
+    reasons: dict[str, list[str]] = {}
+    for item in failures:
+        line = item["line"]
+        if line not in reasons:
+            sentences_found.append(line)
+            reasons[line] = []
+        reasons[line].append(f"{item['check']}: {item['reason']}")
+    items = "\n".join(
+        f"{number}. {line}\n   {'; '.join(reasons[line])}"
+        for number, line in enumerate(sentences_found, start=1)
+    )
+    return sentences_found, items
+
+
+# A line left with nothing but its list marker, or nothing at all.
+_EMPTY_ITEM = re.compile(r"\s*(?:[-*+]|\d+[.)])?\s*")
+
+
+def take_out(text: str, sentence: str) -> str:
+    """The text with one sentence taken out of the first line holding it, and that line too
+    where it is left with nothing but its list marker."""
+    found = []
+    for line in text.splitlines():
+        if sentence and sentence in line:
+            line = re.sub(r"(?<=\S)  +", " ", line.replace(sentence, "", 1).rstrip())
+            sentence = ""
+            if _EMPTY_ITEM.fullmatch(line):
+                continue
+        found.append(line)
+    return "\n".join(found) + ("\n" if text.endswith("\n") else "")
+
+
+def apply_fixes(text: str, sentences_listed: list[str], reply: str) -> str:
+    """The narrative with each numbered sentence replaced, once, by the fix the reply gives for
+    its number, and taken out where the fix is empty. A reply that cannot be read, and a number
+    that names no sentence, change nothing."""
+    try:
+        fixes = json.loads(reply).get("fixes", [])
+    except (ValueError, AttributeError):
+        return text
+    for fix in fixes if isinstance(fixes, list) else []:
+        if not isinstance(fix, dict):
+            continue
+        number = fix.get("n")
+        if not isinstance(number, int) or not 1 <= number <= len(sentences_listed):
+            continue
+        old = sentences_listed[number - 1]
+        new = str(fix.get("sentence") or "").strip()
+        if old not in text:
+            continue
+        text = text.replace(old, new, 1) if new else take_out(text, old)
+    return text
+
+
+def leave_out(text: str, sentences_failing: list[str]) -> str:
+    """The narrative with every sentence that still fails taken out, as FULL_REASK told the
+    writer a sentence it cannot fix is."""
+    for sentence in sentences_failing:
+        text = take_out(text, sentence)
+    return text
+
 
 def failure_items(failures: list[dict]) -> str:
     """The failures of one round, one line each: the check, the reason, then the sentence."""
@@ -1022,14 +1429,18 @@ def brief_path(sample_dir: Path) -> Path:
     return own if own.exists() else DEFAULT_BRIEF
 
 
-def build_messages(brief: str, digest: str) -> list[dict]:
+def build_messages(brief: str, digest: str, full: bool = False) -> list[dict]:
     """The two messages of the call: the instructions with the brief, then the digest.
 
-    A digest holding a second matter is asked for the shape that gives it a heading of its own.
+    The instructions are FULL_PROMPT for a writer asked for every finding, PROMPT otherwise. A
+    digest holding a second matter is asked for the shape that gives it a heading of its own.
     """
-    instructions = PROMPT
-    if holds_further_matter(digest):
-        instructions = instructions.replace(SHAPE_ONE_MATTER, SHAPE_TWO_MATTERS, 1)
+    if full:
+        instructions = FULL_PROMPT_TWO_MATTERS if holds_further_matter(digest) else FULL_PROMPT
+    else:
+        instructions = PROMPT
+        if holds_further_matter(digest):
+            instructions = instructions.replace(SHAPE_ONE_MATTER, SHAPE_TWO_MATTERS, 1)
     return [
         {"role": "system", "content": instructions + brief},
         {"role": "user", "content": digest},
@@ -1180,6 +1591,27 @@ def summary_line(summary: dict) -> str:
     )
 
 
+def writes_in_full(model: str) -> bool:
+    """Says whether a writer model is asked for every finding, on FULL_PROMPT: a Claude Code
+    model, whose reply is not held to MAX_OUTPUT_TOKENS."""
+    return model in CLAUDE_CODE_MODELS
+
+
+def reply_cap(model: str) -> int:
+    """The reply tokens a writer call asks for: FULL_OUTPUT_TOKENS for a writer in full."""
+    return FULL_OUTPUT_TOKENS if writes_in_full(model) else MAX_OUTPUT_TOKENS
+
+
+def paid_call(batch, gateway: Gateway, model: str, messages: list[dict], json: bool = False) -> Completion:
+    """One writer call recorded on the batch, prose unless json is asked for; draws that came
+    back with no reply were paid for and are recorded too before the error goes on."""
+    try:
+        return batch.record(gateway.complete(model, messages, max_tokens=reply_cap(model), json=json))
+    except NoReply as exc:
+        batch.record(Completion("", exc.tokens_in, exc.tokens_out, exc.seconds, model, cost=exc.cost))
+        raise
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     """Reads the command line of one write run."""
     parser = argparse.ArgumentParser(prog="python -m rlm.write")
@@ -1217,6 +1649,27 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="the phase the ledger books this run to, so that a phase 6 variant pays out "
         "of phase 6's cap",
     )
+    parser.add_argument(
+        "--pick",
+        action="store_true",
+        help="write from the documents pick.json chose, their notes whole, in place of the dossier",
+    )
+    parser.add_argument(
+        "--tree",
+        action="store_true",
+        help="write from the findings tree.json kept, in place of the dossier",
+    )
+    parser.add_argument(
+        "--both",
+        action="store_true",
+        help="write from the dossier and add the findings tree.json kept that the dossier digest lacks",
+    )
+    parser.add_argument(
+        "--tree-first",
+        dest="tree_first",
+        action="store_true",
+        help="with --both, put the tree's findings before the dossier digest instead of after it",
+    )
     return parser.parse_args(argv)
 
 
@@ -1252,7 +1705,7 @@ def main(
     from rlm.grade import has_key
 
     args = parse_args(argv)
-    if args.model not in PRICES:
+    if not priced(args.model):
         print(f"no such model in the price table: {args.model}")
         return 2
     if args.phase not in PHASE_CAPS:
@@ -1265,11 +1718,15 @@ def main(
     sample_dir = Path(args.sample_dir)
     run_dir = Path(args.run_dir)
     brief = brief_path(sample_dir)
-    dossier_path = run_dir / "dossier.md"
+    source = "pick" if args.pick else "tree" if args.tree else "dossier"
+    dossier_path = run_dir / {"pick": "pick.json", "tree": "tree.json", "dossier": "dossier.md"}[source]
+    if args.both and not (run_dir / "tree.json").exists():
+        print(f"no tree at {run_dir / 'tree.json'}")
+        return 2
     sections_path = run_dir / "sections.jsonl"
     index_path = run_dir / "index.jsonl"
     if not dossier_path.exists():
-        print(f"no dossier at {dossier_path}")
+        print(f"no {source} at {dossier_path}")
         return 2
     if not sections_path.exists():
         print(f"no sections.jsonl at {sections_path}")
@@ -1278,20 +1735,67 @@ def main(
         print(f"no index.jsonl at {index_path}")
         return 2
 
-    dossier = dossier_path.read_text(encoding="utf-8")
-    digest = digest_markdown(dossier)
-    rows = build_digest(dossier)
-
-    messages = build_messages(brief.read_text(encoding="utf-8"), digest)
-
-    evidence, cut = evidence_within_reach(dossier)
     sections = verifier.read_jsonl(sections_path)
     index = verifier.read_jsonl(index_path)
-    mapping = verifier.read_mapping(run_dir / "map.json")
+    opening = ""
+    # The tree's findings per document, in the room's order, where the writer reads a tree.
+    tree_counts: list[tuple[str, int]] = []
+    if args.pick:
+        # The chosen documents' notes are the digest, whole, and the verifier reads the same
+        # text as its dossier: its Documents list is the chosen set. There is no map, so no
+        # citation's document is checked against one.
+        from rlm import pick as pick_stage
+
+        picked = pick_stage.read_pick(run_dir)
+        digest = pick_stage.pick_digest(sample_dir, run_dir, picked)
+        dossier = digest
+        rows = pick_stage.digest_rows(digest)
+        evidence, cut = pick_stage.pick_evidence(sample_dir, run_dir, picked), 0
+        mapping = None
+        opening = pick_stage.deal_line(picked["deal"]) + "\n\n"
+    elif args.tree:
+        # The findings the group calls kept are the digest, and the verifier reads the same
+        # text as its dossier, as in pick mode.
+        from rlm import tree as tree_stage
+
+        built = tree_stage.read_tree(run_dir)
+        tree_counts = [(doc, len(items)) for doc, items in tree_stage.by_document(sample_dir, built)]
+        digest = tree_stage.tree_digest(sample_dir, run_dir, built)
+        dossier = digest
+        rows = tree_stage.digest_rows(digest)
+        evidence, cut = tree_stage.tree_evidence(sample_dir, run_dir, built), 0
+        mapping = None
+    else:
+        dossier = dossier_path.read_text(encoding="utf-8")
+        digest = digest_markdown(dossier)
+        plain_digest = digest
+        rows = build_digest(dossier)
+        evidence, cut = evidence_within_reach(dossier)
+        mapping = verifier.read_mapping(run_dir / "map.json")
+        if args.both:
+            # The tree's findings the dossier digest lacks follow it, and the verifier reads
+            # them with the dossier.
+            from rlm import tree as tree_stage
+
+            built = tree_stage.read_tree(run_dir)
+            tree_counts = [(doc, len(items)) for doc, items in tree_stage.by_document(sample_dir, built)]
+            # A writer in full reads every kept finding, for the names and the figures its own
+            # words carry beside the quote; the schedule still adds only the quotes the
+            # dossier's schedule lacks.
+            extra = tree_stage.unseen_digest(sample_dir, built, "" if writes_in_full(args.model) else digest)
+            if extra:
+                digest = f"{extra}\n{digest}" if args.tree_first else f"{digest}\n{extra}"
+                dossier = f"{dossier}\n{extra}"
+                rows = [*rows, *tree_stage.digest_rows(extra)]
+                evidence = f"{evidence}\n{tree_stage.unseen_evidence(sample_dir, built, plain_digest)}"
+
+    full = writes_in_full(args.model)
+    brief_text = brief.read_text(encoding="utf-8")
+    messages = build_messages(brief_text, digest, full=full)
 
     def build(text: str) -> str:
         """The whole report of one reply: the narrative it holds and the schedule under it."""
-        return f"{parse_reply(text)}\n## {EVIDENCE_HEADING}\n\n{evidence}"
+        return f"{opening}{parse_reply(text)}\n## {EVIDENCE_HEADING}\n\n{evidence}"
 
     def check(text: str) -> list[dict]:
         """The failures of one report, read against the room the dossier was built from."""
@@ -1312,6 +1816,8 @@ def main(
 
         rounds: list[list[dict]] = []
         replies: list[str] = []
+        completions: list[Completion] = []
+        left_out: list[str] = []
 
         if args.from_reply:
             # A saved reply rebuilds the report with no call and no ledger row, which is how
@@ -1334,39 +1840,56 @@ def main(
 
             estimated_in = estimate_tokens("\n".join(message["content"] for message in messages))
             started = time.monotonic()
-            completions = []
             with ledger.batch(
                 sample_dir.name,
                 args.phase,
                 args.model,
                 tokens_in=estimated_in,
-                tokens_out=MAX_OUTPUT_TOKENS,
+                tokens_out=reply_cap(args.model),
             ) as batch:
-                completions.append(
-                    batch.record(
-                        gateway.complete(
-                            args.model, messages, max_tokens=MAX_OUTPUT_TOKENS, json=False
+                if full:
+                    # The first sections, then the lesser issues from one call per part of the
+                    # documents, each reading the first sections. Where the report fails, one
+                    # more call is given the failing sentences numbered and fixes them in place;
+                    # a sentence its fix leaves failing is taken out, as that call was told it
+                    # would be. Every call pays on this batch's one row.
+                    completions.append(paid_call(batch, gateway, args.model, messages))
+                    head = parse_reply(completions[0].text)
+                    parts = []
+                    for docs in document_parts(tree_counts, TAIL_ROWS) or [[]]:
+                        completions.append(paid_call(
+                            batch, gateway, args.model, tail_messages(brief_text, digest, head, docs)
+                        ))
+                        parts.append(parse_reply(completions[-1].text))
+                    replies.append(assemble(head, parts))
+                    rounds.append(check(build(replies[0])))
+                    if rounds[0]:
+                        listed, items = failing_sentences(rounds[0])
+                        asking = FULL_REASK.format(items=items)
+                        completions.append(paid_call(
+                            batch, gateway, args.model, reask_messages(messages, replies[0], asking), json=True
+                        ))
+                        (out_dir / "report-fixes.txt").write_text(completions[-1].text, encoding="utf-8")
+                        replies.append(apply_fixes(replies[0], listed, completions[-1].text))
+                        rounds.append(check(build(replies[1])))
+                        if rounds[1]:
+                            left_out = failing_sentences(rounds[1])[0]
+                            replies.append(leave_out(replies[1], left_out))
+                            rounds.append(check(build(replies[2])))
+                else:
+                    completions.append(paid_call(batch, gateway, args.model, messages))
+                    replies.append(completions[0].text)
+                    rounds.append(check(build(replies[0])))
+                    if rounds[0]:
+                        # One second call, and only one: the first reply and the failures under
+                        # it, so that the model fixes the sentences the room does not carry and
+                        # leaves the rest of its report alone. Both calls pay on this batch's
+                        # one row.
+                        asking = REASK_FAILURES.format(items=failure_items(rounds[0]))
+                        completions.append(
+                            paid_call(batch, gateway, args.model, reask_messages(messages, replies[0], asking))
                         )
-                    )
-                )
-                replies.append(completions[0].text)
-                rounds.append(check(build(replies[0])))
-                if rounds[0]:
-                    # One second call, and only one: the first reply and the failures under it,
-                    # so that the model fixes the sentences the room does not carry and leaves
-                    # the rest of its report alone. Both calls pay on this batch's one row.
-                    asking = REASK_FAILURES.format(items=failure_items(rounds[0]))
-                    completions.append(
-                        batch.record(
-                            gateway.complete(
-                                args.model,
-                                reask_messages(messages, replies[0], asking),
-                                max_tokens=MAX_OUTPUT_TOKENS,
-                                json=False,
-                            )
-                        )
-                    )
-                    replies.append(completions[1].text)
+                        replies.append(completions[1].text)
             seconds = time.monotonic() - started
             tokens_in = sum(completion.tokens_in for completion in completions)
             tokens_out = sum(completion.tokens_out for completion in completions)
@@ -1375,7 +1898,7 @@ def main(
                 (out_dir / "report-raw-1.txt").write_text(replies[0], encoding="utf-8")
 
         kept = len(replies)
-        if len(replies) > 1:
+        if len(replies) > 1 and not full:
             rounds.append(check(build(replies[1])))
             if not is_whole(parse_reply(replies[1])):
                 # The second reply lost headings, which is what a reply cut short at the cap
@@ -1398,7 +1921,7 @@ def main(
         if args.out:
             (out_dir / args.out).write_text(report, encoding="utf-8")
 
-        calls = 0 if args.from_reply else len(replies)
+        calls = 0 if args.from_reply else len(completions) if full else len(replies)
         record = {
             "sample": sample_dir.name,
             "model": args.model,
@@ -1407,6 +1930,8 @@ def main(
             "passes": not rounds[kept - 1],
             "calls": calls,
         }
+        if full:
+            record["left_out"] = left_out
         (out_dir / "verify.json").write_text(
             json.dumps(record, indent=2) + "\n", encoding="utf-8"
         )
@@ -1456,6 +1981,17 @@ def main(
             result = grader(sample_dir, out_dir / "report.md", out_dir, "grade.json")
             grades.append(result)
             print(graded_line(sample_dir.name, letter, result, record["passes"]))
+
+    if args.tree or args.both:
+        path = run_dir / "tree.json"
+        written = json.loads(path.read_text(encoding="utf-8"))
+        tokens_in = sum(summary["tokens_in"] for summary in summaries)
+        tokens_out = sum(summary["tokens_out"] for summary in summaries)
+        written["writer"] = {
+            "model": args.model, "tokens_in": tokens_in, "tokens_out": tokens_out,
+            "api_dollars": round(api_price(args.model, tokens_in, tokens_out), 6),
+        }
+        path.write_text(json.dumps(written, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
     if len(grades) == 2:
         # The spread of the two draws lives with pass a's grade, which is the graded artefact

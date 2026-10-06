@@ -187,6 +187,7 @@
     $("stop").hidden = true;
     const form = new FormData();
     for (const file of chosen.files) form.append("files", file, file.webkitRelativePath || file.name);
+    form.append("deal", $("deal").value);
     $("upload").disabled = true;
     try {
       const made = await json("POST", "/runs", form, true);

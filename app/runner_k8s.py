@@ -32,6 +32,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from app.runner import deal_args
+
 # Where Kubernetes mounts a pod's service account: its token, its namespace and the cluster CA.
 ACCOUNT_DIR = Path("/var/run/secrets/kubernetes.io/serviceaccount")
 
@@ -303,6 +305,7 @@ def main(
         command = ["run", args.room, "--out", str(run_dir), "--yes"]
         if args.phase is not None:
             command += ["--phase", args.phase]
+        command += deal_args(run_dir)
         return cli.main(command, gateway=Gateway(api_key=key, transport=transport))
 
 
