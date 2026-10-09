@@ -462,6 +462,41 @@ def test_gateway_complete_raises_on_a_non_200_reply():
         gateway.complete(MODEL, [{"role": "user", "content": "u"}], max_tokens=10)
 
 
+def test_gateway_complete_sends_a_dropped_connection_again_once(monkeypatch):
+    monkeypatch.setattr("rlm.gateway.TRANSPORT_RETRY_WAIT", 0.0)
+    answers = [httpx.RemoteProtocolError("peer closed connection without sending complete message body"), reply("{}")]
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        answer = answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return httpx.Response(200, json=answer)
+
+    gateway = Gateway(api_key="test-key", transport=httpx.MockTransport(handler))
+
+    completion = gateway.complete(MODEL, [{"role": "user", "content": "u"}], max_tokens=10)
+
+    assert completion.text == "{}"
+    assert len(calls) == 2
+
+
+def test_gateway_complete_raises_when_the_connection_drops_twice(monkeypatch):
+    monkeypatch.setattr("rlm.gateway.TRANSPORT_RETRY_WAIT", 0.0)
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        raise httpx.RemoteProtocolError("peer closed connection without sending complete message body")
+
+    gateway = Gateway(api_key="test-key", transport=httpx.MockTransport(handler))
+
+    with pytest.raises(httpx.RemoteProtocolError):
+        gateway.complete(MODEL, [{"role": "user", "content": "u"}], max_tokens=10)
+    assert len(calls) == 2
+
+
 # ---------------------------------------------------------------- gateway: ledger
 
 
