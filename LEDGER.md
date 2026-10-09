@@ -446,3 +446,6 @@ Rows below this line book the cost the gateway reported for the call (#160), not
 | 2026-10-09 | atlas-161-map | 8 | claude-code/claude-sonnet-5-5 | 265491 | 18658 | 0.0000 | 19.9380 |
 | 2026-10-09 | northwind-161-map | 8 | claude-code/claude-sonnet-5-5 | 150864 | 26159 | 0.0000 | 19.9380 |
 | 2026-10-09 | atlas-161-map | 8 | claude-code/claude-sonnet-5-5 | 273149 | 40793 | 0.0000 | 19.9380 |
+| 2026-10-09 | atlas-161-write | 8 | claude-code/claude-sonnet-5-5 | 271187 | 44816 | 0.0000 | 19.9380 |
+| 2026-10-09 | atlas | 5 | claude-code/claude-sonnet-5-5 | 125007 | 35236 | 0.0000 | 19.9380 |
+| 2026-10-09 | atlas | 5 | claude-code/claude-sonnet-5-5 | 125733 | 53040 | 0.0000 | 19.9380 |

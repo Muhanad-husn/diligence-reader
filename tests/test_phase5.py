@@ -73,7 +73,7 @@ from rlm import verify as verifier
 from rlm import write as writer
 from rlm import writebakeoff
 from rlm.carry import days_of, numbers_of, stem, words_of
-from rlm.gateway import OFF_GATEWAY, PRICES, Gateway, Ledger, price
+from rlm.gateway import CLAUDE_CODE_MODELS, OFF_GATEWAY, PRICES, Gateway, Ledger, price
 from rlm.grade import CONNECTIVES, measure_recall, normalise, side_carried
 from rlm.key import load_key
 from rlm.notes import straighten
@@ -582,11 +582,13 @@ def test_report_digest_is_pinned(report, run_dir, sample):
 
 
 def test_ledger_holds_no_row_for_the_grader(report, sample):
-    """Every phase 5 row names a gateway model; the grader runs on the subscription."""
+    """Every phase 5 row names a model the gateway serves, an OpenRouter model or a Claude Code
+    one; the grader runs on the subscription and books no row."""
     rows = Ledger(ROOT / "LEDGER.md").rows()
     phase_5 = [row for row in rows if row["phase"] == "5" and row["sample"] == sample]
     assert phase_5
-    assert all(row["model"] in PRICES for row in phase_5), [row["model"] for row in phase_5]
+    served = set(PRICES) | set(CLAUDE_CODE_MODELS)
+    assert all(row["model"] in served for row in phase_5), [row["model"] for row in phase_5]
 
 
 # ---------------------------------------------------------------- the fake transport
