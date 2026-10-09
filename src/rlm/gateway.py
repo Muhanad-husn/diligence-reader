@@ -363,10 +363,12 @@ CLAUDE_TIMEOUT_SECONDS = 1800
 # one at a time, atlas's hundred notes took about three hours.
 CLAUDE_CODE_CONCURRENCY = 4
 
-# The seconds between two claude call starts across the process. The build sent one call at a
-# time with this pause between them; it is kept between starts, so calls never start closer
-# together than they did when they ran one at a time.
-CLAUDE_PAUSE_SECONDS = 5.0
+# The seconds between two claude call starts across the process, so four subprocesses do not
+# start in the same instant. The build once waited 5 seconds between calls run one at a time;
+# kept between starts, that was the whole limit on northstar-dental, whose note calls take
+# about ten seconds: 23 calls cannot start in under 115 seconds, and four at once ran in 118
+# against 245 one at a time. At one second the four slots are the limit, not the pause.
+CLAUDE_PAUSE_SECONDS = 1.0
 
 # A command line on Windows ends at 32767 characters, and the system prompt rides on it.
 MAX_COMMAND_LINE = 32_000
