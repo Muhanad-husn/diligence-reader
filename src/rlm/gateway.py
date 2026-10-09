@@ -34,6 +34,10 @@ own record. Given no ledger it applies no cap, prints its estimate and writes no
 ledger, each of its batches is that ledger's batch underneath, so the cap and the row stand
 as they do for any phase, and the meter still counts.
 
+Calls run at once. A pass sends several documents together, so Batch.record, MeteredBatch.record
+and Meter.add take a lock, every ledger of the process books its rows one at a time, and the cap
+counts the estimate of every batch still open on the same ledger file as spent.
+
 A request the gateway answers with 429 is sent again after each wait of RATE_LIMIT_WAITS, and
 a 429 after the last wait is raised like any other status. A 401, 402, 403 or 429 says that
 the key, the account or the rate refuses every call and not one document, and stops_every_call
@@ -352,8 +356,16 @@ class ClaudeCodeError(Exception):
 DROP_ENV_PREFIXES = ("CLAUDE_CODE_", "AEO_")
 DROP_ENV = frozenset({"CLAUDECODE", "CLAUDE_PID", "CLAUDE_EFFORT"})
 
-# The seconds one claude call may take, and the seconds waited between two calls.
+# The seconds one claude call may take.
 CLAUDE_TIMEOUT_SECONDS = 1800
+
+# The claude calls the process runs at once. Each is a subprocess on the founder's subscription;
+# one at a time, atlas's hundred notes took about three hours.
+CLAUDE_CODE_CONCURRENCY = 4
+
+# The seconds between two claude call starts across the process. The build sent one call at a
+# time with this pause between them; it is kept between starts, so calls never start closer
+# together than they did when they ran one at a time.
 CLAUDE_PAUSE_SECONDS = 5.0
 
 # A command line on Windows ends at 32767 characters, and the system prompt rides on it.
@@ -385,16 +397,37 @@ class ClaudeCode:
     """Sends a call to headless Claude Code: `claude -p` with no tools, no settings, no MCP and
     no saved session, from an empty folder outside the repository, the system prompt on the
     command line, the rest of the conversation on stdin, the call's max_tokens as the reply cap
-    and the model's CLAUDE_EFFORT as the effort. Calls go one at a time, across every instance,
-    with pause seconds between them. The runner is injectable so a test can fake the
-    subprocess."""
+    and the model's CLAUDE_EFFORT as the effort. At most concurrency calls run at once, counted
+    across every instance of the process given the same limit, and a call starts at least pause
+    seconds after the last call of the process started. The runner is injectable so a test can
+    fake the subprocess."""
 
-    _lock = threading.Lock()
+    # The slots of each limit, shared by every instance given it, and the clock of call starts.
+    _slots: dict[int, threading.BoundedSemaphore] = {}
+    _slots_lock = threading.Lock()
+    _start_lock = threading.Lock()
+    _last_start: float | None = None
 
-    def __init__(self, runner=None, pause: float = CLAUDE_PAUSE_SECONDS):
+    def __init__(
+        self, runner=None, pause: float = CLAUDE_PAUSE_SECONDS, concurrency: int = CLAUDE_CODE_CONCURRENCY
+    ):
+        if concurrency < 1:
+            raise ValueError(f"concurrency must be at least 1, not {concurrency}")
         self.runner = runner or run_claude
         self.pause = pause
-        self._sent = 0
+        self.concurrency = concurrency
+        with ClaudeCode._slots_lock:
+            self._slot = ClaudeCode._slots.setdefault(concurrency, threading.BoundedSemaphore(concurrency))
+
+    def _wait_to_start(self) -> None:
+        """Waits until pause seconds have passed since the last call of the process started."""
+        with ClaudeCode._start_lock:
+            last = ClaudeCode._last_start
+            if self.pause and last is not None:
+                wait = last + self.pause - time.monotonic()
+                if wait > 0:
+                    time.sleep(wait)
+            ClaudeCode._last_start = time.monotonic()
 
     @staticmethod
     def stdin_of(messages: list[dict]) -> str:
@@ -432,10 +465,8 @@ class ClaudeCode:
                if name not in DROP_ENV and not name.startswith(DROP_ENV_PREFIXES)}
         # The command line takes no reply cap; headless Claude Code reads it from this variable.
         env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = str(max_tokens)
-        with self._lock:
-            if self._sent and self.pause:
-                time.sleep(self.pause)
-            self._sent += 1
+        with self._slot:
+            self._wait_to_start()
             cwd = Path(tempfile.mkdtemp(prefix="rlm-claude-"))
             started = time.monotonic()
             try:
@@ -653,6 +684,7 @@ class Batch:
         self.tokens_out = 0
         self.dollars = 0.0
         self._lock = threading.Lock()
+        self._held: tuple[int, float] | None = None
 
     def record(self, completion: Completion) -> Completion:
         """Adds one completion's reported tokens and its cost to the batch and returns it."""
@@ -668,19 +700,24 @@ class Batch:
             f"estimate: {self.estimated_in} tokens in, {self.estimated_out} tokens out, "
             f"${estimate:.4f} on {self.model}"
         )
-        spent = self._ledger.spent(self.phase)
-        cap = PHASE_CAPS[self.phase]
-        if spent + estimate > cap:
-            raise CapExceeded(
-                f"phase {self.phase} has spent ${spent:.4f} and this batch estimates "
-                f"${estimate:.4f}, past the ${cap:.2f} cap"
-            )
-        balance = self._ledger.balance()
-        if balance - estimate < 0:
-            raise CapExceeded(
-                f"${balance:.4f} left of the ${TOTAL_CEILING:.2f} ceiling and this batch "
-                f"estimates ${estimate:.4f}"
-            )
+        with LEDGER_LOCK:
+            # The batches still open on this ledger count as spent at their estimate.
+            held = self._ledger.held()
+            spent = self._ledger.spent(self.phase) + sum(dollars for phase, dollars in held if phase == self.phase)
+            cap = PHASE_CAPS[self.phase]
+            if spent + estimate > cap:
+                raise CapExceeded(
+                    f"phase {self.phase} has spent ${spent:.4f} and this batch estimates "
+                    f"${estimate:.4f}, past the ${cap:.2f} cap"
+                )
+            balance = self._ledger.balance() - sum(dollars for _, dollars in held)
+            if balance - estimate < 0:
+                raise CapExceeded(
+                    f"${balance:.4f} left of the ${TOTAL_CEILING:.2f} ceiling and this batch "
+                    f"estimates ${estimate:.4f}"
+                )
+            self._held = (self.phase, estimate)
+            held.append(self._held)
         return self
 
     def __exit__(
@@ -690,11 +727,24 @@ class Batch:
         traceback: TracebackType | None,
     ) -> bool:
         paid_for_nothing = exc_type is not None and issubclass(exc_type, NoReply) and (self.tokens_in or self.tokens_out)
-        if exc_type is None or paid_for_nothing:
-            self._ledger.append(
-                self.sample, self.phase, self.model, self.tokens_in, self.tokens_out, dollars=self.dollars
-            )
+        with LEDGER_LOCK:
+            if self._held is not None:
+                self._ledger.held().remove(self._held)
+                self._held = None
+            if exc_type is None or paid_for_nothing:
+                self._ledger.append(
+                    self.sample, self.phase, self.model, self.tokens_in, self.tokens_out, dollars=self.dollars
+                )
         return False
+
+
+# Held while a row is read, priced and written, and while a batch checks the cap, so that two
+# batches booking at once cannot both read the same last row and lose one of the two.
+LEDGER_LOCK = threading.RLock()
+
+# The phase and the estimated dollars of every batch open now, by the resolved path of its
+# ledger file.
+_HELD: dict[Path, list[tuple[int, float]]] = {}
 
 
 class Ledger:
@@ -702,6 +752,11 @@ class Ledger:
 
     def __init__(self, path: Path):
         self.path = Path(path)
+
+    def held(self) -> list[tuple[int, float]]:
+        """The phase and the estimated dollars of each batch open now on this ledger's file."""
+        with LEDGER_LOCK:
+            return _HELD.setdefault(self.path.resolve(), [])
 
     def rows(self) -> list[dict]:
         """Reads the table into one dict per row, in file order."""
@@ -742,7 +797,14 @@ class Ledger:
         self, sample: str, phase: int, model: str, tokens_in: int, tokens_out: int, dollars: float | None = None
     ) -> None:
         """Appends one row with the reported tokens, the dollars and the new balance. Without
-        dollars the row is priced at the PRICES rate."""
+        dollars the row is priced at the PRICES rate. One row is written at a time across the
+        process."""
+        with LEDGER_LOCK:
+            self._append(sample, phase, model, tokens_in, tokens_out, dollars)
+
+    def _append(
+        self, sample: str, phase: int, model: str, tokens_in: int, tokens_out: int, dollars: float | None
+    ) -> None:
         if dollars is None:
             dollars = price(model, tokens_in, tokens_out)
         dollars = round(dollars, 4)

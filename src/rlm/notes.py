@@ -74,7 +74,10 @@ cancelled, the error is raised out of main, and no summary, no verify log and no
 written. Every other exception still drops its one document.
 
 The documents run eight at a time inside one ledger batch, so a pass is one line of LEDGER.md
-and one runs/<sample>/notes-summary.json. A pass over every document of the room writes that
+and one runs/<sample>/notes-summary.json. On a Claude Code model the gateway runs four of
+their calls at once. What a pass writes does not depend on the order the calls come back in:
+each document's note and replies are its own files, the verify log is sorted, and the results
+are read in the room's order. A pass over every document of the room writes that
 summary from what this call did. A pass over --only documents merges into it instead: the
 counts are read back from what is on disk afterward, and the usage of the documents just
 replaced is swapped for their new usage in the previous totals.

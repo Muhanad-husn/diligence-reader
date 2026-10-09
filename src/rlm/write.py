@@ -101,11 +101,12 @@ import re
 import sys
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from itertools import zip_longest
 from pathlib import Path
 
 from rlm.amounts import normalise_amount
-from rlm.gateway import CLAUDE_CODE_MODELS, PHASE_CAPS, Completion, Gateway, Ledger, NoReply, api_price, estimate_tokens, price, priced
+from rlm.gateway import CLAUDE_CODE_CONCURRENCY, CLAUDE_CODE_MODELS, PHASE_CAPS, Completion, Gateway, Ledger, NoReply, api_price, estimate_tokens, price, priced
 from rlm.notes import reask_messages
 
 PHASE = 5
@@ -1047,6 +1048,8 @@ have 12000 tokens for the whole reply, so do not deliberate and do not lengthen 
 # writes the executive summary, at most FINDINGS_ITEMS ranked findings, the quantified issue and
 # the open items, and the lesser issues are written by further calls, each given the documents
 # of one part of at most TAIL_ROWS of the tree's findings, and placed before the open items.
+# Each part reads the first call's sections and no other part, so the parts are sent at once,
+# CLAUDE_CODE_CONCURRENCY at a time, and placed in the order of their documents.
 
 # The most findings the first call ranks. Forty items of two cited sentences ran to about
 # fifteen thousand tokens on the practice rooms, well inside the reply cap, and every other row
@@ -1862,18 +1865,21 @@ def main(
             ) as batch:
                 if full:
                     # The first sections, then the lesser issues from one call per part of the
-                    # documents, each reading the first sections. Where the report fails, one
-                    # more call is given the failing sentences numbered and fixes them in place;
-                    # a sentence its fix leaves failing is taken out, as that call was told it
-                    # would be. Every call pays on this batch's one row.
+                    # documents, each reading the first sections, the parts sent at once. Where
+                    # the report fails, one more call is given the failing sentences numbered
+                    # and fixes them in place; a sentence its fix leaves failing is taken out,
+                    # as that call was told it would be. Every call pays on this batch's one row.
                     completions.append(paid_call(batch, gateway, args.model, messages))
                     head = parse_reply(completions[0].text)
-                    parts = []
-                    for docs in document_parts(tree_counts, TAIL_ROWS) or [[]]:
-                        completions.append(paid_call(
-                            batch, gateway, args.model, tail_messages(brief_text, digest, head, docs)
+                    with ThreadPoolExecutor(max_workers=CLAUDE_CODE_CONCURRENCY) as pool:
+                        tails = list(pool.map(
+                            lambda docs: paid_call(
+                                batch, gateway, args.model, tail_messages(brief_text, digest, head, docs)
+                            ),
+                            document_parts(tree_counts, TAIL_ROWS) or [[]],
                         ))
-                        parts.append(parse_reply(completions[-1].text))
+                    completions.extend(tails)
+                    parts = [parse_reply(completion.text) for completion in tails]
                     replies.append(assemble(head, parts))
                     rounds.append(check(build(replies[0])))
                     if rounds[0]:
