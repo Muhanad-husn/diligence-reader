@@ -609,7 +609,8 @@ def test_map_returns_one_matter_on_a_room_that_holds_one(mapped):
 # time, against the documents its own round admits: DR-029 is a required document that two
 # documents both belonging to the matter had been holding each other out of, and DR-024, which
 # carries $5,150m with three documents of the set, is what atlas gains beside it.
-SET_CAP = {"atlas": 51}
+# It moved from 51 to 58 for #161: a cited id now links, adding seven documents reached by one.
+SET_CAP = {"atlas": 58}
 
 
 def test_map_first_matter_cluster_reaches_no_decoy(mapped, key):
