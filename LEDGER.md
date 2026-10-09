@@ -449,3 +449,6 @@ Rows below this line book the cost the gateway reported for the call (#160), not
 | 2026-10-09 | atlas-161-write | 8 | claude-code/claude-sonnet-5-5 | 271187 | 44816 | 0.0000 | 19.9380 |
 | 2026-10-09 | atlas | 5 | claude-code/claude-sonnet-5-5 | 125007 | 35236 | 0.0000 | 19.9380 |
 | 2026-10-09 | atlas | 5 | claude-code/claude-sonnet-5-5 | 125733 | 53040 | 0.0000 | 19.9380 |
+| 2026-10-09 | northstar-dental | 8 | claude-code/claude-haiku-5-5 | 70031 | 51233 | 0.0000 | 19.9380 |
+| 2026-10-09 | northstar-dental | 8 | claude-code/claude-haiku-5-5 | 67783 | 58413 | 0.0000 | 19.9380 |
+| 2026-10-09 | northstar-dental | 8 | claude-code/claude-haiku-5-5 | 67486 | 51967 | 0.0000 | 19.9380 |
