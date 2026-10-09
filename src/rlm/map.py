@@ -779,7 +779,9 @@ def build_edges(
 
     A shared value joins two documents where both notes are about it. A cross reference that is
     a document's id also joins the citing document to the cited one without that, because the
-    citation is the link: the cited document's note has no reason to be about its own id.
+    citation is the link: the cited document's note has no reason to be about its own id. Such
+    an edge carries `citation` here, so the seed pull can leave it out; map.json does not write
+    it.
 
     The second is read here because this is where a note's flags are already opened. A document
     holds a value where an edge carries it; it names the value where a flag of its note says the
@@ -808,9 +810,11 @@ def build_edges(
                 and target in (a, b)
                 and ((a, b) in cited or (b, a) in cited)
             )
-            if kind != "version" and not citation:
-                if not about_both(named.get(a), named.get(b), forms):
+            cited_only = False
+            if kind != "version" and not about_both(named.get(a), named.get(b), forms):
+                if not citation:
                     continue
+                cited_only = True
             marker = (a, b, kind, str(value))
             if marker in edges and edges[marker]["weight"] >= weight:
                 continue
@@ -822,6 +826,8 @@ def build_edges(
                 "anchors": {"a": carriers[a], "b": carriers[b]},
                 "weight": weight,
             }
+            if cited_only:
+                edges[marker]["citation"] = True
 
     naming: dict[str, set[str]] = {}
     for marker in edges:
@@ -857,9 +863,15 @@ def seed_pull(edges: list[dict], order: list[str]) -> dict[str, float]:
     link is a pair of documents, not a value: the pair is worth its heaviest value and no more,
     so two documents that write four of the same rare words to each other and to nobody else are
     one link, not four, and do not outweigh a document reaching three others.
+
+    An edge that stands only because one note cites the other document by its id is left out.
+    A Q&A log or an index cites most of the room, and every document it cites would otherwise
+    look like a seed.
     """
     strongest: dict[str, dict[str, float]] = {}
     for edge in edges:
+        if edge.get("citation"):
+            continue
         for one, other in ((edge["a"], edge["b"]), (edge["b"], edge["a"])):
             side = strongest.setdefault(one, {})
             side[other] = max(side.get(other, 0.0), edge["weight"])
