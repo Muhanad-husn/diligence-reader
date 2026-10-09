@@ -7,8 +7,8 @@ The group step runs only where write names the tree.
 
 Where the values come from, first to last: what the command line gives, the run's own settings
 file, the file saved on this machine, the defaults. The defaults are the open models of today,
-or Sonnet 5.5 through Claude Code for the group step and the writer, with the tree, when Claude
-Code is on the machine.
+or Claude through Claude Code for every task when Claude Code is on the machine: Haiku 5.5 for
+the notes, Sonnet 5.5 for the group step and the writer, with the tree.
 
 A claude-code/ id runs on headless Claude Code and every other id is an OpenRouter id. validate
 refuses an id before any call is made: a claude-code id Claude Code does not serve here, an
@@ -75,9 +75,10 @@ class Settings:
 # the same three as their own DEFAULT_MODEL, and a test holds the two together.
 OPEN_DEFAULTS = Settings(notes="z-ai/glm-5.3-flash", group="z-ai/glm-5.3-flash", writer="z-ai/glm-5.3")
 
-# The same with Sonnet 5.5 through Claude Code for the two tasks that read the findings.
+# Every task on Claude through Claude Code: Haiku 5.5 for the notes, Sonnet 5.5 for the two tasks
+# that read the findings.
 CLAUDE_CODE_DEFAULTS = Settings(
-    notes="z-ai/glm-5.3-flash",
+    notes="claude-code/claude-haiku-5-5",
     group="claude-code/claude-sonnet-5-5",
     writer="claude-code/claude-sonnet-5-5",
     write="both-tree-first",
@@ -95,8 +96,8 @@ def claude_code_found(
 
 
 def default_settings(claude_code: bool | None = None) -> Settings:
-    """The defaults: Claude Code's Sonnet for the group step and the writer when Claude Code is
-    found, the open models of today when it is not."""
+    """The defaults: Claude Code's Haiku for the notes and its Sonnet for the group step and the
+    writer when Claude Code is found, the open models of today when it is not."""
     found = claude_code_found() if claude_code is None else claude_code
     return CLAUDE_CODE_DEFAULTS if found else OPEN_DEFAULTS
 

@@ -160,7 +160,7 @@ def test_the_key_a_run_needs_follows_the_tasks_it_makes_calls_for():
 
 def test_the_report_opens_with_the_model_of_each_task():
     assert settings.models_line(settings.default_settings(True)) == (
-        f"Models: notes z-ai/glm-5.3-flash, group step {CODE_SONNET}, writer {CODE_SONNET}."
+        f"Models: notes {CODE_HAIKU}, group step {CODE_SONNET}, writer {CODE_SONNET}."
     )
     assert settings.models_line(settings.default_settings(False)) == (
         "Models: notes z-ai/glm-5.3-flash, group step not run, writer z-ai/glm-5.3."

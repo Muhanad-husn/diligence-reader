@@ -112,9 +112,12 @@ Code on this machine (not in the Docker image) and needs no key; any other id is
 id, which needs `OPENROUTER_API_KEY` and must be one OpenRouter lists.
 
 An id the tool does not know is refused before any call, with its name in the message. With no
-setting made, the notes run on GLM 5.3 Flash, and the group step and the writer on Claude Code's
-Sonnet 5.5 when Claude Code is on the machine, else on the OpenRouter defaults. The models are
-written into `run.json`, and the report opens with a line naming the model of each task.
+setting made and Claude Code on the machine, every task runs on Claude through Claude Code: the
+notes on Haiku 5.5 (`claude-code/claude-haiku-5-5`), and the group step and the writer on
+Sonnet 5.5 (`claude-code/claude-sonnet-5-5`), so the run needs no key. Without Claude Code the
+notes run on GLM 5.3 Flash and the writer on GLM 5.3 through OpenRouter, and the group step, when
+the report is built on the tree, on GLM 5.3 Flash. The models are written into `run.json`, and
+the report opens with a line naming the model of each task.
 
 ## When a run stops
 

@@ -81,17 +81,29 @@ OFF_GATEWAY = frozenset({"typesafe/jev-1.13.0"})
 # The models served by headless Claude Code on the founder's subscription, by the id this
 # repository names them with, each with the id the claude command line takes. A call to one
 # costs no cash: price reads it at zero and the ledger books it at $0.00.
-CLAUDE_CODE_MODELS: dict[str, str] = {"claude-code/claude-sonnet-5-5": "claude-sonnet-5-5"}
+CLAUDE_CODE_MODELS: dict[str, str] = {
+    "claude-code/claude-sonnet-5-5": "claude-sonnet-5-5",
+    "claude-code/claude-haiku-5-5": "claude-haiku-5-5",
+}
 
 # The prefix that sends an id to headless Claude Code in place of OpenRouter.
 CLAUDE_CODE_PREFIX = "claude-code/"
 
 # What the same tokens would cost on Anthropic's API, per million tokens, prompt then completion.
-# It is written beside the run, never in the ledger.
-API_EQUIVALENT: dict[str, tuple[float, float]] = {"claude-code/claude-sonnet-5-5": (2.0, 10.0)}
+# It is written beside the run, never in the ledger. Haiku 5.5 is priced at $0.50 and $2.50 for a
+# prompt over 100,000 tokens and at the rate here up to that. api_price is read on a run's token
+# totals, not per call, so the tier of one prompt is not known there and the lower rate is used:
+# a note call carries at most PIECE_LIMIT characters of the document, far under 100,000 tokens.
+API_EQUIVALENT: dict[str, tuple[float, float]] = {
+    "claude-code/claude-sonnet-5-5": (2.0, 10.0),
+    "claude-code/claude-haiku-5-5": (0.10, 0.50),
+}
 
 # The model id each Claude Code model's reply must name, from its usage by model.
-CLAUDE_CODE_REPLY = {"claude-code/claude-sonnet-5-5": re.compile(r"^claude-sonnet-5-5(?![0-9])")}
+CLAUDE_CODE_REPLY = {
+    "claude-code/claude-sonnet-5-5": re.compile(r"^claude-sonnet-5-5(?![0-9])"),
+    "claude-code/claude-haiku-5-5": re.compile(r"^claude-haiku-5-5(?![0-9])"),
+}
 
 # The tables the repository has priced a call at before, newest first. A ledger row written
 # before a price moved reconciles at one of these, so it is kept here.
@@ -126,23 +138,28 @@ PAST_PRICES: tuple[dict[str, tuple[float, float]], ...] = (
     },
 )
 
-# The effort a Claude model is asked to think at. Sonnet 5.5 thinks at high effort unless told
-# otherwise, and its thinking counts against the reply cap, so a call left at high can be cut
-# off before it answers. Every Claude Code call passes it, and Sonnet 5.5 on OpenRouter carries
-# it.
-CLAUDE_THINKING_EFFORT = "medium"
+# The effort each Claude model is asked to think at, by the id it runs under. Sonnet 5.5 thinks
+# at high effort unless told otherwise, and its thinking counts against the reply cap, so a call
+# left at high can be cut off before it answers; it is asked for medium. Haiku 5.5, which writes
+# the notes, is asked for low. Every Claude Code call passes its model's effort, and Sonnet 5.5
+# on OpenRouter carries its own in REASONING.
+CLAUDE_EFFORT: dict[str, str] = {
+    "claude-code/claude-sonnet-5-5": "medium",
+    "claude-code/claude-haiku-5-5": "low",
+    "anthropic/claude-sonnet-5.5": "medium",
+}
 
 # The reasoning object each model's request carries. The two GLM endpoints answer 400 when
 # reasoning is disabled, so they carry a low effort object instead; every other model of PRICES
 # carries reasoning off. Sonnet 5.5, which a user may pick through OpenRouter though PRICES does
-# not carry it, thinks at CLAUDE_THINKING_EFFORT. Any other model carries reasoning off.
+# not carry it, thinks at its CLAUDE_EFFORT. Any other model carries reasoning off.
 REASONING: dict[str, dict] = {
     "openai/gpt-5.6-luna": {"enabled": False},
     "deepseek/deepseek-v4-flash-0731": {"enabled": False},
     "deepseek/deepseek-v4-pro": {"enabled": False},
     "z-ai/glm-5.3": {"effort": "low"},
     "z-ai/glm-5.3-flash": {"effort": "low"},
-    "anthropic/claude-sonnet-5.5": {"effort": CLAUDE_THINKING_EFFORT},
+    "anthropic/claude-sonnet-5.5": {"effort": CLAUDE_EFFORT["anthropic/claude-sonnet-5.5"]},
 }
 
 # The gateway serves one model from several providers and picks one per call. A provider named
@@ -368,8 +385,9 @@ class ClaudeCode:
     """Sends a call to headless Claude Code: `claude -p` with no tools, no settings, no MCP and
     no saved session, from an empty folder outside the repository, the system prompt on the
     command line, the rest of the conversation on stdin, the call's max_tokens as the reply cap
-    and CLAUDE_THINKING_EFFORT as the effort. Calls go one at a time, with pause seconds
-    between them. The runner is injectable so a test can fake the subprocess."""
+    and the model's CLAUDE_EFFORT as the effort. Calls go one at a time, across every instance,
+    with pause seconds between them. The runner is injectable so a test can fake the
+    subprocess."""
 
     _lock = threading.Lock()
 
@@ -392,13 +410,15 @@ class ClaudeCode:
     def complete(self, model: str, messages: list[dict], max_tokens: int, json: bool = True) -> Completion:
         """One call, its reply text and its usage. Raises WrongModel when the reply names
         another model, ClaudeCodeError when the command fails, NoReply when it returns no text
-        or a reply continued past its cap, of which only the last part comes back."""
+        or a reply continued past its cap, of which only the last part comes back. The NoReply
+        of a reply past its cap says it was cut off, as a length finish reason does on
+        OpenRouter, so the note stage halves the piece."""
         system = "\n\n".join(message["content"] for message in messages if message["role"] == "system")
         args = [
             "claude", "-p",
             "--output-format", "json",
             "--model", CLAUDE_CODE_MODELS[model],
-            "--effort", CLAUDE_THINKING_EFFORT,
+            "--effort", CLAUDE_EFFORT[model],
             "--tools", "",
             "--strict-mcp-config",
             "--disable-slash-commands",
@@ -441,7 +461,7 @@ class ClaudeCode:
             # A reply that ran past its cap is continued in a further turn, and the result holds
             # only the last turn's text: the rest of the reply is lost.
             raise NoReply(f"{model} ran past its reply cap and was continued", tokens_in=tokens_in,
-                          tokens_out=tokens_out, seconds=seconds)
+                          tokens_out=tokens_out, seconds=seconds, cut_off=True)
         if not text.strip():
             raise NoReply(f"{model} returned no reply", tokens_in=tokens_in, tokens_out=tokens_out,
                           seconds=seconds)
