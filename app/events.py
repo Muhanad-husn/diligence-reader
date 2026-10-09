@@ -37,6 +37,8 @@ FIXES = {
     "empty-reply": "The model sent back nothing. Retry; the stages already done are kept.",
     "unreadable-file": "A file in the room could not be read. Remove or replace it and upload again.",
     "verify-failed": "The report did not pass its checks. Retry to write it again.",
+    "unknown-model": "A model id is not one this tool can run. Pick the models again and retry.",
+    "bad-settings": "The model settings cannot be run. Change them and retry.",
     "declined": "The estimate was not accepted, so nothing was sent.",
     "stopped": "You stopped the run. Retry resumes from the stage that stopped.",
     "unexpected": "The run stopped for an unexpected reason. Read run.log in the run folder, then retry.",

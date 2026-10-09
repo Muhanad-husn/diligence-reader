@@ -3,11 +3,20 @@
 `uvicorn app.main:app --host 127.0.0.1 --port 8000` serves it. A run's folder is
 <runs root>/<id> and the uploaded room is <runs root>/<id>/<id>, a folder named by the run id so
 the stages name the sample after the run; the runs root is RLM_RUNS, runs under the current
-folder by default. The key comes in the X-OpenRouter-Key header and is held
-in this process's memory by run id until the runner starts the command with it; it is never
-written to a file, a log or a response. The web page in web/ is served at / when the folder is
-there; it reads the version and whether to check for a newer release from /api/config, and a
-cited document's sections from /runs/<id>/documents/<doc>.
+folder by default. The key comes in the X-OpenRouter-Key header, where the run's models call
+for it, and is held in this process's memory by run id until the runner starts the command with
+it; it is never written to a file, a log or a response. The web page in web/ is served at / when
+the folder is there; it reads the version and whether to check for a newer release from
+/api/config, and a cited document's sections from /runs/<id>/documents/<doc>.
+
+The model settings are /api/settings: GET reads the ones saved on this machine, or the defaults,
+with what the page offers, and PUT checks and saves them. A run takes the saved settings as they
+are when it is uploaded, or the ones the upload names in its `models` field, writes them to its
+folder as models.json and keeps them there; PUT /runs/<id>/models changes them until the run
+starts. An id no provider serves is refused with 422 and its name before anything is saved or
+sent. OpenRouter's model list, which an id outside the five models is checked against, is read
+by app.state.listing, a function a test replaces. A run whose models are all on Claude Code
+needs no OpenRouter key.
 """
 
 from __future__ import annotations
@@ -22,18 +31,16 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
-from fastapi import FastAPI, File, Form, Header, UploadFile
+from fastapi import Body, FastAPI, File, Form, Header, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import events
-from app.runner import DEAL_FILE, Runner, runner_from_env
-from rlm import __version__, cli
+from app.runner import DEAL_FILE, MODELS_FILE, Runner, runner_from_env
+from rlm import __version__, cli, settings
 from rlm import ingest as ingest_stage
-from rlm import notes as notes_stage
-from rlm import write as write_stage
-from rlm.gateway import Meter
+from rlm.gateway import CLAUDE_CODE_MODELS, Gateway, Meter, register_listing
 
 # A name a run may be given: lower case letters, digits and dashes, 64 at most.
 NAME = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
@@ -104,6 +111,14 @@ def room_entries(uploads: list[tuple[str, bytes]]) -> list[tuple[PurePosixPath, 
     return entries
 
 
+def open_router_listing() -> dict:
+    """OpenRouter's model list with its rates, which needs no key; the windows are remembered too."""
+    gateway = Gateway(api_key="")
+    found = gateway.models()
+    register_listing(found, gateway.context_lengths)
+    return found
+
+
 def create_app(
     runner: Runner | None = None, runs_root: Path | None = None, web_dir: Path | None = None
 ) -> FastAPI:
@@ -115,6 +130,7 @@ def create_app(
     app = FastAPI(title="diligence-reader")
     app.state.runner = runner
     app.state.keys = {}
+    app.state.listing = open_router_listing
     keys: dict[str, str] = app.state.keys
 
     @app.exception_handler(Refused)
@@ -130,33 +146,108 @@ def create_app(
     def given(key: str | None) -> str | None:
         return key.strip() if key and key.strip() else None
 
+    def checked(chosen: settings.Settings) -> None:
+        """Refuses settings that cannot run, before anything is saved, started or sent."""
+        listing = None
+        if settings.needs_listing(chosen):
+            try:
+                listing = app.state.listing()
+            except Exception as exc:
+                raise Refused(
+                    502, "no-model-list", "OpenRouter's model list could not be read, so the model ids cannot be checked"
+                ) from exc
+            register_listing(listing)
+        try:
+            settings.validate(chosen, listing, require_claude_code=True)
+        except settings.UnknownModel as exc:
+            raise Refused(422, "unknown-model", str(exc)) from exc
+        except settings.SettingsError as exc:
+            raise Refused(422, "bad-settings", str(exc)) from exc
+
+    def merged(body: object, base: settings.Settings) -> settings.Settings:
+        """The settings a request body names over a base."""
+        if not isinstance(body, dict):
+            raise Refused(422, "bad-settings", "the settings are one JSON object")
+        try:
+            return settings.from_dict(body, base)
+        except settings.SettingsError as exc:
+            raise Refused(422, "bad-settings", str(exc)) from exc
+
+    def settings_payload(chosen: settings.Settings) -> dict:
+        """The settings, the defaults and the choices the page draws its form from."""
+        found = settings.claude_code_found()
+        choices = list(settings.OPEN_CHOICES)
+        if found:
+            choices += sorted(CLAUDE_CODE_MODELS)
+        return {
+            "settings": chosen.to_dict(),
+            "defaults": settings.default_settings().to_dict(),
+            "choices": choices,
+            "claude_code": found,
+            "needs_key": settings.needs_key(chosen),
+        }
+
+    def run_models(run_dir: Path) -> settings.Settings:
+        """The settings a run was given: its models.json, else the saved settings."""
+        path = run_dir / MODELS_FILE
+        if path.exists():
+            return settings.from_dict(json.loads(path.read_text(encoding="utf-8")), settings.default_settings())
+        return settings.current()
+
+    def write_models(run_dir: Path, chosen: settings.Settings) -> None:
+        (run_dir / MODELS_FILE).write_text(
+            json.dumps(chosen.to_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+
     def launch(run_id: str, key: str | None) -> JSONResponse:
-        """Starts the runner on the run with the key given, else the key held."""
+        """Starts the runner on the run with the key given, else the key held. A run whose models
+        are all on Claude Code starts with an empty key."""
         run_dir = folder(run_id)
         key = given(key) or keys.get(run_id)
-        if not key:
+        if not key and settings.needs_key(run_models(run_dir)):
             raise Refused(400, "key-missing", "no OpenRouter key is held for this run")
-        keys[run_id] = key
+        if key:
+            keys[run_id] = key
         if runner.status(run_id) == "running":
             raise Refused(409, "running", "the run is already running")
         events.stopped_mark(run_dir).unlink(missing_ok=True)
-        runner.start(run_id, room_of(run_dir), run_dir, key)
+        runner.start(run_id, room_of(run_dir), run_dir, key or "")
         return JSONResponse({"id": run_id}, status_code=202)
+
+    @app.get("/api/settings")
+    async def read_settings():
+        return settings_payload(settings.current())
+
+    @app.put("/api/settings")
+    async def save_settings(body: dict = Body(...)):
+        chosen = merged(body, settings.current())
+        await run_in_threadpool(checked, chosen)
+        settings.save_settings(chosen)
+        return settings_payload(chosen)
 
     @app.post("/runs", status_code=201)
     async def create_run(
         files: list[UploadFile] = File(...),
         name: str | None = Form(None),
         deal: str = Form("share"),
+        models_field: str | None = Form(None, alias="models"),
         x_openrouter_key: str | None = Header(None),
     ):
         key = given(x_openrouter_key)
-        if not key:
+        chosen = settings.current()
+        if models_field:
+            try:
+                named = json.loads(models_field)
+            except ValueError as exc:
+                raise Refused(422, "bad-settings", "models is one JSON object") from exc
+            chosen = merged(named, chosen)
+        if not key and settings.needs_key(chosen):
             raise Refused(400, "key-missing", "send the OpenRouter key in X-OpenRouter-Key")
         if deal not in ("share", "asset"):
             raise Refused(400, "bad-deal", "a deal type is share or asset")
         if name is not None and not NAME.match(name):
             raise Refused(400, "bad-name", "a name is lower case letters, digits and dashes")
+        await run_in_threadpool(checked, chosen)
         run_id = name or uuid.uuid4().hex[:12]
         if (runs_root / run_id).exists():
             raise Refused(409, "name-taken", f"a run named {run_id} exists")
@@ -172,8 +263,20 @@ def create_app(
             shutil.rmtree(runs_root / run_id, ignore_errors=True)
             raise
         (runs_root / run_id / DEAL_FILE).write_text(deal + "\n", encoding="utf-8")
-        keys[run_id] = key
+        write_models(runs_root / run_id, chosen)
+        if key:
+            keys[run_id] = key
         return {"id": run_id}
+
+    @app.put("/runs/{run_id}/models")
+    async def change_models(run_id: str, body: dict = Body(...)):
+        run_dir = folder(run_id)
+        if runner.status(run_id) == "running":
+            raise Refused(409, "running", "the run is running; its models are fixed")
+        chosen = merged(body, run_models(run_dir))
+        await run_in_threadpool(checked, chosen)
+        write_models(run_dir, chosen)
+        return settings_payload(chosen)
 
     def summary(run_id: str, run_dir: Path) -> dict:
         """One run for the list: its id, when it was created, its status and its dollars.
@@ -239,20 +342,26 @@ def create_app(
             except ingest_stage.UnreadableFile as exc:
                 cli.RunState(run_dir, Meter()).write("failed", "unreadable-file")
                 raise Refused(422, "unreadable-file", str(exc)) from exc
+        chosen = run_models(run_dir)
+        await run_in_threadpool(checked, chosen)
         found = await run_in_threadpool(
             cli.estimate,
             room,
             run_dir,
             not cli.done("notes", run_dir),
             not cli.done("write", run_dir),
+            chosen,
         )
         return {
             "tokens": found.tokens,
             "notes_tokens": found.notes_tokens,
+            "group_tokens": found.group_tokens,
             "write_tokens": found.write_tokens,
             "dollars": found.dollars,
-            "notes_model": notes_stage.DEFAULT_MODEL,
-            "write_model": write_stage.DEFAULT_MODEL,
+            "notes_model": chosen.notes,
+            "group_model": chosen.group if "group" in settings.used_tasks(chosen) else None,
+            "write_model": chosen.writer,
+            "tasks": found.tasks,
         }
 
     @app.post("/runs/{run_id}/confirm")

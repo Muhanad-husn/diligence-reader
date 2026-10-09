@@ -10,6 +10,7 @@ Every test here is free: the subprocess is a fake runner and the ledger a tempor
 
 import json
 import math
+import threading
 
 import pytest
 
@@ -81,11 +82,29 @@ class Recorder:
     def __init__(self, replies):
         self.replies = list(replies)
         self.calls = []
+        self._lock = threading.Lock()
 
     def complete(self, model, messages, max_tokens, json=True):
         from rlm.gateway import Completion
-        self.calls.append({"model": model, "messages": messages, "max_tokens": max_tokens})
-        return Completion(self.replies.pop(0), 100, 10, 0.0, model)
+        with self._lock:
+            self.calls.append({"model": model, "messages": messages, "max_tokens": max_tokens})
+            if isinstance(self.replies[0], PartReplies):
+                text = self.replies[0].reply(messages)
+            else:
+                text = self.replies.pop(0)
+        return Completion(text, 100, 10, 0.0, model)
+
+
+class PartReplies:
+    """Answers every lesser issues call by the documents it is given, in whatever order the
+    calls arrive."""
+
+    def __init__(self, by_doc: dict[str, str]):
+        self.by_doc = by_doc
+
+    def reply(self, messages) -> str:
+        mine = messages[1]["content"].split(write.YOUR_DOCUMENTS, 1)[1]
+        return next(text for doc, text in self.by_doc.items() if doc in mine)
 
 
 def both_room(tmp_path):
@@ -158,10 +177,12 @@ def test_the_lesser_issues_are_written_in_parts_of_documents_and_placed_before_t
     monkeypatch.setattr(write, "TAIL_ROWS", 2)
     part_one = "## Lesser issues\n\n1. The lease [b.txt | b.txt#l1].\n"
     part_two = "## Lesser issues\n\n1. The bonus [c.txt | c.txt#l1].\n"
-    code, run_dir, gateway = run_both(tmp_path, [HEAD, part_one, part_two])
+    code, run_dir, gateway = run_both(tmp_path, [HEAD, PartReplies({"- a.txt": part_one, "- c.txt": part_two})])
     assert code == 0
     assert len(gateway.calls) == 3
-    for call, mine, other in ((gateway.calls[1], ["a.txt", "b.txt"], "c.txt"), (gateway.calls[2], ["c.txt"], "a.txt")):
+    # the parts are sent at once, so they may reach the gateway in either order
+    tails = sorted(gateway.calls[1:], key=lambda call: "- c.txt" in call["messages"][1]["content"].split(write.YOUR_DOCUMENTS, 1)[1])
+    for call, mine, other in ((tails[0], ["a.txt", "b.txt"], "c.txt"), (tails[1], ["c.txt"], "a.txt")):
         assert call["max_tokens"] == write.FULL_OUTPUT_TOKENS
         assert call["messages"][0]["content"].startswith(write.FULL_TAIL_PROMPT)
         user = call["messages"][1]["content"]

@@ -49,6 +49,7 @@ from rlm.notes import (
     REASK_ITEMS,
     REASK_JSON,
     REASK_VALUES,
+    USER_PREFIX,
     SYSTEM_PROMPT,
     build_messages,
     document_text,
@@ -277,7 +278,7 @@ def test_gateway_complete_turns_reasoning_off():
 
 def test_gateway_complete_sends_low_effort_reasoning_to_glm():
     """The GLM endpoints refuse reasoning off, so they carry a low effort object instead."""
-    assert set(REASONING) == set(PRICES) - OFF_GATEWAY
+    assert set(PRICES) - OFF_GATEWAY <= set(REASONING)
     for model in ("z-ai/glm-5.3", "z-ai/glm-5.3-flash"):
         transport = FakeTransport([reply('{"what": "x"}')])
         gateway = Gateway(api_key="test-key", transport=transport)
@@ -286,6 +287,21 @@ def test_gateway_complete_sends_low_effort_reasoning_to_glm():
 
         body = json.loads(transport.requests[0].content)
         assert body["reasoning"] == {"effort": "low"}
+
+
+def test_gateway_complete_asks_sonnet_5_5_on_open_router_for_medium_effort():
+    """Sonnet 5.5 thinks at high effort unless told otherwise, and its thinking counts against
+    max_tokens. Picked through OpenRouter it carries the same medium effort as through Claude
+    Code. It is not one of the five models, so PRICES does not carry it."""
+    model = "anthropic/claude-sonnet-5.5"
+    assert model not in PRICES
+    transport = FakeTransport([reply('{"what": "x"}')])
+    gateway = Gateway(api_key="test-key", transport=transport)
+
+    gateway.complete(model, [{"role": "user", "content": "u"}], max_tokens=100)
+
+    body = json.loads(transport.requests[0].content)
+    assert body["reasoning"] == {"effort": "medium"}
 
 
 def test_gateway_complete_leaves_out_the_providers_that_ignore_the_reasoning_object():
@@ -445,6 +461,41 @@ def test_gateway_complete_raises_on_a_non_200_reply():
     gateway = Gateway(api_key="test-key", transport=transport)
     with pytest.raises(httpx.HTTPStatusError):
         gateway.complete(MODEL, [{"role": "user", "content": "u"}], max_tokens=10)
+
+
+def test_gateway_complete_sends_a_dropped_connection_again_once(monkeypatch):
+    monkeypatch.setattr("rlm.gateway.TRANSPORT_RETRY_WAIT", 0.0)
+    answers = [httpx.RemoteProtocolError("peer closed connection without sending complete message body"), reply("{}")]
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        answer = answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return httpx.Response(200, json=answer)
+
+    gateway = Gateway(api_key="test-key", transport=httpx.MockTransport(handler))
+
+    completion = gateway.complete(MODEL, [{"role": "user", "content": "u"}], max_tokens=10)
+
+    assert completion.text == "{}"
+    assert len(calls) == 2
+
+
+def test_gateway_complete_raises_when_the_connection_drops_twice(monkeypatch):
+    monkeypatch.setattr("rlm.gateway.TRANSPORT_RETRY_WAIT", 0.0)
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        raise httpx.RemoteProtocolError("peer closed connection without sending complete message body")
+
+    gateway = Gateway(api_key="test-key", transport=httpx.MockTransport(handler))
+
+    with pytest.raises(httpx.RemoteProtocolError):
+        gateway.complete(MODEL, [{"role": "user", "content": "u"}], max_tokens=10)
+    assert len(calls) == 2
 
 
 # ---------------------------------------------------------------- gateway: ledger
@@ -1145,7 +1196,7 @@ def test_long_document_piece_limit_is_twenty_thousand_characters():
 
 def test_long_document_is_split_at_section_boundaries_under_the_limit():
     """Sections stay whole and in order; every piece is under the limit; a short document is
-    one piece; a lone section over the limit is a piece of its own."""
+    one piece."""
     sections = long_sections(9, 5000)
     pieces = split_sections(sections, 20000)
     assert [s["ordinal"] for piece in pieces for s in piece] == list(range(1, 10))
@@ -1154,8 +1205,55 @@ def test_long_document_is_split_at_section_boundaries_under_the_limit():
         assert len(document_text(piece)) <= 20000
         assert piece == sections[sections.index(piece[0]) : sections.index(piece[0]) + len(piece)]
     assert split_sections(VALUE_SECTIONS, 20000) == [VALUE_SECTIONS]
-    huge = [section(1, "x" * 30000), section(2, "y")]
-    assert split_sections(huge, 20000) == [[huge[0]], [huge[1]]]
+
+
+def test_a_section_over_the_limit_is_cut_at_line_ends_and_each_part_keeps_its_anchor():
+    """No piece carries more than the limit: a section longer than it is cut between its lines,
+    each part the section with its own anchor, and the parts read back as the section."""
+    lines = [f"Line {n}. " + LONG_WORDS * 13 for n in range(1, 41)]
+    huge = section(1, "\n".join(lines))
+    assert len(huge["text"]) > 30000
+    sections = [huge, section(2, "y")]
+    pieces = split_sections(sections, 20000)
+    assert len(pieces) >= 2
+    for piece in pieces:
+        assert len(document_text(piece)) <= 20000
+    parts = [part for piece in pieces for part in piece][:-1]
+    assert all(part["anchor"] == huge["anchor"] and part["ordinal"] == 1 for part in parts)
+    assert "\n".join(part["text"] for part in parts) == huge["text"]
+    for part in parts:
+        assert part["text"].split("\n")[0].startswith("Line ")
+    assert pieces[-1][-1] == sections[1]
+
+
+def test_a_line_over_the_limit_is_cut_every_limit_characters():
+    huge = section(1, "x" * 45000)
+    pieces = split_sections([huge, section(2, "y")], 20000)
+    assert [[len(part["text"]) for part in piece] for piece in pieces] == [[20000], [20000], [5000, 1]]
+    assert "".join(part["text"] for piece in pieces for part in piece[:1]) == huge["text"]
+    assert all(len(document_text(piece)) <= 20000 for piece in pieces)
+
+
+def test_a_document_of_one_huge_section_sends_no_call_past_the_limit_and_its_quotes_keep_the_anchor():
+    """Each call carries at most PIECE_LIMIT characters of the document; a quote from the
+    second part verifies against the section and is anchored there."""
+    lines = [f"Line {n}. " + LONG_WORDS * 13 for n in range(1, 41)]
+    lines[30] = EGRESS
+    sections = [section(1, "\n".join(lines))]
+    pieces = split_sections(sections)
+    second = next(index for index, piece in enumerate(pieces) if EGRESS in document_text(piece))
+    assert second > 0
+    replies = [flag_reply("part", "g", EGRESS) if index == second else flag_reply("part", "f", lines[0])
+               for index in range(len(pieces))]
+    calls = Replies(replies)
+    note, records = note_document(DR_069, MODEL, "a", sections, calls, named=[])
+    assert len(calls.messages) == len(pieces)
+    for messages in calls.messages:
+        assert len(messages[-1]["content"]) - len(USER_PREFIX) <= PIECE_LIMIT
+    assert "g" in [flag["flag"] for flag in note["flags"]]
+    for flag in note["flags"]:
+        assert flag["anchor"] == sections[0]["anchor"]
+    assert [record for record in records if record["outcome"] == "dropped"] == []
 
 
 def test_long_document_is_noted_in_pieces_and_the_pieces_merged_in_order():

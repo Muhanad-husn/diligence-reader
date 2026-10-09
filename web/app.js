@@ -4,7 +4,9 @@
 // https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js and updated by hand.
 //
 // The key lives in the variable `key` alone: never in localStorage, sessionStorage, a cookie
-// or a URL. It goes in the X-OpenRouter-Key header of each request that starts a run. The page
+// or a URL. It goes in the X-OpenRouter-Key header of each request that starts a run. The models
+// of each task are saved by the server, on this machine, through /api/settings, and go with each
+// upload. The page
 // talks to this machine's server, to openrouter.ai for the sign-in, and once a day to GitHub's
 // latest-release address, which carries no document data.
 "use strict";
@@ -23,6 +25,7 @@
   const REPORTABLE = ["unexpected", "unknown"];
 
   let key = null;
+  let choices = null;
   let version = "";
   let chosen = null;
   let run = null;
@@ -40,6 +43,7 @@
 
   async function call(method, path, body, withKey) {
     const headers = {};
+    if (body && typeof body === "string") headers["Content-Type"] = "application/json";
     if (withKey && key) headers["X-OpenRouter-Key"] = key;
     let response;
     try {
@@ -78,6 +82,63 @@
     key = trimmed;
     $("key-input").value = "";
     $("key-state").textContent = "connected";
+  }
+
+  // ------------------------------------------------------------ the models
+
+  // The settings the form holds, as the server takes them.
+  function formSettings() {
+    return {
+      notes: $("model-notes").value.trim(),
+      group: $("model-group").value.trim(),
+      writer: $("model-writer").value.trim(),
+      write: $("write-mode").value || null,
+    };
+  }
+
+  // Says whether a task the form names runs on OpenRouter, and so the run needs the key.
+  function formNeedsKey() {
+    const found = formSettings();
+    const used = [found.notes, found.writer];
+    if (found.write) used.push(found.group);
+    return used.some((id) => !id.startsWith("claude-code/"));
+  }
+
+  function fillSettings(found) {
+    $("model-notes").value = found.notes;
+    $("model-group").value = found.group;
+    $("model-writer").value = found.writer;
+    $("write-mode").value = found.write || "";
+  }
+
+  function drawChoices(payload) {
+    choices = payload;
+    const models = $("model-choices");
+    models.textContent = "";
+    for (const id of payload.choices) {
+      const option = document.createElement("option");
+      option.value = id;
+      models.append(option);
+    }
+    fillSettings(payload.settings);
+  }
+
+  async function loadSettings() {
+    try {
+      drawChoices(await json("GET", "/api/settings"));
+    } catch (err) {
+      $("settings-state").textContent = "the saved models could not be read: " + err.message;
+    }
+  }
+
+  async function saveSettings() {
+    $("settings-state").textContent = "saving";
+    try {
+      drawChoices(await json("PUT", "/api/settings", JSON.stringify(formSettings())));
+      $("settings-state").textContent = "saved on this machine";
+    } catch (err) {
+      $("settings-state").textContent = err.code + ": " + err.message;
+    }
   }
 
   function base64url(bytes) {
@@ -174,7 +235,7 @@
 
   async function upload() {
     hideError();
-    if (!key) {
+    if (!key && (!choices || formNeedsKey())) {
       $("key-state").textContent = "no key: connect a key before the upload";
       return;
     }
@@ -188,6 +249,7 @@
     const form = new FormData();
     for (const file of chosen.files) form.append("files", file, file.webkitRelativePath || file.name);
     form.append("deal", $("deal").value);
+    if (choices) form.append("models", JSON.stringify(formSettings()));
     $("upload").disabled = true;
     try {
       const made = await json("POST", "/runs", form, true);
@@ -208,6 +270,16 @@
     $("estimate-tokens").textContent = estimate.tokens.toLocaleString("en");
     $("estimate-notes-model").textContent = estimate.notes_model;
     $("estimate-write-model").textContent = estimate.write_model;
+    $("estimate-group").hidden = !estimate.group_model;
+    $("estimate-group-model").textContent = estimate.group_model || "";
+    const tasks = $("estimate-tasks");
+    tasks.textContent = "";
+    for (const name of Object.keys(estimate.tasks || {})) {
+      const task = estimate.tasks[name];
+      const row = document.createElement("li");
+      row.textContent = name + " on " + task.model + ": $" + Number(task.dollars).toFixed(4);
+      tasks.append(row);
+    }
     $("estimate-card").hidden = false;
     $("confirm").disabled = false;
   }
@@ -668,6 +740,12 @@
     if (event.key === "Enter") useKey($("key-input").value);
   });
   $("sign-in").addEventListener("click", signIn);
+  for (const id of ["model-notes", "model-group", "model-writer", "write-mode"]) {
+    $(id).addEventListener("input", () => {
+      $("settings-state").textContent = "";
+    });
+  }
+  $("settings-save").addEventListener("click", saveSettings);
   $("room-folder").addEventListener("change", (event) => choose(event.target));
   $("room-zip").addEventListener("change", (event) => choose(event.target));
   $("upload").addEventListener("click", uploadClicked);
@@ -695,5 +773,6 @@
     signIn();
   }
   configure();
+  loadSettings();
   refreshRuns();
 })();

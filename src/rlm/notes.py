@@ -45,13 +45,17 @@ A document of the room (the key's, or every readable file of a room with no key,
 rlm.key.room_documents gives them) that sections.jsonl does not carry is dropped without a call.
 
 A document whose text is longer than PIECE_LIMIT characters is split at section boundaries into
-pieces, each under the limit, and noted one piece at a time: each piece is its own call (or two,
-on a re-ask), asked only for the named values that read inside its own text, since a piece
-cannot quote a value it does not carry. The merged note's what is the first piece's whose note
-is not None, and each quoted field is the pieces' verified items joined in piece order; a piece
-whose note is dropped whole loses only its own items, and a document with no piece noted at all
-gives a note of None. The harvest that follows still runs over the whole document's sections,
-exactly as it does for a document short enough for one call.
+pieces, each under the limit, and noted one piece at a time. A single section longer than the
+limit is first cut at its line ends, and a line longer than the limit every PIECE_LIMIT
+characters; each part keeps its section's anchor, so its quotes verify against that section's
+text and are anchored there. No note call carries more than PIECE_LIMIT characters of the
+document: each piece is its own call (or two, on a re-ask), asked only for the named values that
+read inside its own text, since a piece cannot quote a value it does not carry. The merged
+note's what is the first piece's whose note is not None, and each quoted field is the pieces'
+verified items joined in piece order; a piece whose note is dropped whole loses only its own
+items, and a document with no piece noted at all gives a note of None. The harvest that
+follows still runs over the whole document's sections, exactly as it does for a document short
+enough for one call.
 
 A piece, or a document short enough for one call, whose call runs out of its output budget on
 both draws is cut in two at the section boundary that balances the halves, and each half is
@@ -70,7 +74,10 @@ cancelled, the error is raised out of main, and no summary, no verify log and no
 written. Every other exception still drops its one document.
 
 The documents run eight at a time inside one ledger batch, so a pass is one line of LEDGER.md
-and one runs/<sample>/notes-summary.json. A pass over every document of the room writes that
+and one runs/<sample>/notes-summary.json. On a Claude Code model the gateway runs four of
+their calls at once. What a pass writes does not depend on the order the calls come back in:
+each document's note and replies are its own files, the verify log is sorted, and the results
+are read in the room's order. A pass over every document of the room writes that
 summary from what this call did. A pass over --only documents merges into it instead: the
 counts are read back from what is on disk afterward, and the usage of the documents just
 replaced is swapped for their new usage in the previous totals.
@@ -366,29 +373,63 @@ def document_text(sections: list[dict]) -> str:
     return "\n".join(section["text"] for section in sections)
 
 
-def split_sections(sections: list[dict], limit: int = PIECE_LIMIT) -> list[list[dict]]:
-    """Splits one document's sections into pieces of at most limit characters, cut at section
-    boundaries and greedy in ordinal order.
-
-    A section is never split or reordered: a piece is a contiguous run of the document's own
-    sections. A section that alone is longer than limit is a piece of its own, next to whichever
-    it does not fit. A document whose own document_text is at most limit is one piece.
-    """
-    pieces: list[list[dict]] = []
-    current: list[dict] = []
+def _pack(texts: list[str], limit: int) -> list[list[int]]:
+    """The indexes of texts in runs whose texts, joined by one line end, are at most limit
+    characters, greedy in order. A text longer than limit alone is a run of its own."""
+    runs: list[list[int]] = []
+    current: list[int] = []
     length = 0
-    for section in sections:
-        added = len(section["text"]) if not current else len(section["text"]) + 1
+    for index, text in enumerate(texts):
+        added = len(text) if not current else len(text) + 1
         if current and length + added > limit:
-            pieces.append(current)
-            current = [section]
-            length = len(section["text"])
+            runs.append(current)
+            current = [index]
+            length = len(text)
         else:
-            current.append(section)
+            current.append(index)
             length += added
     if current:
-        pieces.append(current)
-    return pieces
+        runs.append(current)
+    return runs
+
+
+def cut_section(section: dict, limit: int = PIECE_LIMIT) -> list[dict]:
+    """One section as parts of at most limit characters each, in order.
+
+    A section of at most limit characters is returned whole. A longer one is cut between its
+    lines, greedy in order, and a single line longer than limit is cut every limit characters.
+    Each part is the section with its text replaced by the part's, so it keeps the section's
+    anchor and ordinal: a quote read in a part is a quote of that section and is anchored there.
+    The line end at a cut between lines is dropped, so parts cut there join back by one line end
+    into the section's text. A part carries no table cells.
+    """
+    text = section["text"]
+    if len(text) <= limit:
+        return [section]
+    lines = [
+        line[start : start + limit]
+        for line in text.split("\n")
+        for start in range(0, max(len(line), 1), limit)
+    ]
+    parts = []
+    for run in _pack(lines, limit):
+        part = dict(section, text="\n".join(lines[index] for index in run))
+        part.pop("cells", None)
+        parts.append(part)
+    return parts
+
+
+def split_sections(sections: list[dict], limit: int = PIECE_LIMIT) -> list[list[dict]]:
+    """Splits one document's sections into pieces of at most limit characters, greedy in
+    ordinal order, so no note call carries more than limit characters of the document.
+
+    A piece is a contiguous run of the document's sections, cut at section boundaries. A section
+    longer than limit is first cut into parts by cut_section, each part standing in for the
+    section in its place, so a piece never passes limit. A document whose own document_text is
+    at most limit is one piece.
+    """
+    parts = [part for section in sections for part in cut_section(section, limit)]
+    return [[parts[index] for index in run] for run in _pack([part["text"] for part in parts], limit)]
 
 
 def build_messages(sections: list[dict]) -> list[dict]:

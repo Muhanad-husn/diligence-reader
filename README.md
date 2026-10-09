@@ -66,7 +66,7 @@ The web page on the user's machine.
 docker run -p 8000:8000 -v <runs>:/app/runs ghcr.io/muhanad-husn/diligence-reader
 ```
 
-Open http://localhost:8000, connect an OpenRouter key (sign in or paste one), upload a room as a folder or zip, read the estimate, confirm, watch progress, read the report and export Word, PDF or the evidence CSV. Stop ends a run in progress and Retry resumes it from the stage that stopped; uploading a new room while a run is going asks first. Past runs lists every run on the machine with its status and dollars, and New room on the report clears the page back to the upload and keeps the key. The key stays in the browser and goes with each run; it is not written to disk.
+Open http://localhost:8000, connect an OpenRouter key (sign in or paste one), pick the model of each task under Models, upload a room as a folder or zip, read the estimate, confirm, watch progress, read the report and export Word, PDF or the evidence CSV. Stop ends a run in progress and Retry resumes it from the stage that stopped; uploading a new room while a run is going asks first. Past runs lists every run on the machine with its status and dollars, and New room on the report clears the page back to the upload and keeps the key. The key stays in the browser and goes with each run; it is not written to disk. The models are saved on the machine, in the runs folder under Docker.
 
 **pipx**
 
@@ -102,6 +102,23 @@ export OPENROUTER_API_KEY=...
 
 Run one stage at a time: `python -m rlm.ingest`, `python -m rlm.notes`, `python -m rlm.map`, `python -m rlm.dossier`, `python -m rlm.write`. Tests: `pytest -q`. Artefacts land under `runs/` and are never committed.
 
+## Models
+
+Each run has three model tasks: the notes (one call per document), the group step (the tree's
+calls, which run only when the report is built on the tree) and the writer. Each takes one model
+id, from the page, from `--notes-model`, `--middle-model` and `--writer-model`, from a JSON
+file given with `--settings`, or from the settings the page saved on this machine. A `claude-code/<model>` id runs on headless Claude
+Code on this machine (not in the Docker image) and needs no key; any other id is an OpenRouter
+id, which needs `OPENROUTER_API_KEY` and must be one OpenRouter lists.
+
+An id the tool does not know is refused before any call, with its name in the message. With no
+setting made and Claude Code on the machine, every task runs on Claude through Claude Code: the
+notes on Haiku 5.5 (`claude-code/claude-haiku-5-5`), and the group step and the writer on
+Sonnet 5.5 (`claude-code/claude-sonnet-5-5`), so the run needs no key. Without Claude Code the
+notes run on GLM 5.3 Flash and the writer on GLM 5.3 through OpenRouter, and the group step, when
+the report is built on the tree, on GLM 5.3 Flash. The models are written into `run.json`, and
+the report opens with a line naming the model of each task.
+
 ## When a run stops
 
 `diligence-reader run` exits non-zero with one of these codes and writes the same code to
@@ -111,6 +128,8 @@ Run one stage at a time: `python -m rlm.ingest`, `python -m rlm.notes`, `python 
 |---|---|
 | `key-refused` | OpenRouter refused the key (401 or 403). Check the key, or make a new one at openrouter.ai/keys. |
 | `no-credits` | The key's account has no credits left (402). Add credits at openrouter.ai/settings/credits, then run again. |
+| `unknown-model` | A model id is not one this tool can run; the message names it. Pick it again. Nothing was sent. |
+| `bad-settings` | The model settings cannot be run (an empty field, or a way of writing the report that is none). Nothing was sent. |
 | `rate-limited` | OpenRouter kept answering 429. Wait a few minutes, then run again. |
 | `empty-reply` | A model returned nothing twice for the same request. Run again; the stage is retried. |
 | `unreadable-file` | A document in the room could not be read. Remove or convert the file named in the message, then run again. |

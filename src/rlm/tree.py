@@ -47,7 +47,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from rlm.gateway import PHASE_CAPS, Completion, Gateway, Ledger, NoReply, api_price, estimate_tokens
+from rlm.gateway import LIVE_CONTEXT, PHASE_CAPS, Completion, Gateway, Ledger, NoReply, api_price, estimate_tokens, priced
 from rlm.key import room_documents
 from rlm.notes import reask_messages
 from rlm.pick import CHECKLIST, _ITEM, clean, digest_rows, field, flags_of, read_notes, schedule_field, titles
@@ -60,6 +60,9 @@ DEFAULT_MODEL = "z-ai/glm-5.3-flash"
 # The context window of each model a group call may use, in tokens: GLM 5.3 Flash as the
 # gateway's model list gave it on 2026-10-05, Sonnet 5.5 as headless Claude Code reported it.
 CONTEXT_WINDOWS = {"z-ai/glm-5.3-flash": 1_048_575, "claude-code/claude-sonnet-5-5": 1_000_000}
+
+# The window assumed for an OpenRouter model whose own the gateway's list did not give.
+DEFAULT_WINDOW = 128_000
 
 # The share of the context window a group call is allowed to fill by the repository's estimate
 # of four characters a token. Contract text with numbers and defined terms runs nearer three
@@ -161,10 +164,18 @@ def note_block(doc: str, note: dict | None) -> str:
     return "\n".join(lines)
 
 
+def context_window(model: str) -> int:
+    """The window of a model in tokens: CONTEXT_WINDOWS, else the gateway's list, else
+    DEFAULT_WINDOW."""
+    if model in CONTEXT_WINDOWS:
+        return CONTEXT_WINDOWS[model]
+    return LIVE_CONTEXT.get(model, DEFAULT_WINDOW)
+
+
 def group_budget(model: str, system: str) -> int:
     """The note tokens one group call may carry: MARGIN of the model's window, less the
     instructions and the reply, and never more than GROUP_TOKENS where the model is listed."""
-    budget = int(CONTEXT_WINDOWS[model] * MARGIN) - estimate_tokens(system) - MAX_OUTPUT_TOKENS
+    budget = int(context_window(model) * MARGIN) - estimate_tokens(system) - MAX_OUTPUT_TOKENS
     return min(budget, GROUP_TOKENS.get(model, budget))
 
 
@@ -430,7 +441,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("room")
     parser.add_argument("run_dir")
     parser.add_argument("--phase", type=int, default=PHASE)
-    parser.add_argument("--model", default=DEFAULT_MODEL, choices=sorted(CONTEXT_WINDOWS))
+    parser.add_argument("--model", default=DEFAULT_MODEL)
     return parser.parse_args(argv)
 
 
@@ -439,6 +450,9 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger=None) -> int:
     args = parse_args(argv)
     if args.phase not in PHASE_CAPS:
         print(f"no such phase in the caps: {args.phase}")
+        return 2
+    if not priced(args.model):
+        print(f"no such model in the price table: {args.model}")
         return 2
     tree(Path(args.room), Path(args.run_dir), gateway=gateway, ledger=ledger, phase=args.phase, model=args.model)
     return 0

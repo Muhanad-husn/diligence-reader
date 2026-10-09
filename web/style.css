@@ -227,3 +227,18 @@ input[type="password"] {
     max-height: none;
   }
 }
+
+#models-card label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#models-card input[list] {
+  min-width: 18em;
+}
+
+#estimate-tasks {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}

@@ -2,7 +2,8 @@
 
 A runner starts `diligence-reader run` on a room into its run folder, says whether it is still
 running, and stops it. The key reaches the command through the child's environment alone: it is
-never set in this process's environment, never written to a file and never logged.
+never set in this process's environment, never written to a file and never logged. The run's
+model settings are the run folder's models.json, which the command reads through --settings.
 
 RLM_RUNNER chooses the runner: unset or `local` gives LocalRunner, `kubernetes` gives the
 KubernetesRunner of app/runner_k8s.py, imported only when named.
@@ -22,11 +23,20 @@ from fastapi import APIRouter
 # The file in a run folder holding the deal type the page chose, share or asset.
 DEAL_FILE = "deal.txt"
 
+# The file in a run folder holding the run's model settings, as the page or the saved settings gave them.
+MODELS_FILE = "models.json"
+
 
 def deal_args(run_dir: Path) -> list[str]:
     """`--deal <type>` when the run folder names a deal type, else nothing."""
     path = Path(run_dir) / DEAL_FILE
     return ["--deal", path.read_text(encoding="utf-8").strip()] if path.exists() else []
+
+
+def models_args(run_dir: Path) -> list[str]:
+    """`--settings <file>` when the run folder holds the run's model settings, else nothing."""
+    path = Path(run_dir) / MODELS_FILE
+    return ["--settings", str(path)] if path.exists() else []
 
 
 class Runner(Protocol):
@@ -58,7 +68,7 @@ class LocalRunner:
         argv = [*self.command, "run", str(room), "--out", str(run_dir), "--yes"]
         if os.environ.get("RLM_PHASE") == "8":
             argv += ["--phase", "8"]
-        return argv + deal_args(run_dir)
+        return argv + models_args(run_dir) + deal_args(run_dir)
 
     def start(self, run_id: str, room: Path, run_dir: Path, key: str) -> None:
         """Starts the command on the room with the key in the child's environment alone."""

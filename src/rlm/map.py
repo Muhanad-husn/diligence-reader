@@ -17,7 +17,9 @@ folded, so a flag about `P. Raman` and a flag about `Raman, Priya` are flags abo
 value only the index saw joins two documents by coincidence about as often as by matter; a value
 both notes named as the thing a worry is about is the matter itself. A flag's own words, its
 quote and its consequence are not looked inside: a flag that mentions a code in passing is not a
-flag about that code.
+flag about that code. A note that writes the id of another document of the room as a cross
+reference cites that document, and the cross-reference edge between the two is kept whatever
+either note's flags are about and whatever kind the note gave the reference.
 Date and version edges are kept as they are, because neither is a coincidence of vocabulary.
 
 A matter is seeded at a document whose three strongest links are strong, every kind of edge
@@ -748,6 +750,22 @@ def date_edges(
     return best
 
 
+def citations(notes: dict[str, dict], first_anchors: dict[str, str]) -> set[tuple[str, str]]:
+    """Every (citing, cited) pair of documents where the citing document's note writes the id of
+    another document of the room as a cross reference, whatever kind it gave the reference.
+
+    A document's id is read upper case with its ends trimmed, so `dr-029 ` cites DR-029. A note
+    that writes its own document's id cites nothing.
+    """
+    found: set[tuple[str, str]] = set()
+    for doc_id, note in notes.items():
+        for reference in note["cross_references"]:
+            target = str(reference["value"]).strip().upper()
+            if target in first_anchors and target != doc_id:
+                found.add((doc_id, target))
+    return found
+
+
 def build_edges(
     records: list[dict],
     sections: list[dict],
@@ -759,6 +777,12 @@ def build_edges(
     """Every edge of the map, sorted by its two documents, its kind and its value, and the
     documents whose own flags name each value the edges carry.
 
+    A shared value joins two documents where both notes are about it. A cross reference that is
+    a document's id also joins the citing document to the cited one without that, because the
+    citation is the link: the cited document's note has no reason to be about its own id. Such
+    an edge carries `citation` here, so the seed pull can leave it out; map.json does not write
+    it.
+
     The second is read here because this is where a note's flags are already opened. A document
     holds a value where an edge carries it; it names the value where a flag of its note says the
     flag is about it, rather than a concealed item of the note quoting a sentence it appears in.
@@ -769,6 +793,7 @@ def build_edges(
     by_form = names[0]
     skipped = person_values(notes, by_form) | ordinary_words(sections)
     named = {doc_id: named_values(note, by_form) for doc_id, note in notes.items()}
+    cited = citations(notes, first_anchors)
 
     edges: dict[tuple, dict] = {}
     for kind, value, carriers in shared_values(
@@ -778,10 +803,18 @@ def build_edges(
             continue
         weight = value_weight(kind, len(carriers))
         forms = (fold(value), name_key(value, by_form) or "")
+        target = str(value).strip().upper()
         for a, b in itertools.combinations(sorted(carriers), 2):
-            if kind != "version":
-                if not about_both(named.get(a), named.get(b), forms):
+            citation = (
+                kind == "cross-reference"
+                and target in (a, b)
+                and ((a, b) in cited or (b, a) in cited)
+            )
+            cited_only = False
+            if kind != "version" and not about_both(named.get(a), named.get(b), forms):
+                if not citation:
                     continue
+                cited_only = True
             marker = (a, b, kind, str(value))
             if marker in edges and edges[marker]["weight"] >= weight:
                 continue
@@ -793,6 +826,8 @@ def build_edges(
                 "anchors": {"a": carriers[a], "b": carriers[b]},
                 "weight": weight,
             }
+            if cited_only:
+                edges[marker]["citation"] = True
 
     naming: dict[str, set[str]] = {}
     for marker in edges:
@@ -828,9 +863,15 @@ def seed_pull(edges: list[dict], order: list[str]) -> dict[str, float]:
     link is a pair of documents, not a value: the pair is worth its heaviest value and no more,
     so two documents that write four of the same rare words to each other and to nobody else are
     one link, not four, and do not outweigh a document reaching three others.
+
+    An edge that stands only because one note cites the other document by its id is left out.
+    A Q&A log or an index cites most of the room, and every document it cites would otherwise
+    look like a seed.
     """
     strongest: dict[str, dict[str, float]] = {}
     for edge in edges:
+        if edge.get("citation"):
+            continue
         for one, other in ((edge["a"], edge["b"]), (edge["b"], edge["a"])):
             side = strongest.setdefault(one, {})
             side[other] = max(side.get(other, 0.0), edge["weight"])

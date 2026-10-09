@@ -43,6 +43,7 @@ from rlm.map import (
     main,
     model_links,
     names_a_value,
+    seed_pull,
     turn_index,
     value_holders,
     value_weight,
@@ -387,6 +388,97 @@ def test_shared_rule_reads_a_figure_inside_a_longer_element_on_word_boundaries()
     assert not edges_of(["2019"], ["12019"])
 
 
+# Three documents for the citation rule: the first cites the third by its id, the second is
+# there so the room is not all citer and cited.
+THREE_DOCS = {"a.md": "DR-001", "b.md": "DR-002", "c.md": "DR-003"}
+
+
+def citing_room(kind: str) -> list[dict]:
+    """The edges build_edges writes where DR-001's note cites DR-003 by its id.
+
+    No flag of any note is about DR-003, and DR-003's own note cites itself, so the only thing
+    that can join DR-001 to DR-003 is the citation.
+    """
+    sections = [
+        {"doc": path, "anchor": f"{path}#p1l1", "ordinal": 1, "text": f"Section of {path}."}
+        for path in sorted(THREE_DOCS)
+    ]
+    first_anchors = {doc_id: f"{path}#p1l1" for path, doc_id in THREE_DOCS.items()}
+
+    def note(path: str, references: list[dict]) -> dict:
+        return {
+            "doc": path,
+            "what": "x",
+            "concealed": [],
+            "cross_references": references,
+            "figures": [],
+            "flags": [],
+        }
+
+    notes = {
+        "DR-001": note("a.md", [{"value": "DR-003", "kind": kind, "anchor": "a.md#p1l1"}]),
+        "DR-002": note("b.md", []),
+        "DR-003": note("c.md", [{"value": "DR-003", "kind": kind, "anchor": "c.md#p1l1"}]),
+    }
+    return build_edges([], sections, notes, THREE_DOCS, first_anchors, sorted(THREE_DOCS.values()))[0]
+
+
+def citing_edges(kind: str) -> list[tuple[str, str, str, str]]:
+    """The cross-reference edges of the citing room, as (a, b, kind, value)."""
+    return [
+        (edge["a"], edge["b"], edge["kind"], edge["value"])
+        for edge in citing_room(kind)
+        if edge["kind"] == "cross-reference"
+    ]
+
+
+def test_a_note_that_names_a_document_by_its_id_links_to_that_document():
+    """A note citing DR-003 as a document joins its document to DR-003, and to nothing else."""
+    assert citing_edges("document") == [("DR-001", "DR-003", "cross-reference", "DR-003")]
+
+
+@pytest.mark.parametrize("kind", ["code", "name"])
+def test_a_note_that_names_a_document_by_its_id_links_to_it_whatever_kind_it_gave(kind):
+    """The kind the model gave the citation does not decide whether it links."""
+    assert citing_edges(kind) == [("DR-001", "DR-003", "cross-reference", "DR-003")]
+
+
+def test_a_citation_alone_does_not_make_a_seed():
+    """A link that is only a citation does not pull a document toward being a seed.
+
+    A Q&A log citing forty documents would otherwise lift each of them, and on atlas-unnamed
+    that pushed DR-069 out of the documents a matter is tried at.
+    """
+    pull = seed_pull(citing_room("document"), sorted(THREE_DOCS.values()))
+
+    assert pull == {"DR-001": 0, "DR-002": 0, "DR-003": 0}
+
+
+# A run of atlas whose notes Claude Haiku 5.5 wrote, from the check of issue 161. The Q&A log
+# and the seller representation schedule cite the contingency reserve memo by its id, and the
+# memo's own note calls its id a code.
+HAIKU_ATLAS = Path("check-161") / "atlas-161-claude"
+
+
+def test_map_keeps_the_reserve_memo_in_atlas_matter_on_haiku_notes(tmp_path):
+    """On the Haiku notes of issue 161, the first matter's set holds DR-029.
+
+    The map is built into a temporary directory from copies of the run's inputs; the run on
+    disk is not written.
+    """
+    run_dir = ROOT / "runs" / HAIKU_ATLAS
+    if not _inputs_ready(run_dir):
+        pytest.skip(f"runs/{HAIKU_ATLAS.as_posix()} is not on this machine")
+    for name in INPUTS:
+        shutil.copy(run_dir / name, tmp_path / name)
+    shutil.copytree(run_dir / "notes", tmp_path / "notes")
+
+    document = build_map(ROOT / "samples" / "atlas", tmp_path)
+
+    matter = document["matters"][0]
+    assert "DR-029" in matter["cluster"], (matter["seed"], matter["cluster"])
+
+
 def test_map_parses_with_sorted_keys_and_one_trailing_newline(mapped):
     raw = mapped.first.read_text(encoding="utf-8")
     assert raw == json.dumps(mapped.document, indent=1, sort_keys=True, ensure_ascii=False) + "\n"
@@ -517,7 +609,8 @@ def test_map_returns_one_matter_on_a_room_that_holds_one(mapped):
 # time, against the documents its own round admits: DR-029 is a required document that two
 # documents both belonging to the matter had been holding each other out of, and DR-024, which
 # carries $5,150m with three documents of the set, is what atlas gains beside it.
-SET_CAP = {"atlas": 51}
+# It moved from 51 to 58 for #161: a cited id now links, adding seven documents reached by one.
+SET_CAP = {"atlas": 58}
 
 
 def test_map_first_matter_cluster_reaches_no_decoy(mapped, key):

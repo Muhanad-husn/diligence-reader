@@ -9,7 +9,8 @@ The key never goes into the Job. The Job carries a one-time run token instead, a
 `python -m app.runner_k8s`, posts that token to the API pod's /runner/key over the cluster
 network once. The API hands the key over, forgets the token, and forgets the key it held for the
 run, so a retry sends the key again. The Job holds the key in its own memory and builds the
-gateway with it; it is never set in an environment, written to a file or logged.
+gateway with it; it is never set in an environment, written to a file or logged. The run's
+model settings are in the run folder as models.json and the Job passes them to the command.
 
 A watcher thread per run reads the Job's status every poll seconds and deletes the Job, with its
 pod, when it has succeeded or failed.
@@ -32,7 +33,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from app.runner import deal_args
+from app.runner import deal_args, models_args
 
 # Where Kubernetes mounts a pod's service account: its token, its namespace and the cluster CA.
 ACCOUNT_DIR = Path("/var/run/secrets/kubernetes.io/serviceaccount")
@@ -305,6 +306,7 @@ def main(
         command = ["run", args.room, "--out", str(run_dir), "--yes"]
         if args.phase is not None:
             command += ["--phase", args.phase]
+        command += models_args(run_dir)
         command += deal_args(run_dir)
         return cli.main(command, gateway=Gateway(api_key=key, transport=transport))
 
