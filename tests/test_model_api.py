@@ -19,6 +19,7 @@ from test_phase8_api import GOOD_KEY, room_files
 OPEN = "acme/real-model"
 OPEN_SONNET = "anthropic/claude-sonnet-5.5"
 CODE_SONNET = "claude-code/claude-sonnet-5-5"
+CODE_HAIKU = "claude-code/claude-haiku-5-5"
 LISTED = {OPEN: (0.5, 2.0), OPEN_SONNET: (2.0, 10.0)}
 
 
@@ -82,7 +83,7 @@ def test_the_settings_are_the_defaults_until_some_are_saved_and_carry_what_the_p
     assert found["claude_code"] is False
     choices = found["choices"]
     assert "z-ai/glm-5.3-flash" in choices and OPEN_SONNET in choices
-    assert CODE_SONNET not in choices
+    assert CODE_SONNET not in choices and CODE_HAIKU not in choices
     assert not any(choice.startswith("bedrock/") for choice in choices)
     assert found["needs_key"] is True
     assert "presets" not in found and "regions" not in found
@@ -146,7 +147,8 @@ def test_claude_code_is_refused_when_the_machine_has_none(api):
 def test_claude_code_is_offered_and_defaulted_when_the_machine_has_it(api, with_claude_code):
     found = api.get("/api/settings").json()
     assert found["claude_code"] is True
-    assert CODE_SONNET in found["choices"]
+    assert CODE_SONNET in found["choices"] and CODE_HAIKU in found["choices"]
+    assert found["settings"]["notes"] == CODE_HAIKU
     assert found["settings"]["writer"] == CODE_SONNET
     assert found["settings"]["write"] == "both-tree-first"
     assert api.put("/api/settings", json={"writer": CODE_SONNET}).status_code == 200
@@ -177,7 +179,7 @@ def test_the_models_an_upload_names_win_over_the_saved_settings_and_are_checked(
 
 
 def test_an_upload_needs_the_key_only_when_a_task_runs_on_open_router(api, tmp_path, with_claude_code):
-    refused = upload(api, tmp_path, openrouter=None)
+    refused = upload(api, tmp_path, models={"notes": "z-ai/glm-5.3-flash"}, openrouter=None)
     assert refused.status_code == 400 and refused.json()["code"] == "key-missing"
     assert "OpenRouter" in refused.json()["message"]
 

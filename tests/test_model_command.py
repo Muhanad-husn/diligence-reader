@@ -220,7 +220,7 @@ def test_the_estimate_line_names_the_model_of_each_task_and_its_dollars(tmp_path
     cli.confirm(found, yes=True)
     printed = capsys.readouterr().out
     assert printed.startswith("estimate:")
-    for model in (notes.DEFAULT_MODEL, CODE_SONNET):
+    for model in ("claude-code/claude-haiku-5-5", CODE_SONNET):
         assert model in printed
     assert "for the group step" in printed
 

@@ -12,6 +12,7 @@ from rlm import notes, settings, tree, write
 from rlm.gateway import PRICES, price, priced, register_listing
 
 CODE_SONNET = "claude-code/claude-sonnet-5-5"
+CODE_HAIKU = "claude-code/claude-haiku-5-5"
 OPEN_SONNET = "anthropic/claude-sonnet-5.5"
 
 
@@ -28,11 +29,21 @@ def test_the_open_defaults_are_the_stage_defaults_of_today():
     assert found.write is None
 
 
-def test_with_claude_code_on_the_machine_the_group_step_and_the_writer_default_to_its_sonnet():
+def test_with_claude_code_on_the_machine_every_task_defaults_to_claude():
+    """The notes on Haiku 5.5, the group step and the writer on Sonnet 5.5; a run on the
+    defaults then needs no OpenRouter key."""
     found = settings.default_settings(claude_code=True)
-    assert found.notes == notes.DEFAULT_MODEL
+    assert found.notes == CODE_HAIKU
     assert (found.group, found.writer) == (CODE_SONNET, CODE_SONNET)
     assert found.write == "both-tree-first"
+    assert settings.needs_key(found) is False
+    settings.validate(found)
+
+
+def test_without_claude_code_the_open_defaults_are_unchanged():
+    assert settings.OPEN_DEFAULTS == settings.Settings(
+        notes="z-ai/glm-5.3-flash", group="z-ai/glm-5.3-flash", writer="z-ai/glm-5.3"
+    )
 
 
 def test_claude_code_is_found_by_the_claude_command_and_an_env_switch_can_say_it_is_not():
