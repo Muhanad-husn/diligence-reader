@@ -185,6 +185,10 @@ TIMEOUT_SECONDS = 300.0
 # waits make three tries; the 429 of the third is raised.
 RATE_LIMIT_WAITS: tuple[float, ...] = (2.0, 8.0)
 
+# The seconds waited before a request is sent again after the connection dropped (a transport
+# failure, not a status). It is sent again once; the second failure is raised.
+TRANSPORT_RETRY_WAIT = 3.0
+
 # The statuses that refuse every call of a run rather than one request: the key refused (401,
 # 403), the account out of credits (402), and the rate limit still in force after the waits
 # (429).
@@ -506,20 +510,34 @@ class Gateway:
                 self.context_lengths[entry["id"]] = int(entry["context_length"])
         return found
 
+    def _post(self, body: dict) -> httpx.Response:
+        """Posts one chat completion. A dropped connection is posted again once after
+        TRANSPORT_RETRY_WAIT seconds; a second transport failure is raised."""
+        try:
+            return self._client.post(
+                f"{self.base_url}/chat/completions",
+                json=body,
+                headers={"Authorization": f"Bearer {self.api_key}"},
+            )
+        except httpx.TransportError:
+            time.sleep(TRANSPORT_RETRY_WAIT)
+            return self._client.post(
+                f"{self.base_url}/chat/completions",
+                json=body,
+                headers={"Authorization": f"Bearer {self.api_key}"},
+            )
+
     def _send(self, body: dict) -> tuple[dict, float]:
         """Posts one chat completion and returns the answered body and the wall seconds.
 
         A 429 is posted again after each wait of rate_limit_waits, and the seconds waited count
         in the wall seconds. Raises httpx.HTTPStatusError when the gateway answers outside the
-        2xx range, a 429 included once the waits are spent.
+        2xx range, a 429 included once the waits are spent, or httpx.TransportError when the
+        connection drops twice in a row.
         """
         started = time.monotonic()
         for wait in (*self.rate_limit_waits, None):
-            response = self._client.post(
-                f"{self.base_url}/chat/completions",
-                json=body,
-                headers={"Authorization": f"Bearer {self.api_key}"},
-            )
+            response = self._post(body)
             if response.status_code != 429 or wait is None:
                 break
             time.sleep(wait)
