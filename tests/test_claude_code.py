@@ -14,6 +14,7 @@ import pytest
 from rlm import cli, tree, write
 from rlm.gateway import (
     API_EQUIVALENT,
+    CLAUDE_CODE_MODELS,
     PRICES,
     ClaudeCode,
     ClaudeCodeError,
@@ -108,6 +109,18 @@ def test_a_claude_code_model_is_sent_to_headless_claude_with_no_tools_from_an_em
     assert completion.tokens_in == 1000
     assert completion.tokens_out == 120
     assert completion.model == SONNET
+
+
+@pytest.mark.parametrize("model", sorted(CLAUDE_CODE_MODELS))
+def test_every_claude_code_call_asks_for_medium_effort(model):
+    """Sonnet 5.5 thinks at high effort unless told otherwise, and its thinking counts against
+    the reply cap, so a call that leaves the effort unset can be cut off before it answers."""
+    runner = FakeRunner(lambda args, stdin: cli_reply('{"a": 1}'))
+    gateway_with(runner).complete(model, MESSAGES, max_tokens=1000)
+
+    args = runner.calls[0]["args"]
+    assert args.count("--effort") == 1
+    assert args[args.index("--effort") + 1] == "medium"
 
 
 def test_a_reply_from_any_model_but_sonnet_5_5_is_refused():

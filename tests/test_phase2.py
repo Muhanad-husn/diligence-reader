@@ -277,7 +277,7 @@ def test_gateway_complete_turns_reasoning_off():
 
 def test_gateway_complete_sends_low_effort_reasoning_to_glm():
     """The GLM endpoints refuse reasoning off, so they carry a low effort object instead."""
-    assert set(REASONING) == set(PRICES) - OFF_GATEWAY
+    assert set(PRICES) - OFF_GATEWAY <= set(REASONING)
     for model in ("z-ai/glm-5.3", "z-ai/glm-5.3-flash"):
         transport = FakeTransport([reply('{"what": "x"}')])
         gateway = Gateway(api_key="test-key", transport=transport)
@@ -286,6 +286,21 @@ def test_gateway_complete_sends_low_effort_reasoning_to_glm():
 
         body = json.loads(transport.requests[0].content)
         assert body["reasoning"] == {"effort": "low"}
+
+
+def test_gateway_complete_asks_sonnet_5_5_on_open_router_for_medium_effort():
+    """Sonnet 5.5 thinks at high effort unless told otherwise, and its thinking counts against
+    max_tokens. Picked through OpenRouter it carries the same medium effort as through Claude
+    Code. It is not one of the five models, so PRICES does not carry it."""
+    model = "anthropic/claude-sonnet-5.5"
+    assert model not in PRICES
+    transport = FakeTransport([reply('{"what": "x"}')])
+    gateway = Gateway(api_key="test-key", transport=transport)
+
+    gateway.complete(model, [{"role": "user", "content": "u"}], max_tokens=100)
+
+    body = json.loads(transport.requests[0].content)
+    assert body["reasoning"] == {"effort": "medium"}
 
 
 def test_gateway_complete_leaves_out_the_providers_that_ignore_the_reasoning_object():
