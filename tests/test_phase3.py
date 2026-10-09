@@ -387,6 +387,82 @@ def test_shared_rule_reads_a_figure_inside_a_longer_element_on_word_boundaries()
     assert not edges_of(["2019"], ["12019"])
 
 
+# Three documents for the citation rule: the first cites the third by its id, the second is
+# there so the room is not all citer and cited.
+THREE_DOCS = {"a.md": "DR-001", "b.md": "DR-002", "c.md": "DR-003"}
+
+
+def citing_edges(kind: str) -> list[tuple[str, str, str, str]]:
+    """The cross-reference edges build_edges writes where DR-001's note cites DR-003 by its id.
+
+    No flag of any note is about DR-003, and DR-003's own note cites itself, so the only thing
+    that can join DR-001 to DR-003 is the citation.
+    """
+    sections = [
+        {"doc": path, "anchor": f"{path}#p1l1", "ordinal": 1, "text": f"Section of {path}."}
+        for path in sorted(THREE_DOCS)
+    ]
+    first_anchors = {doc_id: f"{path}#p1l1" for path, doc_id in THREE_DOCS.items()}
+
+    def note(path: str, references: list[dict]) -> dict:
+        return {
+            "doc": path,
+            "what": "x",
+            "concealed": [],
+            "cross_references": references,
+            "figures": [],
+            "flags": [],
+        }
+
+    notes = {
+        "DR-001": note("a.md", [{"value": "DR-003", "kind": kind, "anchor": "a.md#p1l1"}]),
+        "DR-002": note("b.md", []),
+        "DR-003": note("c.md", [{"value": "DR-003", "kind": kind, "anchor": "c.md#p1l1"}]),
+    }
+    edges, _ = build_edges([], sections, notes, THREE_DOCS, first_anchors, sorted(THREE_DOCS.values()))
+    return [
+        (edge["a"], edge["b"], edge["kind"], edge["value"])
+        for edge in edges
+        if edge["kind"] == "cross-reference"
+    ]
+
+
+def test_a_note_that_names_a_document_by_its_id_links_to_that_document():
+    """A note citing DR-003 as a document joins its document to DR-003, and to nothing else."""
+    assert citing_edges("document") == [("DR-001", "DR-003", "cross-reference", "DR-003")]
+
+
+@pytest.mark.parametrize("kind", ["code", "name"])
+def test_a_note_that_names_a_document_by_its_id_links_to_it_whatever_kind_it_gave(kind):
+    """The kind the model gave the citation does not decide whether it links."""
+    assert citing_edges(kind) == [("DR-001", "DR-003", "cross-reference", "DR-003")]
+
+
+# A run of atlas whose notes Claude Haiku 5.5 wrote, from the check of issue 161. The Q&A log
+# and the seller representation schedule cite the contingency reserve memo by its id, and the
+# memo's own note calls its id a code.
+HAIKU_ATLAS = Path("check-161") / "atlas-161-claude"
+
+
+def test_map_keeps_the_reserve_memo_in_atlas_matter_on_haiku_notes(tmp_path):
+    """On the Haiku notes of issue 161, the first matter's set holds DR-029.
+
+    The map is built into a temporary directory from copies of the run's inputs; the run on
+    disk is not written.
+    """
+    run_dir = ROOT / "runs" / HAIKU_ATLAS
+    if not _inputs_ready(run_dir):
+        pytest.skip(f"runs/{HAIKU_ATLAS.as_posix()} is not on this machine")
+    for name in INPUTS:
+        shutil.copy(run_dir / name, tmp_path / name)
+    shutil.copytree(run_dir / "notes", tmp_path / "notes")
+
+    document = build_map(ROOT / "samples" / "atlas", tmp_path)
+
+    matter = document["matters"][0]
+    assert "DR-029" in matter["cluster"], (matter["seed"], matter["cluster"])
+
+
 def test_map_parses_with_sorted_keys_and_one_trailing_newline(mapped):
     raw = mapped.first.read_text(encoding="utf-8")
     assert raw == json.dumps(mapped.document, indent=1, sort_keys=True, ensure_ascii=False) + "\n"
