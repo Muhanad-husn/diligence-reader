@@ -43,6 +43,7 @@ from rlm.map import (
     main,
     model_links,
     names_a_value,
+    seed_pull,
     turn_index,
     value_holders,
     value_weight,
@@ -392,8 +393,8 @@ def test_shared_rule_reads_a_figure_inside_a_longer_element_on_word_boundaries()
 THREE_DOCS = {"a.md": "DR-001", "b.md": "DR-002", "c.md": "DR-003"}
 
 
-def citing_edges(kind: str) -> list[tuple[str, str, str, str]]:
-    """The cross-reference edges build_edges writes where DR-001's note cites DR-003 by its id.
+def citing_room(kind: str) -> list[dict]:
+    """The edges build_edges writes where DR-001's note cites DR-003 by its id.
 
     No flag of any note is about DR-003, and DR-003's own note cites itself, so the only thing
     that can join DR-001 to DR-003 is the citation.
@@ -419,10 +420,14 @@ def citing_edges(kind: str) -> list[tuple[str, str, str, str]]:
         "DR-002": note("b.md", []),
         "DR-003": note("c.md", [{"value": "DR-003", "kind": kind, "anchor": "c.md#p1l1"}]),
     }
-    edges, _ = build_edges([], sections, notes, THREE_DOCS, first_anchors, sorted(THREE_DOCS.values()))
+    return build_edges([], sections, notes, THREE_DOCS, first_anchors, sorted(THREE_DOCS.values()))[0]
+
+
+def citing_edges(kind: str) -> list[tuple[str, str, str, str]]:
+    """The cross-reference edges of the citing room, as (a, b, kind, value)."""
     return [
         (edge["a"], edge["b"], edge["kind"], edge["value"])
-        for edge in edges
+        for edge in citing_room(kind)
         if edge["kind"] == "cross-reference"
     ]
 
@@ -436,6 +441,17 @@ def test_a_note_that_names_a_document_by_its_id_links_to_that_document():
 def test_a_note_that_names_a_document_by_its_id_links_to_it_whatever_kind_it_gave(kind):
     """The kind the model gave the citation does not decide whether it links."""
     assert citing_edges(kind) == [("DR-001", "DR-003", "cross-reference", "DR-003")]
+
+
+def test_a_citation_alone_does_not_make_a_seed():
+    """A link that is only a citation does not pull a document toward being a seed.
+
+    A Q&A log citing forty documents would otherwise lift each of them, and on atlas-unnamed
+    that pushed DR-069 out of the documents a matter is tried at.
+    """
+    pull = seed_pull(citing_room("document"), sorted(THREE_DOCS.values()))
+
+    assert pull == {"DR-001": 0, "DR-002": 0, "DR-003": 0}
 
 
 # A run of atlas whose notes Claude Haiku 5.5 wrote, from the check of issue 161. The Q&A log
