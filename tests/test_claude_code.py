@@ -193,16 +193,16 @@ def test_a_second_turn_carries_the_first_reply_and_the_new_ask_on_stdin():
     assert system_of(runner.calls[0]["args"]) == "SYSTEM WORDS"
 
 
-def test_calls_are_sent_one_at_a_time():
-    runner = FakeRunner(lambda args, stdin: cli_reply("{}"), hold=0.05)
+def test_calls_are_sent_at_most_four_at_a_time():
+    runner = FakeRunner(lambda args, stdin: cli_reply("{}"), hold=0.1)
     gateway = gateway_with(runner)
-    threads = [threading.Thread(target=gateway.complete, args=(SONNET, MESSAGES, 1000)) for _ in range(4)]
+    threads = [threading.Thread(target=gateway.complete, args=(SONNET, MESSAGES, 1000)) for _ in range(6)]
     for thread in threads:
         thread.start()
     for thread in threads:
         thread.join()
-    assert len(runner.calls) == 4
-    assert runner.most == 1
+    assert len(runner.calls) == 6
+    assert runner.most == 4
 
 
 def test_the_subscription_model_costs_nothing_in_cash_and_its_api_price_is_kept_apart():
