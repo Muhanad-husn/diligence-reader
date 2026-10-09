@@ -47,7 +47,6 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from rlm import models
 from rlm.gateway import LIVE_CONTEXT, PHASE_CAPS, Completion, Gateway, Ledger, NoReply, api_price, estimate_tokens, priced
 from rlm.key import room_documents
 from rlm.notes import reask_messages
@@ -165,19 +164,11 @@ def note_block(doc: str, note: dict | None) -> str:
     return "\n".join(lines)
 
 
-def tuned(model: str) -> str:
-    """The model whose GROUP_TOKENS and FINDING_ROWS entries a model is read with: Sonnet 5.5 by
-    any route is read with the Claude Code entry, the model they were measured on."""
-    return models.CLAUDE_CODE_SONNET if models.is_sonnet_tier(model) else model
-
-
 def context_window(model: str) -> int:
-    """The window of a model in tokens: CONTEXT_WINDOWS, else the family's of a direct model,
-    else the gateway's list, else DEFAULT_WINDOW."""
+    """The window of a model in tokens: CONTEXT_WINDOWS, else the gateway's list, else
+    DEFAULT_WINDOW."""
     if model in CONTEXT_WINDOWS:
         return CONTEXT_WINDOWS[model]
-    if models.known_direct(model):
-        return models.family_of(model).context
     return LIVE_CONTEXT.get(model, DEFAULT_WINDOW)
 
 
@@ -185,7 +176,7 @@ def group_budget(model: str, system: str) -> int:
     """The note tokens one group call may carry: MARGIN of the model's window, less the
     instructions and the reply, and never more than GROUP_TOKENS where the model is listed."""
     budget = int(context_window(model) * MARGIN) - estimate_tokens(system) - MAX_OUTPUT_TOKENS
-    return min(budget, GROUP_TOKENS.get(tuned(model), budget))
+    return min(budget, GROUP_TOKENS.get(model, budget))
 
 
 def make_groups(sizes: dict[str, int], budget: int) -> list[list[str]]:
@@ -210,7 +201,7 @@ def make_groups(sizes: dict[str, int], budget: int) -> list[list[str]]:
 def group_cap(count: int, model: str = DEFAULT_MODEL) -> int:
     """The findings one group keeps: the model's FINDING_ROWS, else the digest's rows, shared
     over the groups, rounded up."""
-    return math.ceil(FINDING_ROWS.get(tuned(model), DIGEST_ROWS) / count)
+    return math.ceil(FINDING_ROWS.get(model, DIGEST_ROWS) / count)
 
 
 def collapse(text: object) -> str:
@@ -319,7 +310,7 @@ def tree(
     notes = read_notes(room, run_dir)
     sizes = {doc: estimate_tokens(note_block(doc, note)) for doc, note in notes.items()}
     if budget is None:
-        budget = group_budget(model, instructions(room, len(notes), FINDING_ROWS.get(tuned(model), DIGEST_ROWS)))
+        budget = group_budget(model, instructions(room, len(notes), FINDING_ROWS.get(model, DIGEST_ROWS)))
     groups = make_groups(sizes, budget)
     cap = group_cap(len(groups), model)
     systems = [instructions(room, len(docs), cap) for docs in groups]

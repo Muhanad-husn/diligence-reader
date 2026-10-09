@@ -228,8 +228,7 @@ input[type="password"] {
   }
 }
 
-#models-card label,
-#anthropic-card label {
+#models-card label {
   display: inline-flex;
   align-items: center;
   gap: 6px;

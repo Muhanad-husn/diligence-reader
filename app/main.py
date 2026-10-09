@@ -3,12 +3,11 @@
 `uvicorn app.main:app --host 127.0.0.1 --port 8000` serves it. A run's folder is
 <runs root>/<id> and the uploaded room is <runs root>/<id>/<id>, a folder named by the run id so
 the stages name the sample after the run; the runs root is RLM_RUNS, runs under the current
-folder by default. The keys come in the X-OpenRouter-Key and X-Anthropic-Key headers, each only
-where the run's models call for it, and are held in this process's memory by run id until the
-runner starts the command with them; they are never written to a file, a log or a response.
-The web page in web/ is served at / when the folder is there; it reads the version and whether
-to check for a newer release from /api/config, and a cited document's sections from
-/runs/<id>/documents/<doc>.
+folder by default. The key comes in the X-OpenRouter-Key header, where the run's models call
+for it, and is held in this process's memory by run id until the runner starts the command with
+it; it is never written to a file, a log or a response. The web page in web/ is served at / when
+the folder is there; it reads the version and whether to check for a newer release from
+/api/config, and a cited document's sections from /runs/<id>/documents/<doc>.
 
 The model settings are /api/settings: GET reads the ones saved on this machine, or the defaults,
 with what the page offers, and PUT checks and saves them. A run takes the saved settings as they
@@ -16,7 +15,8 @@ are when it is uploaded, or the ones the upload names in its `models` field, wri
 folder as models.json and keeps them there; PUT /runs/<id>/models changes them until the run
 starts. An id no provider serves is refused with 422 and its name before anything is saved or
 sent. OpenRouter's model list, which an id outside the five models is checked against, is read
-by app.state.listing, a function a test replaces.
+by app.state.listing, a function a test replaces. A run whose models are all on Claude Code
+needs no OpenRouter key.
 """
 
 from __future__ import annotations
@@ -38,12 +38,9 @@ from fastapi.staticfiles import StaticFiles
 
 from app import events
 from app.runner import DEAL_FILE, MODELS_FILE, Runner, runner_from_env
-from rlm import __version__, cli, models, settings
+from rlm import __version__, cli, settings
 from rlm import ingest as ingest_stage
 from rlm.gateway import CLAUDE_CODE_MODELS, Gateway, Meter, register_listing
-
-# The AWS regions the page offers for bedrock/ models; any region name is accepted.
-REGIONS = ("eu-central-1", "eu-west-1", "eu-north-1", "us-east-1", "us-east-2", "us-west-2")
 
 # A name a run may be given: lower case letters, digits and dashes, 64 at most.
 NAME = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
@@ -133,10 +130,8 @@ def create_app(
     app = FastAPI(title="diligence-reader")
     app.state.runner = runner
     app.state.keys = {}
-    app.state.anthropic_keys = {}
     app.state.listing = open_router_listing
     keys: dict[str, str] = app.state.keys
-    anthropic_keys: dict[str, str] = app.state.anthropic_keys
 
     @app.exception_handler(Refused)
     async def refused(request, exc: Refused):
@@ -179,19 +174,17 @@ def create_app(
             raise Refused(422, "bad-settings", str(exc)) from exc
 
     def settings_payload(chosen: settings.Settings) -> dict:
-        """The settings, the defaults, the presets and the choices the page draws its form from."""
+        """The settings, the defaults and the choices the page draws its form from."""
         found = settings.claude_code_found()
-        choices = [*models.DIRECT_CHOICES, *settings.OPEN_CHOICES]
+        choices = list(settings.OPEN_CHOICES)
         if found:
             choices += sorted(CLAUDE_CODE_MODELS)
         return {
             "settings": chosen.to_dict(),
             "defaults": settings.default_settings().to_dict(),
-            "presets": {name: settings.preset(name).to_dict() for name in settings.PRESET_NAMES},
             "choices": choices,
-            "regions": list(REGIONS),
             "claude_code": found,
-            "needs": settings.needs(chosen),
+            "needs_key": settings.needs_key(chosen),
         }
 
     def run_models(run_dir: Path) -> settings.Settings:
@@ -206,29 +199,19 @@ def create_app(
             json.dumps(chosen.to_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
 
-    def launch(run_id: str, key: str | None, anthropic_key: str | None = None) -> JSONResponse:
-        """Starts the runner on the run with the keys given, else the keys held."""
+    def launch(run_id: str, key: str | None) -> JSONResponse:
+        """Starts the runner on the run with the key given, else the key held. A run whose models
+        are all on Claude Code starts with an empty key."""
         run_dir = folder(run_id)
-        needed = settings.needs(run_models(run_dir))
-        openrouter = given(key) or keys.get(run_id)
-        anthropic = given(anthropic_key) or anthropic_keys.get(run_id)
-        if needed["openrouter"] and not openrouter:
+        key = given(key) or keys.get(run_id)
+        if not key and settings.needs_key(run_models(run_dir)):
             raise Refused(400, "key-missing", "no OpenRouter key is held for this run")
-        if needed["anthropic"] and not anthropic:
-            raise Refused(400, "key-missing", "no Anthropic key is held for this run")
-        if openrouter:
-            keys[run_id] = openrouter
-        if anthropic:
-            anthropic_keys[run_id] = anthropic
+        if key:
+            keys[run_id] = key
         if runner.status(run_id) == "running":
             raise Refused(409, "running", "the run is already running")
         events.stopped_mark(run_dir).unlink(missing_ok=True)
-        if needed["anthropic"]:
-            runner.start(
-                run_id, room_of(run_dir), run_dir, openrouter or "", extra_env={"ANTHROPIC_API_KEY": anthropic}
-            )
-        else:
-            runner.start(run_id, room_of(run_dir), run_dir, openrouter or "")
+        runner.start(run_id, room_of(run_dir), run_dir, key or "")
         return JSONResponse({"id": run_id}, status_code=202)
 
     @app.get("/api/settings")
@@ -249,10 +232,8 @@ def create_app(
         deal: str = Form("share"),
         models_field: str | None = Form(None, alias="models"),
         x_openrouter_key: str | None = Header(None),
-        x_anthropic_key: str | None = Header(None),
     ):
         key = given(x_openrouter_key)
-        anthropic = given(x_anthropic_key)
         chosen = settings.current()
         if models_field:
             try:
@@ -260,11 +241,8 @@ def create_app(
             except ValueError as exc:
                 raise Refused(422, "bad-settings", "models is one JSON object") from exc
             chosen = merged(named, chosen)
-        needed = settings.needs(chosen)
-        if needed["openrouter"] and not key:
+        if not key and settings.needs_key(chosen):
             raise Refused(400, "key-missing", "send the OpenRouter key in X-OpenRouter-Key")
-        if needed["anthropic"] and not anthropic:
-            raise Refused(400, "key-missing", "send the Anthropic key in X-Anthropic-Key")
         if deal not in ("share", "asset"):
             raise Refused(400, "bad-deal", "a deal type is share or asset")
         if name is not None and not NAME.match(name):
@@ -288,8 +266,6 @@ def create_app(
         write_models(runs_root / run_id, chosen)
         if key:
             keys[run_id] = key
-        if anthropic:
-            anthropic_keys[run_id] = anthropic
         return {"id": run_id}
 
     @app.put("/runs/{run_id}/models")
@@ -385,25 +361,16 @@ def create_app(
             "notes_model": chosen.notes,
             "group_model": chosen.group if "group" in settings.used_tasks(chosen) else None,
             "write_model": chosen.writer,
-            "batch": chosen.batch,
             "tasks": found.tasks,
         }
 
     @app.post("/runs/{run_id}/confirm")
-    async def confirm(
-        run_id: str,
-        x_openrouter_key: str | None = Header(None),
-        x_anthropic_key: str | None = Header(None),
-    ):
-        return launch(run_id, x_openrouter_key, x_anthropic_key)
+    async def confirm(run_id: str, x_openrouter_key: str | None = Header(None)):
+        return launch(run_id, x_openrouter_key)
 
     @app.post("/runs/{run_id}/retry")
-    async def retry(
-        run_id: str,
-        x_openrouter_key: str | None = Header(None),
-        x_anthropic_key: str | None = Header(None),
-    ):
-        return launch(run_id, x_openrouter_key, x_anthropic_key)
+    async def retry(run_id: str, x_openrouter_key: str | None = Header(None)):
+        return launch(run_id, x_openrouter_key)
 
     @app.post("/runs/{run_id}/stop")
     async def stop(run_id: str):

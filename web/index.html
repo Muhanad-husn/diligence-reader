@@ -35,21 +35,10 @@
     <p id="key-state" class="muted">no key yet</p>
   </section>
 
-  <section class="card" id="anthropic-card">
-    <h2>Anthropic key</h2>
-    <p class="muted">Only for models on the Anthropic API (anthropic/...). Like the OpenRouter key it stays in this page's memory and is never saved. Models on AWS Bedrock (bedrock/...) use the AWS credentials of the machine the server runs on.</p>
-    <div class="row">
-      <input id="anthropic-key-input" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-...">
-      <button id="anthropic-key-use" type="button">Use this key</button>
-    </div>
-    <p id="anthropic-key-state" class="muted">no key yet</p>
-  </section>
-
   <section class="card" id="models-card">
     <h2>Models</h2>
-    <p class="muted">One model for each task. An id takes its provider from its prefix: claude-code/, anthropic/, bedrock/, or an OpenRouter id. A wrong id is refused before any call is made.</p>
+    <p class="muted">One model for each task: an OpenRouter id, or claude-code/... for Claude Code on this machine. A wrong id is refused before any call is made.</p>
     <div class="row">
-      <label>Preset <select id="preset"><option value="">custom</option></select></label>
       <label>Report built from <select id="write-mode">
         <option value="">the map and the dossier</option>
         <option value="tree">the tree</option>
@@ -64,9 +53,6 @@
       <datalist id="model-choices"></datalist>
     </div>
     <div class="row">
-      <label><input id="batch" type="checkbox"> Send the notes as a batch (Anthropic API only, half price, slower)</label>
-      <label>AWS region <input id="region" list="region-choices" autocomplete="off" spellcheck="false"></label>
-      <datalist id="region-choices"></datalist>
       <button id="settings-save" type="button">Save as my settings</button>
     </div>
     <p id="settings-state" class="muted"></p>
@@ -106,7 +92,7 @@
     <h2>3. The estimate</h2>
     <p>About <strong id="estimate-dollars"></strong> for <span id="estimate-tokens"></span> tokens
       (notes on <span id="estimate-notes-model"></span>, <span id="estimate-group"><span id="estimate-group-model"></span> for the group step, </span>the report on <span id="estimate-write-model"></span>).
-      The dollars come from the accounts of the providers named: your OpenRouter credits, your Anthropic credits or your AWS bill.</p>
+      The dollars come from your OpenRouter credits; a Claude Code task costs none.</p>
     <ul id="estimate-tasks" class="muted"></ul>
     <button id="confirm" type="button">Confirm and start</button>
   </section>

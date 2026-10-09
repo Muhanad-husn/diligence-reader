@@ -1,13 +1,10 @@
 """The one module that calls a model, and the ledger that pays for the call.
 
-Every model call in this repository goes through Gateway.complete. An id names its provider by
-its prefix (rlm.models): claude-code/ goes to headless Claude Code, anthropic/ to the Anthropic
-API and bedrock/ to AWS Bedrock, both through rlm.providers, and any other id to OpenRouter,
-where complete posts one chat completion with temperature 0, a fixed seed, JSON output mode, the
-reasoning object REASONING gives its model, and the providers of IGNORED_PROVIDERS left out of
-the routing. Nothing else opens a socket. The two direct providers report what each call
-cost, cache reads and the batch discount included, on the Completion they return, and the
-ledger books that.
+Every model call in this repository goes through Gateway.complete. A claude-code/ id goes to
+headless Claude Code, and any other id to OpenRouter, where complete posts one chat completion
+with temperature 0, a fixed seed, JSON output mode, the reasoning object REASONING gives its
+model, and the providers of IGNORED_PROVIDERS left out of the routing. Nothing else opens a
+socket.
 
 An empty content is not a reply, and neither is a reply the model was cut off in the middle of.
 The failure the ignore list is for reaches the routing from any provider that is not yet on it:
@@ -61,8 +58,6 @@ from types import TracebackType
 
 import httpx
 
-from rlm import models
-
 # Per million tokens, prompt then completion: the estimate printed before a batch and the cap
 # check, never what a row of LEDGER.md books, which is the cost the gateway reports for the call.
 # The two GLM rows are the dearest rate over the providers the gateway may route to, the highest
@@ -87,6 +82,9 @@ OFF_GATEWAY = frozenset({"typesafe/jev-1.13.0"})
 # repository names them with, each with the id the claude command line takes. A call to one
 # costs no cash: price reads it at zero and the ledger books it at $0.00.
 CLAUDE_CODE_MODELS: dict[str, str] = {"claude-code/claude-sonnet-5-5": "claude-sonnet-5-5"}
+
+# The prefix that sends an id to headless Claude Code in place of OpenRouter.
+CLAUDE_CODE_PREFIX = "claude-code/"
 
 # What the same tokens would cost on Anthropic's API, per million tokens, prompt then completion.
 # It is written beside the run, never in the ledger.
@@ -128,15 +126,23 @@ PAST_PRICES: tuple[dict[str, tuple[float, float]], ...] = (
     },
 )
 
+# The effort a Claude model is asked to think at. Sonnet 5.5 thinks at high effort unless told
+# otherwise, and its thinking counts against the reply cap, so a call left at high can be cut
+# off before it answers. Every Claude Code call passes it, and Sonnet 5.5 on OpenRouter carries
+# it.
+CLAUDE_THINKING_EFFORT = "medium"
+
 # The reasoning object each model's request carries. The two GLM endpoints answer 400 when
 # reasoning is disabled, so they carry a low effort object instead; every other model of PRICES
-# carries reasoning off.
+# carries reasoning off. Sonnet 5.5, which a user may pick through OpenRouter though PRICES does
+# not carry it, thinks at CLAUDE_THINKING_EFFORT. Any other model carries reasoning off.
 REASONING: dict[str, dict] = {
     "openai/gpt-5.6-luna": {"enabled": False},
     "deepseek/deepseek-v4-flash-0731": {"enabled": False},
     "deepseek/deepseek-v4-pro": {"enabled": False},
     "z-ai/glm-5.3": {"effort": "low"},
     "z-ai/glm-5.3-flash": {"effort": "low"},
+    "anthropic/claude-sonnet-5.5": {"effort": CLAUDE_THINKING_EFFORT},
 }
 
 # The gateway serves one model from several providers and picks one per call. A provider named
@@ -229,23 +235,10 @@ class Completion:
     seconds: float
     model: str
     cost: float | None = None
-    cache_read: int = 0
-    cache_write: int = 0
-
-
-class ProviderError(Exception):
-    """A failure of the Anthropic API or Bedrock that carries an HTTP status. status is what the
-    provider answered, 402 where the account has no credit left."""
-
-    def __init__(self, status: int, message: str):
-        super().__init__(message)
-        self.status = status
 
 
 def stops_every_call(exc: BaseException) -> bool:
     """Says whether an exception is a gateway status that refuses every call, not one request."""
-    if isinstance(exc, ProviderError):
-        return exc.status in STOPPING_STATUSES
     return (
         isinstance(exc, httpx.HTTPStatusError)
         and exc.response.status_code in STOPPING_STATUSES
@@ -289,20 +282,11 @@ def register_listing(listing: dict[str, tuple[float, float]], contexts: dict[str
     LIVE_CONTEXT.update(contexts or {})
 
 
-def price(
-    model: str,
-    tokens_in: int,
-    tokens_out: int,
-    batch: bool = False,
-    region: str = models.DEFAULT_REGION,
-) -> float:
-    """Prices a call at its rate: the PRICES rate or the listed rate of an OpenRouter model, the
-    plain input and output rate of a direct model with the batch discount and the region's
-    premium where they apply, a Claude Code model at zero. Raises KeyError for a model in none."""
+def price(model: str, tokens_in: int, tokens_out: int) -> float:
+    """Prices a call at the PRICES rate, else at the listed rate of an OpenRouter model, and a
+    Claude Code model at zero. Raises KeyError for a model in none."""
     if model in CLAUDE_CODE_MODELS:
         return 0.0
-    if models.known_direct(model):
-        return models.estimate(model, tokens_in, tokens_out, batch=batch, region=region)
     rate_in, rate_out = PRICES[model] if model in PRICES else LIVE_PRICES[model]
     return tokens_in * rate_in / 1_000_000 + tokens_out * rate_out / 1_000_000
 
@@ -323,9 +307,7 @@ def call_dollars(completion: Completion) -> float:
 
 def priced(model: str) -> bool:
     """Says whether price knows a model."""
-    return (
-        model in PRICES or model in CLAUDE_CODE_MODELS or model in LIVE_PRICES or models.known_direct(model)
-    )
+    return model in PRICES or model in CLAUDE_CODE_MODELS or model in LIVE_PRICES
 
 
 def api_price(model: str, tokens_in: int, tokens_out: int) -> float:
@@ -381,9 +363,9 @@ def json_object(text: str) -> str:
 class ClaudeCode:
     """Sends a call to headless Claude Code: `claude -p` with no tools, no settings, no MCP and
     no saved session, from an empty folder outside the repository, the system prompt on the
-    command line, the rest of the conversation on stdin and the call's max_tokens as the
-    reply cap. Calls go one at a time, with pause seconds between them. The runner is
-    injectable so a test can fake the subprocess."""
+    command line, the rest of the conversation on stdin, the call's max_tokens as the reply cap
+    and CLAUDE_THINKING_EFFORT as the effort. Calls go one at a time, with pause seconds
+    between them. The runner is injectable so a test can fake the subprocess."""
 
     _lock = threading.Lock()
 
@@ -412,6 +394,7 @@ class ClaudeCode:
             "claude", "-p",
             "--output-format", "json",
             "--model", CLAUDE_CODE_MODELS[model],
+            "--effort", CLAUDE_THINKING_EFFORT,
             "--tools", "",
             "--strict-mcp-config",
             "--disable-slash-commands",
@@ -478,12 +461,11 @@ def known_prices(model: str) -> list[tuple[float, float]]:
 
 
 class Gateway:
-    """Sends model calls to their providers. The transport, the Claude Code runner and the two
-    direct providers are injectable so a test can fake each.
+    """Sends model calls to OpenRouter or to headless Claude Code. The transport and the Claude
+    Code runner are injectable so a test can fake each.
 
     The OpenRouter key is api_key, else OPENROUTER_API_KEY, and may be empty: a run that names
-    no OpenRouter model needs none. The Anthropic key is anthropic_key, else ANTHROPIC_API_KEY.
-    Bedrock takes the standard AWS credential chain and calls in region.
+    no OpenRouter model needs none.
     """
 
     def __init__(
@@ -493,35 +475,13 @@ class Gateway:
         base_url: str = BASE_URL,
         rate_limit_waits: tuple[float, ...] = RATE_LIMIT_WAITS,
         claude_code: "ClaudeCode | None" = None,
-        anthropic=None,
-        bedrock=None,
-        anthropic_key: str | None = None,
-        region: str = models.DEFAULT_REGION,
     ):
         self.claude_code = claude_code or ClaudeCode()
         self.api_key = api_key if api_key is not None else os.environ.get("OPENROUTER_API_KEY", "")
         self.base_url = base_url.rstrip("/")
         self.rate_limit_waits = tuple(rate_limit_waits)
-        self.region = region
         self.context_lengths: dict[str, int] = {}
-        self._anthropic = anthropic
-        self._bedrock = bedrock
-        self._anthropic_key = anthropic_key
-        self._providers = threading.Lock()
         self._client = httpx.Client(transport=transport, timeout=TIMEOUT_SECONDS)
-
-    def _provider(self, model: str):
-        """The direct provider of a model, built on first use."""
-        from rlm import providers
-
-        with self._providers:
-            if models.provider_of(model) == models.ANTHROPIC:
-                if self._anthropic is None:
-                    self._anthropic = providers.AnthropicProvider(api_key=self._anthropic_key)
-                return self._anthropic
-            if self._bedrock is None:
-                self._bedrock = providers.BedrockProvider(region=self.region)
-            return self._bedrock
 
     def models(self) -> dict[str, tuple[float, float]]:
         """Reads the gateway's model list into one rate per model, per million tokens.
@@ -567,33 +527,22 @@ class Gateway:
         return response.json(), time.monotonic() - started
 
     def complete(
-        self, model: str, messages: list[dict], max_tokens: int, json: bool = True, batch: bool = False
+        self, model: str, messages: list[dict], max_tokens: int, json: bool = True
     ) -> Completion:
-        """Sends one call to the provider its id names and returns its text with the usage.
+        """Sends one chat completion and returns its text with the reported usage.
 
-        An OpenRouter call asks for a JSON object unless json is false, which is how a call that
-        wants prose back is made. An answer carrying no content, and an answer cut off by the
+        The body asks for a JSON object unless json is false, which is how a call that wants
+        prose back is made. An answer carrying no content, and an answer cut off by the
         max_tokens budget, are not replies: either is sent again once, and two of them raise
         NoReply. The completion carries the tokens of every draw it took. Raises
-        httpx.HTTPStatusError when OpenRouter answers outside the 2xx range, and ProviderError
-        when the Anthropic API or Bedrock does. A Claude Code model goes to headless Claude Code
-        instead, through ClaudeCode.complete. An id of claude-code/ or bedrock/ that no table
-        holds raises KeyError before anything is sent. batch sends an anthropic/ call through
-        the Message Batches API and raises ValueError for any other model.
+        httpx.HTTPStatusError when the gateway answers outside the 2xx range. A claude-code/ id
+        goes to headless Claude Code instead, through ClaudeCode.complete, and one that
+        CLAUDE_CODE_MODELS does not hold raises KeyError before anything is sent.
         """
-        provider = models.provider_of(model)
-        if batch and provider != models.ANTHROPIC:
-            raise ValueError(f"batch applies to anthropic/ models only, not {model}")
-        if provider == models.CLAUDE_CODE:
+        if model.startswith(CLAUDE_CODE_PREFIX):
             if model not in CLAUDE_CODE_MODELS:
                 raise KeyError(model)
             return self.claude_code.complete(model, messages, max_tokens, json=json)
-        if provider in (models.ANTHROPIC, models.BEDROCK):
-            if provider == models.BEDROCK and model not in models.BEDROCK_IDS:
-                raise KeyError(model)
-            return self._complete_direct(model, messages, max_tokens, batch)
-        if not self.api_key:
-            raise ProviderError(401, "OPENROUTER_API_KEY is not set")
         body = {
             "model": model,
             "messages": messages,
@@ -645,41 +594,6 @@ class Gateway:
             seconds=seconds,
             cut_off=all_cut_off,
             cost=reported_cost(costs),
-        )
-
-    def _complete_direct(self, model: str, messages: list[dict], max_tokens: int, batch: bool) -> Completion:
-        """Draws from the Anthropic API or Bedrock, twice at most, as OpenRouter's draws are:
-        a draw with no text or cut off by the cap is drawn again, and two of them raise NoReply.
-        Every draw's tokens and dollars go onto what is returned or raised."""
-        provider = self._provider(model)
-        draws = []
-        refused: list[str] = []
-        all_cut_off = True
-        for _ in range(MAX_DRAWS):
-            draw = provider.draw(model, messages, max_tokens, batch=batch)
-            draws.append(draw)
-            if draw.text and draw.stop != CUT_OFF:
-                break
-            all_cut_off = all_cut_off and draw.stop == CUT_OFF
-            refused.append(refused_draw(provider.name, draw.stop, draw.tokens_out, len(draw.text)))
-        else:
-            raise NoReply(
-                f"{model} returned no reply on {len(refused)} draws: " + ", then ".join(refused),
-                tokens_in=sum(d.fresh + d.cache_read + d.cache_write for d in draws),
-                tokens_out=sum(d.tokens_out for d in draws),
-                seconds=sum(d.seconds for d in draws),
-                cut_off=all_cut_off,
-                cost=sum(d.cost for d in draws),
-            )
-        return Completion(
-            text=draws[-1].text,
-            tokens_in=sum(d.fresh + d.cache_read + d.cache_write for d in draws),
-            tokens_out=sum(d.tokens_out for d in draws),
-            seconds=sum(d.seconds for d in draws),
-            model=model,
-            cost=sum(d.cost for d in draws),
-            cache_read=sum(d.cache_read for d in draws),
-            cache_write=sum(d.cache_write for d in draws),
         )
 
 
@@ -829,17 +743,15 @@ class MeteredBatch:
         self.estimated_out = tokens_out
         self.tokens_in = 0
         self.tokens_out = 0
-        self.dollars = 0.0
         self._lock = threading.Lock()
 
     def record(self, completion: Completion) -> Completion:
-        """Adds one completion's reported tokens and its cost to the batch and the meter and returns it."""
+        """Adds one completion's reported tokens to the batch and the meter and returns it."""
         if self._inner is not None:
             self._inner.record(completion)
         with self._lock:
             self.tokens_in += completion.tokens_in
             self.tokens_out += completion.tokens_out
-            self.dollars += call_dollars(completion)
         self._meter.add(self.model, completion.tokens_in, completion.tokens_out, completion.cost)
         return completion
 

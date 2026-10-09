@@ -79,7 +79,6 @@ from rlm.gateway import (
     Ledger,
     Meter,
     NoReply,
-    ProviderError,
     estimate_tokens,
     price,
     register_listing,
@@ -177,8 +176,6 @@ def code_of(exc: BaseException) -> str:
         return exc.code
     if isinstance(exc, httpx.HTTPStatusError):
         return STATUS_CODES.get(exc.response.status_code, "unexpected")
-    if isinstance(exc, ProviderError):
-        return STATUS_CODES.get(exc.status, "unexpected")
     if isinstance(exc, NoReply):
         return "empty-reply"
     if isinstance(exc, ingest_stage.UnreadableFile):
@@ -234,13 +231,13 @@ def estimate(
     """Prices the model stages still to run, each at its own model, from what ingest has written.
 
     The notes are every document of the room that has sections, counted the way the notes pass
-    counts its own request, and billed at NOTES_BILLED_IN and NOTES_BILLED_OUT of that count; a
-    batch takes half off. The group step, where the report is built on the tree, reads
-    GROUP_BILLED_IN of the documents' tokens in groups the model's window allows and writes the
-    findings it keeps. The report is the instructions and the room's brief plus the digest's
+    counts its own request, and billed at NOTES_BILLED_IN and NOTES_BILLED_OUT of that count. The
+    group step, where the report is built on the tree, reads GROUP_BILLED_IN of the documents'
+    tokens in groups the model's window allows and writes the findings it keeps. The report is the instructions and the room's brief plus the digest's
     rows of DIGEST_ROW_TOKENS, and the writer's reply cap back, as often as the writer calls:
-    once, or FULL_WRITER_CALLS times for a writer in full. A direct model is priced at its input
-    and output rates and a Claude Code model at zero. chosen is the settings, else the saved ones.
+    once, or FULL_WRITER_CALLS times for a writer in full. An OpenRouter model outside PRICES is
+    priced at its listed rate and a Claude Code model at zero. chosen is the settings, else the
+    saved ones.
     """
     chosen = chosen if chosen is not None else settings.current()
     sections = notes_stage.read_sections(run_dir)
@@ -259,14 +256,12 @@ def estimate(
                 chosen.notes,
                 round(notes_tokens * NOTES_BILLED_IN),
                 round(notes_tokens * NOTES_BILLED_OUT),
-                batch=chosen.batch,
-                region=chosen.region,
             ),
         }
     group_tokens = 0
     findings = 0
     if chosen.write in settings.TREE_MODES:
-        findings = tree_stage.FINDING_ROWS.get(tree_stage.tuned(chosen.group), write_stage.DIGEST_ROWS)
+        findings = tree_stage.FINDING_ROWS.get(chosen.group, write_stage.DIGEST_ROWS)
         if not done("tree", run_dir):
             system = tree_stage.instructions(room, len(room_documents(room)), findings)
             reads = round(room_tokens * GROUP_BILLED_IN)
@@ -278,7 +273,6 @@ def estimate(
                     chosen.group,
                     group_tokens,
                     min(findings * TOKENS_PER_FINDING, groups * tree_stage.MAX_OUTPUT_TOKENS),
-                    region=chosen.region,
                 ),
             }
     write_tokens = 0
@@ -291,7 +285,7 @@ def estimate(
         tasks["writer"] = {
             "model": chosen.writer,
             "dollars": price(
-                chosen.writer, write_tokens * calls, write_stage.reply_cap(chosen.writer), region=chosen.region
+                chosen.writer, write_tokens * calls, write_stage.reply_cap(chosen.writer)
             ),
         }
     return Estimate(
@@ -384,32 +378,28 @@ class RunState:
 
 def resolve_settings(args: argparse.Namespace) -> settings.Settings:
     """The models and the build of this run, from the first of these that names each field: a
-    flag, the preset, the run's own settings file, the settings saved on this machine, the
-    defaults. A ranker's run builds no tree, so the saved way of writing does not carry over to it."""
+    flag, the run's own settings file, the settings saved on this machine, the defaults. A
+    ranker's run builds no tree, so the saved way of writing does not carry over to it."""
     found = settings.current()
     if args.settings:
         found = settings.from_dict(json.loads(Path(args.settings).read_text(encoding="utf-8")), found)
-    if args.preset:
-        found = settings.preset(args.preset)
     flags = {
         "notes": args.notes_model,
         "group": args.middle_model,
         "writer": args.writer_model,
         "write": args.write,
-        "batch": args.batch,
-        "region": args.region,
     }
     flags = {name: value for name, value in flags.items() if value is not None}
     if args.rank is not None and "write" not in flags:
         flags["write"] = ""
     if flags:
-        found = settings.from_dict({**flags, "preset": ""}, found)
+        found = settings.from_dict(flags, found)
     return found
 
 
 def check_settings(found: settings.Settings, gateway: Gateway | None) -> None:
-    """Refuses settings that cannot run before any model call: a model no provider serves, a
-    batch on notes that are not on the Anthropic API, a region or a way of writing that is none.
+    """Refuses settings that cannot run before any model call: a model no provider serves or a
+    way of writing that is none.
 
     An OpenRouter id the five models of PRICES do not vouch for is looked up in OpenRouter's own
     model list, which is free to read and needs no key; the list also gives its price and window.
@@ -433,19 +423,15 @@ def check_settings(found: settings.Settings, gateway: Gateway | None) -> None:
 
 
 def gateway_for(found: settings.Settings, gateway: Gateway | None, ranked: bool = False) -> Gateway:
-    """The gateway of this run: the one given, else one on the keys the used tasks need.
+    """The gateway of this run: the one given, else one on OPENROUTER_API_KEY.
 
-    Raises Stopped as a refused key when a key a used task needs is not in the environment.
+    Raises Stopped as a refused key when a used task runs on OpenRouter, or the run has a ranker,
+    whose calls are the pick stage's own on OpenRouter, and the key is not in the environment.
     """
     if gateway is None:
-        needed = settings.needs(found)
-        # the ranker's calls are the pick stage's own, on OpenRouter
-        needed["openrouter"] = needed["openrouter"] or ranked
-        for provider, variable in (("openrouter", "OPENROUTER_API_KEY"), ("anthropic", "ANTHROPIC_API_KEY")):
-            if needed[provider] and not os.environ.get(variable):
-                raise Stopped("key-refused", f"{variable} is not set")
+        if (settings.needs_key(found) or ranked) and not os.environ.get("OPENROUTER_API_KEY"):
+            raise Stopped("key-refused", "OPENROUTER_API_KEY is not set")
         gateway = Gateway()
-    gateway.region = found.region
     return gateway
 
 
@@ -493,16 +479,12 @@ def run(args: argparse.Namespace, gateway: Gateway | None, ledger: Ledger | None
             state.write("running")
             confirm(found, args.yes)
             gateway = gateway_for(chosen, gateway, args.rank is not None)
-        elif gateway is not None:
-            gateway.region = chosen.region
 
         mode = chosen.write
         state.stage = "notes"
         if notes_left:
             state.write("running")
             notes_argv = [*stage_argv, "--model", chosen.notes]
-            if chosen.batch:
-                notes_argv.append("--batch")
             if notes_stage.main(notes_argv, gateway=gateway, ledger=meter) != 0:
                 raise Stopped("unexpected", "the notes pass did not start")
             if not done("notes", run_dir):
@@ -629,8 +611,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--notes-model",
         dest="notes_model",
         default=None,
-        help="the model of the notes: an OpenRouter id, claude-code/<model>, anthropic/<model> or "
-        "bedrock/<model>; the saved or default model when left off",
+        help="the model of the notes: an OpenRouter id or claude-code/<model>; the saved or default "
+        "model when left off",
     )
     runner.add_argument(
         "--middle-model",
@@ -645,28 +627,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="the model of the writer; same choices as --notes-model",
     )
     runner.add_argument(
-        "--preset",
-        choices=settings.PRESET_NAMES,
-        default=None,
-        help="a named set of models: default, or client, all Claude through the Anthropic API with "
-        "the notes in a batch",
-    )
-    runner.add_argument(
         "--settings",
         default=None,
         help="a JSON file of model settings for this run, laid over the saved settings",
-    )
-    runner.add_argument(
-        "--batch",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help="send the notes through the Message Batches API at half price; needs notes on an "
-        "anthropic/ model",
-    )
-    runner.add_argument(
-        "--region",
-        default=None,
-        help="the AWS region of bedrock/ models, eu-central-1 when left off",
     )
     args = parser.parse_args(argv)
     if args.command is None:

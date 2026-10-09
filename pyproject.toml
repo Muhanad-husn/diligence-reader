@@ -17,8 +17,6 @@ dependencies = [
     "uvicorn>=0.54,<0.55",
     "ag-ui-protocol==1.0.0",
     "python-multipart>=0.0.32,<0.1",
-    "anthropic>=1.11,<2",
-    "boto3>=1.43,<2",
 ]
 
 license = "Apache-2.0"

@@ -77,12 +77,6 @@ replaced is swapped for their new usage in the previous totals.
 
 The bake-off of 2026-09-06 chose z-ai/glm-5.3-flash, DEFAULT_MODEL below, as the model this
 phase runs on when --model is left off.
-
---model may be any id rlm.settings accepts for the notes. With --batch and an anthropic/ model
-the documents are all in flight at once, which is what lets the Message Batches API take the
-first asks of the whole pass as one batch and the re-asks as a second, at half the price; the
-gateway holds each call until its batch has ended. A pass of that kind is booked on the real
-dollars its calls reported, cache reads and the batch discount included.
 """
 
 from __future__ import annotations
@@ -104,12 +98,10 @@ from rlm.gateway import (
     Gateway,
     Ledger,
     NoReply,
-    call_dollars,
     estimate_tokens,
     price,
     stops_every_call,
 )
-from rlm.models import is_direct
 from rlm.key import room_documents
 from rlm.map import BREADTH_SHARE, is_count, ordinary_words
 from rlm.words import fold
@@ -122,10 +114,6 @@ DEFAULT_MODEL = "z-ai/glm-5.3-flash"
 
 # Documents in flight at once, as the winning run's leaf did.
 WORKERS = 8
-
-# Documents in flight at once in a batch pass: every call waits for its batch, so the pass holds
-# as many threads as it has documents, up to this many.
-BATCH_WORKERS = 2000
 
 NOTE_KEYS = frozenset(
     {"doc", "model", "pass", "what", "flags", "figures", "cross_references", "concealed", "usage"}
@@ -786,12 +774,6 @@ def log_record(record: dict) -> dict:
     return {key: value for key, value in record.items() if key in LOG_KEYS}
 
 
-def booked_dollars(model: str, tokens_in: int, tokens_out: int, reported: float) -> float:
-    """What tokens cost: the dollars the calls reported where the model is a direct one, whose
-    cache reads and batch discount tokens alone do not tell, else the PRICES rate of the tokens."""
-    return reported if is_direct(model) else price(model, tokens_in, tokens_out)
-
-
 def call_usage(model: str, completions: list[Completion]) -> dict:
     """Sums one document's calls into the note's usage block."""
     tokens_in = sum(completion.tokens_in for completion in completions)
@@ -799,7 +781,7 @@ def call_usage(model: str, completions: list[Completion]) -> dict:
     return {
         "tokens_in": tokens_in,
         "tokens_out": tokens_out,
-        "dollars": booked_dollars(model, tokens_in, tokens_out, sum(call_dollars(c) for c in completions)),
+        "dollars": price(model, tokens_in, tokens_out),
         "seconds": sum(completion.seconds for completion in completions),
         "calls": len(completions),
     }
@@ -1019,7 +1001,6 @@ def note_and_write(
     batch: Batch,
     named: Sequence[str] = (),
     max_output_tokens: int = MAX_OUTPUT_TOKENS,
-    batch_calls: bool = False,
 ) -> tuple[str, dict | None, list[dict]]:
     """Notes one document, prices its calls, keeps each reply and writes the note.
 
@@ -1034,10 +1015,7 @@ def note_and_write(
 
     def call(messages: list[dict]) -> Completion:
         try:
-            if batch_calls:
-                completion = gateway.complete(model, messages, max_tokens=max_output_tokens, batch=True)
-            else:
-                completion = gateway.complete(model, messages, max_tokens=max_output_tokens)
+            completion = gateway.complete(model, messages, max_tokens=max_output_tokens)
         except NoReply as exc:
             # The draws that ran out were paid though they gave no text, so they are booked
             # before the error goes on to the caller that halves the piece.
@@ -1151,11 +1129,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument("--out", default=None)
     parser.add_argument(
-        "--batch",
-        action="store_true",
-        help="send the notes through the Message Batches API at half price; needs an anthropic/ model",
-    )
-    parser.add_argument(
         "--max-output-tokens",
         dest="max_output_tokens",
         type=int,
@@ -1225,7 +1198,6 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
     # call is about to replace is read before note_and_write overwrites their note files.
     previous_summary = None
     replaced_tokens_in = replaced_tokens_out = 0
-    replaced_dollars = 0.0
     if args.only:
         summary_path = out_dir / "notes-summary.json"
         if summary_path.exists():
@@ -1236,7 +1208,6 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
                 usage = old_note["usage"]
                 replaced_tokens_in += usage.get("tokens_in", 0)
                 replaced_tokens_out += usage.get("tokens_out", 0)
-                replaced_dollars += usage.get("dollars", 0.0)
 
     records = [_log_record(doc, None, None, None, "note-dropped", 1) for _, doc in missing]
     for doc_id, _ in missing:
@@ -1246,8 +1217,7 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
     with ledger.batch(
         sample_dir.name, args.phase, args.model, tokens_in=estimated_in, tokens_out=estimated_out
     ) as batch:
-        workers = max(1, min(len(prompts), BATCH_WORKERS)) if args.batch else WORKERS
-        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=WORKERS) as pool:
             futures = [
                 pool.submit(
                     note_and_write,
@@ -1261,7 +1231,6 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
                     batch,
                     named_by_doc[doc],
                     args.max_output_tokens,
-                    args.batch,
                 )
                 for doc_id, doc in prompts
             ]
@@ -1313,12 +1282,7 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
             "dropped_items": verify_counts["dropped_items"],
             "tokens_in": tokens_in,
             "tokens_out": tokens_out,
-            "dollars": booked_dollars(
-                args.model,
-                tokens_in,
-                tokens_out,
-                (previous_summary["dollars"] - replaced_dollars if previous_summary else 0.0) + batch.dollars,
-            ),
+            "dollars": price(args.model, tokens_in, tokens_out),
             "seconds": seconds,
             "model": args.model,
             "pass": args.pass_name,
@@ -1334,7 +1298,7 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
             "dropped_items": sum(1 for record in records if record["outcome"] == "dropped"),
             "tokens_in": batch.tokens_in,
             "tokens_out": batch.tokens_out,
-            "dollars": booked_dollars(args.model, batch.tokens_in, batch.tokens_out, batch.dollars),
+            "dollars": price(args.model, batch.tokens_in, batch.tokens_out),
             "seconds": seconds,
             "model": args.model,
             "pass": args.pass_name,

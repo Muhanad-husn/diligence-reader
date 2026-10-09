@@ -31,9 +31,9 @@ from rlm.cli import RUN_FILE, STAGES
 
 # The one-line fix shown beside each code a run stops on.
 FIXES = {
-    "key-refused": "The model provider refused the key. Check the OpenRouter or Anthropic key, or the AWS credentials, and retry.",
-    "no-credits": "The account is out of credits. Add credits with the provider that refused, then retry.",
-    "rate-limited": "The provider is limiting requests. Wait a few minutes, then retry.",
+    "key-refused": "OpenRouter refused the key. Check it, or connect a new one, and retry.",
+    "no-credits": "The OpenRouter account is out of credits. Add credits, then retry.",
+    "rate-limited": "OpenRouter is limiting requests. Wait a few minutes, then retry.",
     "empty-reply": "The model sent back nothing. Retry; the stages already done are kept.",
     "unreadable-file": "A file in the room could not be read. Remove or replace it and upload again.",
     "verify-failed": "The report did not pass its checks. Retry to write it again.",

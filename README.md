@@ -66,7 +66,7 @@ The web page on the user's machine.
 docker run -p 8000:8000 -v <runs>:/app/runs ghcr.io/muhanad-husn/diligence-reader
 ```
 
-Open http://localhost:8000, connect an OpenRouter key (sign in or paste one; a run on Anthropic models only needs an Anthropic key in its own box instead), pick the model of each task under Models or pick the `client` preset, upload a room as a folder or zip, read the estimate, confirm, watch progress, read the report and export Word, PDF or the evidence CSV. Stop ends a run in progress and Retry resumes it from the stage that stopped; uploading a new room while a run is going asks first. Past runs lists every run on the machine with its status and dollars, and New room on the report clears the page back to the upload and keeps the key. The keys stay in the browser and go with each run; they are not written to disk. The models are saved on the machine, in the runs folder under Docker.
+Open http://localhost:8000, connect an OpenRouter key (sign in or paste one), pick the model of each task under Models, upload a room as a folder or zip, read the estimate, confirm, watch progress, read the report and export Word, PDF or the evidence CSV. Stop ends a run in progress and Retry resumes it from the stage that stopped; uploading a new room while a run is going asks first. Past runs lists every run on the machine with its status and dollars, and New room on the report clears the page back to the upload and keeps the key. The key stays in the browser and goes with each run; it is not written to disk. The models are saved on the machine, in the runs folder under Docker.
 
 **pipx**
 
@@ -77,7 +77,7 @@ pipx install diligence-reader
 diligence-reader run <room> --out <folder>
 ```
 
-Set OPENROUTER_API_KEY (and ANTHROPIC_API_KEY for `anthropic/` models; `bedrock/` models use the usual AWS credentials). The command shows the price estimate and asks before the first model call; pass --yes to accept it. A rerun resumes from the stage that stopped.
+Set OPENROUTER_API_KEY. The command shows the price estimate and asks before the first model call; pass --yes to accept it. A rerun resumes from the stage that stopped.
 
 **Helm**
 
@@ -106,25 +106,15 @@ Run one stage at a time: `python -m rlm.ingest`, `python -m rlm.notes`, `python 
 
 Each run has three model tasks: the notes (one call per document), the group step (the tree's
 calls, which run only when the report is built on the tree) and the writer. Each takes one model
-id, from the page, from `--notes-model`, `--middle-model` and `--writer-model`, or from
-the settings the page saved on this machine. An id names its provider by its prefix:
-
-| Id | Runs on | Key |
-|---|---|---|
-| `claude-code/<model>` | headless Claude Code on this machine (not in the Docker image) | none |
-| `anthropic/claude-haiku-4-5`, `anthropic/claude-sonnet-5-5` | the Anthropic API | `ANTHROPIC_API_KEY`, or the Anthropic key box |
-| `bedrock/claude-haiku-4-5`, `bedrock/claude-sonnet-5-5` | AWS Bedrock through boto3, in `--region` (default eu-central-1) | the standard AWS credential chain |
-| anything else | OpenRouter | `OPENROUTER_API_KEY` |
+id, from the page, from `--notes-model`, `--middle-model` and `--writer-model`, from a JSON
+file given with `--settings`, or from the settings the page saved on this machine. A `claude-code/<model>` id runs on headless Claude
+Code on this machine (not in the Docker image) and needs no key; any other id is an OpenRouter
+id, which needs `OPENROUTER_API_KEY` and must be one OpenRouter lists.
 
 An id the tool does not know is refused before any call, with its name in the message. With no
 setting made, the notes run on GLM 5.3 Flash, and the group step and the writer on Claude Code's
-Sonnet 5.5 when Claude Code is on the machine, else on the OpenRouter defaults. `--preset client`
-(also on the page) is the all-Claude room: Haiku 4.5 for the notes, in a batch, and Sonnet 5.5
-for the group step and the writer, built on the tree. `--batch` sends the notes through the
-Message Batches API for half the price; it applies to `anthropic/` notes only, and the group step
-and the writer always run live. Prompts that repeat are cached. The models are written into
-`run.json`, and the report opens with a line naming the model of each task. Every call books its
-tokens and dollars, cache reads and the batch discount included, in `LEDGER.md`.
+Sonnet 5.5 when Claude Code is on the machine, else on the OpenRouter defaults. The models are
+written into `run.json`, and the report opens with a line naming the model of each task.
 
 ## When a run stops
 
@@ -133,11 +123,11 @@ tokens and dollars, cache reads and the batch discount included, in `LEDGER.md`.
 
 | Code | What to do |
 |---|---|
-| `key-refused` | The provider refused the key (401 or 403): OpenRouter, Anthropic, or the AWS credentials. Check the key, or make a new one at openrouter.ai/keys. |
-| `no-credits` | The key's account has no credits left (402). Add credits at the provider's page (openrouter.ai/settings/credits for OpenRouter), then run again. |
+| `key-refused` | OpenRouter refused the key (401 or 403). Check the key, or make a new one at openrouter.ai/keys. |
+| `no-credits` | The key's account has no credits left (402). Add credits at openrouter.ai/settings/credits, then run again. |
 | `unknown-model` | A model id is not one this tool can run; the message names it. Pick it again. Nothing was sent. |
-| `bad-settings` | The model settings cannot be run (an empty field, a bad region, a batch on notes that are not on the Anthropic API). Nothing was sent. |
-| `rate-limited` | The provider kept answering 429. Wait a few minutes, then run again. |
+| `bad-settings` | The model settings cannot be run (an empty field, or a way of writing the report that is none). Nothing was sent. |
+| `rate-limited` | OpenRouter kept answering 429. Wait a few minutes, then run again. |
 | `empty-reply` | A model returned nothing twice for the same request. Run again; the stage is retried. |
 | `unreadable-file` | A document in the room could not be read. Remove or convert the file named in the message, then run again. |
 | `verify-failed` | The report did not pass the verifier after its one rewrite. Run again to write it once more. |

@@ -106,7 +106,6 @@ from pathlib import Path
 
 from rlm.amounts import normalise_amount
 from rlm.gateway import CLAUDE_CODE_MODELS, PHASE_CAPS, Completion, Gateway, Ledger, NoReply, api_price, estimate_tokens, price, priced
-from rlm.models import is_sonnet_tier
 from rlm.notes import reask_messages
 
 PHASE = 5
@@ -1597,10 +1596,9 @@ def summary_line(summary: dict) -> str:
 
 
 def writes_in_full(model: str) -> bool:
-    """Says whether a writer model is asked for every finding, on FULL_PROMPT: Sonnet 5.5 by any
-    route, a Claude Code model or one of the Anthropic API or Bedrock, whose reply is not held
-    to MAX_OUTPUT_TOKENS."""
-    return model in CLAUDE_CODE_MODELS or is_sonnet_tier(model)
+    """Says whether a writer model is asked for every finding, on FULL_PROMPT: a Claude Code
+    model, whose reply is not held to MAX_OUTPUT_TOKENS."""
+    return model in CLAUDE_CODE_MODELS
 
 
 def reply_cap(model: str) -> int:

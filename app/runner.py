@@ -1,10 +1,9 @@
 """Where a run's command runs: the Runner interface and LocalRunner, a child process on this machine.
 
 A runner starts `diligence-reader run` on a room into its run folder, says whether it is still
-running, and stops it. The keys, the OpenRouter key and the Anthropic key where the run's models
-call for one, reach the command through the child's environment alone: they are never set in
-this process's environment, never written to a file and never logged. The run's model settings
-are the run folder's models.json, which the command reads through --settings.
+running, and stops it. The key reaches the command through the child's environment alone: it is
+never set in this process's environment, never written to a file and never logged. The run's
+model settings are the run folder's models.json, which the command reads through --settings.
 
 RLM_RUNNER chooses the runner: unset or `local` gives LocalRunner, `kubernetes` gives the
 KubernetesRunner of app/runner_k8s.py, imported only when named.
@@ -45,12 +44,7 @@ class Runner(Protocol):
 
     router: APIRouter | None
 
-    def start(
-        self, run_id: str, room: Path, run_dir: Path, key: str, extra_env: dict[str, str] | None = None
-    ) -> None:
-        """Starts the run. key is the OpenRouter key, empty when the run needs none; extra_env
-        holds the other keys by the variable that carries each, ANTHROPIC_API_KEY."""
-        ...
+    def start(self, run_id: str, room: Path, run_dir: Path, key: str) -> None: ...
 
     def status(self, run_id: str) -> str:
         """"none" when never started here, "running" or "exited"."""
@@ -76,16 +70,12 @@ class LocalRunner:
             argv += ["--phase", "8"]
         return argv + models_args(run_dir) + deal_args(run_dir)
 
-    def start(
-        self, run_id: str, room: Path, run_dir: Path, key: str, extra_env: dict[str, str] | None = None
-    ) -> None:
-        """Starts the command on the room with the keys in the child's environment alone."""
+    def start(self, run_id: str, room: Path, run_dir: Path, key: str) -> None:
+        """Starts the command on the room with the key in the child's environment alone."""
         with self._lock:
             if self.status(run_id) == "running":
                 raise RuntimeError(f"run {run_id} is already running")
-            env = {**os.environ, "PYTHONIOENCODING": "utf-8", **(extra_env or {})}
-            if key:
-                env["OPENROUTER_API_KEY"] = key
+            env = {**os.environ, "OPENROUTER_API_KEY": key, "PYTHONIOENCODING": "utf-8"}
             run_dir.mkdir(parents=True, exist_ok=True)
             with (run_dir / "run.log").open("ab") as log:
                 self.processes[run_id] = subprocess.Popen(
