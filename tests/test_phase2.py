@@ -2713,6 +2713,18 @@ def quoted_items(note: dict):
             yield field, index, item
 
 
+def booked_at_a_known_price(dollars: float, model: str, tokens_in: int, tokens_out: int) -> bool:
+    """Says whether a booked cost is the tokens priced at a rate the repository has charged the
+    model: the current rate or a past one, since a pinned run keeps the price it was booked at.
+    A model outside PRICES (a Claude Code model) is priced by price()."""
+    if model not in PRICES:
+        return dollars == pytest.approx(price(model, tokens_in, tokens_out))
+    return any(
+        dollars == pytest.approx(tokens_in * rate_in / 1_000_000 + tokens_out * rate_out / 1_000_000)
+        for rate_in, rate_out in known_prices(model)
+    )
+
+
 def assert_notes_well_shaped(notes, key, sections_by_doc=None):
     """The shape every note of a phase 2 pass must have. Shared by the sample-level notes test
     and the bake-off artefact test, so a note is held to the same standard wherever it is
@@ -2750,7 +2762,7 @@ def assert_notes_well_shaped(notes, key, sections_by_doc=None):
         if sections_by_doc is not None:
             pieces = len(split_sections(sections_by_doc[note["doc"]]))
             assert usage["calls"] <= 2 * pieces, (name, usage["calls"], pieces)
-        assert usage["dollars"] == pytest.approx(price(note["model"], usage["tokens_in"], usage["tokens_out"])), name
+        assert booked_at_a_known_price(usage["dollars"], note["model"], usage["tokens_in"], usage["tokens_out"]), name
 
 
 def test_one_document_note_is_well_shaped(notes, key, sections_by_doc):
@@ -2827,14 +2839,30 @@ def test_one_document_ledger_carries_the_pass(notes, sample):
     every line's balance is the previous balance minus its dollars."""
     rows = ledger_rows(ROOT / "LEDGER.md")
     assert rows and rows[0]["balance"] == 50.0
-    for previous, row in zip(rows, rows[1:]):
+    # The rows above the marker line are priced at a table rate; the rows below it book the
+    # cost the gateway reported (#160).
+    text = (ROOT / "LEDGER.md").read_text(encoding="utf-8")
+    above = text.split("Rows below this line book the cost the gateway reported", 1)[0]
+    priced_rows = sum(
+        1
+        for line in above.splitlines()
+        if (match := _LEDGER_ROW.match(line))
+        and match.group(1) != "date"
+        and not match.group(1).startswith("-")
+    )
+    for index, (previous, row) in enumerate(zip(rows, rows[1:]), 1):
         assert row["balance"] == pytest.approx(round(previous["balance"] - row["dollars"], 4)), row
         if row["model"] in PRICES:
             paid = {
                 round(row["tokens_in"] * rate_in / 1_000_000 + row["tokens_out"] * rate_out / 1_000_000, 4)
                 for rate_in, rate_out in known_prices(row["model"])
             }
-            assert row["dollars"] in paid, row
+            if index < priced_rows:
+                assert row["dollars"] in paid, row
+            else:
+                # Below the ledger's marker line a call books the cost the gateway reported,
+                # which is under the listed rate when the provider bills less.
+                assert 0 <= row["dollars"] <= max(paid), row
 
     sums: dict[tuple[str, str], list[int]] = {}
     for _, note in notes.values():
@@ -2922,8 +2950,8 @@ def test_all_documents_summary_counts_the_pass(notes, key, run_dir, sample):
         len(note[field]) for _, note in notes.values() for field in QUOTED_FIELDS
     )
     assert summary["tokens_in"] > 0 and summary["tokens_out"] > 0
-    assert summary["dollars"] == pytest.approx(
-        price(summary["model"], summary["tokens_in"], summary["tokens_out"])
+    assert booked_at_a_known_price(
+        summary["dollars"], summary["model"], summary["tokens_in"], summary["tokens_out"]
     )
     assert summary["seconds"] >= 0
 
