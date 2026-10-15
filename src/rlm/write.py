@@ -708,6 +708,10 @@ def digest_markdown(dossier: str) -> str:
 # The heading the code written schedule of the room's own words sits under.
 EVIDENCE_HEADING = "Evidence"
 
+# The heading of the code written list of the findings the report body does not carry, which
+# sits after the open items and before the schedule.
+LEFT_OUT_HEADING = "Left out"
+
 # The sections of a document's own evidence, in the order the schedule writes them.
 EVIDENCE_SECTIONS = ("Timeline", "Names", "Figures", "Models blind to it")
 
@@ -1678,6 +1682,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="a line to open the report with, naming the model of each task",
     )
     parser.add_argument(
+        "--no-coverage",
+        dest="no_coverage",
+        action="store_true",
+        help="with --tree or --both, leave out the coverage step after the writer",
+    )
+    parser.add_argument(
         "--tree-first",
         dest="tree_first",
         action="store_true",
@@ -1996,6 +2006,12 @@ def main(
     for out_dir, letter in directories:
         summary, record = write_pass(out_dir)
         summaries.append(summary)
+        if (args.tree or args.both) and not args.no_coverage and not args.from_reply:
+            # The tree's findings the report does not carry are added or listed as left out,
+            # by one call on the writer's model.
+            from rlm import coverage
+
+            coverage.cover(run_dir, gateway, ledger, args.model, sample_dir.name, out_dir=out_dir)
         if graded:
             result = grader(sample_dir, out_dir / "report.md", out_dir, "grade.json")
             grades.append(result)

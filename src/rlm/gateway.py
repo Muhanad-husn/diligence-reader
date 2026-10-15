@@ -675,8 +675,18 @@ class Batch:
     lock.
     """
 
-    def __init__(self, ledger: "Ledger", sample: str, phase: int, model: str, tokens_in: int, tokens_out: int):
+    def __init__(
+        self,
+        ledger: "Ledger",
+        sample: str,
+        phase: int,
+        model: str,
+        tokens_in: int,
+        tokens_out: int,
+        cap: tuple[str, float] | None = None,
+    ):
         self._ledger = ledger
+        self.cap = cap
         self.sample = sample
         self.phase = phase
         self.model = model
@@ -705,11 +715,19 @@ class Batch:
         with LEDGER_LOCK:
             # The batches still open on this ledger count as spent at their estimate.
             held = self._ledger.held()
-            spent = self._ledger.spent(self.phase) + sum(dollars for phase, dollars in held if phase == self.phase)
-            cap = PHASE_CAPS[self.phase]
+            open_here = sum(dollars for phase, dollars in held if phase == self.phase)
+            if self.cap is None:
+                spent = self._ledger.spent(self.phase) + open_here
+                cap = PHASE_CAPS[self.phase]
+                name = f"phase {self.phase}"
+            else:
+                # A task with a cap of its own is held to it in place of its phase's cap.
+                task, cap = self.cap
+                spent = self._ledger.spent_on(task) + open_here
+                name = f"task {task}"
             if spent + estimate > cap:
                 raise CapExceeded(
-                    f"phase {self.phase} has spent ${spent:.4f} and this batch estimates "
+                    f"{name} has spent ${spent:.4f} and this batch estimates "
                     f"${estimate:.4f}, past the ${cap:.2f} cap"
                 )
             balance = self._ledger.balance() - sum(dollars for _, dollars in held)
@@ -791,9 +809,25 @@ class Ledger:
         """Sums the dollars of every row of one phase."""
         return sum(row["dollars"] for row in self.rows() if row["phase"] == str(phase))
 
-    def batch(self, sample: str, phase: int, model: str, tokens_in: int, tokens_out: int) -> Batch:
-        """Opens a batch that prints its estimate, refuses past a cap, and writes one row."""
-        return Batch(self, sample, phase, model, tokens_in, tokens_out)
+    def spent_on(self, task: str) -> float:
+        """Sums the dollars of every row of one task, the rows whose sample ends in -<task>."""
+        return sum(row["dollars"] for row in self.rows() if row["sample"].endswith(f"-{task}"))
+
+    def batch(
+        self,
+        sample: str,
+        phase: int,
+        model: str,
+        tokens_in: int,
+        tokens_out: int,
+        cap: tuple[str, float] | None = None,
+    ) -> Batch:
+        """Opens a batch that prints its estimate, refuses past a cap, and writes one row.
+
+        cap, a task and its dollars, holds the batch to that task's own rows in place of its
+        phase's cap; the total ceiling holds either way.
+        """
+        return Batch(self, sample, phase, model, tokens_in, tokens_out, cap)
 
     def append(
         self, sample: str, phase: int, model: str, tokens_in: int, tokens_out: int, dollars: float | None = None
@@ -902,11 +936,17 @@ class Meter:
             self.dollars += price(model, tokens_in, tokens_out) if cost is None else cost
 
     def batch(
-        self, sample: str, phase: int, model: str, tokens_in: int, tokens_out: int
+        self,
+        sample: str,
+        phase: int,
+        model: str,
+        tokens_in: int,
+        tokens_out: int,
+        cap: tuple[str, float] | None = None,
     ) -> MeteredBatch:
         """Opens a batch that counts onto this meter, and onto the ledger's row when there is one."""
         inner = (
-            self.ledger.batch(sample, phase, model, tokens_in, tokens_out)
+            self.ledger.batch(sample, phase, model, tokens_in, tokens_out, cap)
             if self.ledger is not None
             else None
         )

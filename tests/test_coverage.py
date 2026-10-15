@@ -323,6 +323,7 @@ def test_the_writer_in_tree_mode_runs_coverage_unless_told_not_to(tmp_path):
     )
     covered = paragraphs_reply([("c.txt#l1", "The officer is paid the bonus [c.txt | c.txt#l1].")])
     for flag, calls in (([], 2), (["--no-coverage"], 1)):
+        (tmp_path / str(calls)).mkdir()
         room, run_dir = small_room(tmp_path / str(calls))
         (run_dir / tree.TREE_FILE).write_text(json.dumps(built_tree()), encoding="utf-8")
         transport = TreeTransport(lambda body, call: covered if "paragraphs" in body["messages"][0]["content"] else report)
