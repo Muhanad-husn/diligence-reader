@@ -274,8 +274,8 @@ def test_the_writer_in_tree_mode_writes_from_the_tree_digest_and_verifies(tmp_pa
         "## Lesser issues\n\nNone [c.txt | c.txt#l1].\n\n## Open items\n\nNone [c.txt | c.txt#l1].\n"
     )
     transport = TreeTransport(lambda body, call: report)
-    code = write.main([str(room), str(run_dir), "--tree", "--phase", "8"], gateway=gateway_for(transport),
-                      ledger=write_ledger(tmp_path / "L.md"))
+    code = write.main([str(room), str(run_dir), "--tree", "--phase", "8", "--no-coverage"],
+                      gateway=gateway_for(transport), ledger=write_ledger(tmp_path / "L.md"))
     assert code == 0
     assert len(transport.bodies) == 1
     body = transport.bodies[0]

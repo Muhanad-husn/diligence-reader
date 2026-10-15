@@ -4,7 +4,9 @@ A task module is a module of this package that sets DEFAULT_MODEL. The check rea
 model list through Gateway.models() with no key, since the list is free, and fails when a task's
 DEFAULT_MODEL is gone from the list or is listed above its PRICES row in rlm.gateway, which is
 the dearest provider's rate. The estimate the user confirms before a run and the cap check are
-priced from PRICES, so a listed price above it makes them too low. It prints one line per task and exits 1 on any problem, 0 otherwise.
+priced from PRICES, so a listed price above it makes them too low. A task whose DEFAULT_MODEL is
+outside PRICES is not checked: it is priced at the listed rate when it runs, and refused there when
+the list does not hold it. It prints one line per task and exits 1 on any problem, 0 otherwise.
 """
 
 from __future__ import annotations
@@ -49,6 +51,8 @@ def problems(listed: dict[str, tuple[float, float]]) -> list[str]:
     """One line per task whose model is gone from the list or listed at another price."""
     found = []
     for module, model in defaults().items():
+        if model not in PRICES:
+            continue
         if model not in listed:
             found.append(f"{module}: {model} is gone from the model list")
             continue

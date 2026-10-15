@@ -338,8 +338,10 @@ def cover(
                     completion = batch.record(gateway.complete(model, messages, max_tokens=cap, json=True))
                 except NoReply as exc:
                     # The draws were paid though they gave nothing, so they are booked.
-                    batch.record(Completion("", exc.tokens_in, exc.tokens_out, exc.seconds, model, cost=exc.cost))
-                    record.update(tokens_in=exc.tokens_in, tokens_out=exc.tokens_out, error=f"NoReply: {exc}")
+                    completion = batch.record(
+                        Completion("", exc.tokens_in, exc.tokens_out, exc.seconds, model, cost=exc.cost)
+                    )
+                    record["error"] = f"NoReply: {exc}"
         except (CapExceeded, ClaudeCodeError, WrongModel, httpx.HTTPError) as exc:
             record["error"] = f"{type(exc).__name__}: {exc}"
         if completion is not None:
@@ -348,6 +350,7 @@ def cover(
                 tokens_out=completion.tokens_out,
                 dollars=round(call_dollars(completion), 6),
             )
+        if completion is not None and record["error"] is None:
             (out_dir / "coverage-raw.txt").write_text(completion.text, encoding="utf-8")
             replies = parse_paragraphs(completion.text)
             if replies is None:
