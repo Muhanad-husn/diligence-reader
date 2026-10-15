@@ -107,6 +107,7 @@ rubric are on sample 1's variants; its dollars are every phase 6 row of `LEDGER.
 | 7 Compare | Phase 7 | done | sample 4 recall 86.4 | 0.26 | one run | 2026-09-09 |
 | 8 Product | Phase 8 | done | 100 / 87.5 / 100 | 2.51 | 1.9 / 6.3 / 0 | 2026-10-04 |
 | 8 #160 new room | Phase 8 | done | sensar 74, mri 81, avid 84 (Claude) | 8.30 | one run | 2026-10-06 |
+| 9 #170 sealed room | Phase 9 | failed, bar 85 | meadowbrook 25 (6/24); notes lost 0, tree 4, writer 14 | 4.74 | one run | 2026-10-15 |
 
 Phase 5's row was restated on 2026-09-09 by the phase 6 gate, which rewrote the three gate
 samples' reports after PR #119 changed the map under them: rubric 90 to 100, spread 4 / 0 / 0

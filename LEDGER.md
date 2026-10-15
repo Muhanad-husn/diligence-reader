@@ -459,3 +459,7 @@ Rows below this line book the cost the gateway reported for the call (#160), not
 | 2026-10-15 | room-coverage | 8 | claude-code/claude-sonnet-5-5 | 24816 | 16401 | 0.0000 | 19.1001 |
 | 2026-10-15 | room | 5 | claude-code/claude-sonnet-5-5 | 935800 | 110446 | 0.0000 | 19.1001 |
 | 2026-10-15 | room-coverage | 8 | claude-code/claude-sonnet-5-5 | 34712 | 22063 | 0.0000 | 19.1001 |
+| 2026-10-15 | room | 9 | anthropic/claude-haiku-5-5 | 5399021 | 2985357 | 1.8153 | 17.2848 |
+| 2026-10-15 | room | 9 | anthropic/claude-sonnet-5-5 | 722683 | 38115 | 1.8209 | 15.4639 |
+| 2026-10-15 | room | 9 | anthropic/claude-sonnet-5-5 | 130149 | 9602 | 0.2694 | 15.1945 |
+| 2026-10-15 | room-coverage | 8 | anthropic/claude-sonnet-5-5 | 97290 | 64000 | 0.8346 | 14.3599 |
