@@ -10,6 +10,8 @@ One page. Read before any work in this repository.
 2. **One artefact per phase, the key checked at every artefact.** A phase passes when its tests
    pass on samples 1, 2 and 3 with no code change between. The next phase does not start until
    then. A gap found later is fixed in the phase that owns it, and every later phase reruns.
+   From issue #167 on, the gate is the three practice rooms (Avid, MRI and Sensar) plus one
+   sealed room (issue #170). The three samples are run by pytest only, with no model run.
 3. **Two attempts per phase, then replace.** A phase that fails its gate twice is not fixed a
    third time. Its method is swapped for the simplest thing that can pass, or the phase is
    dropped and the score says what that cost. A defect found by a gate's readout is fixed

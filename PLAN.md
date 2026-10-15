@@ -44,6 +44,10 @@ RLM did not: verify every model sentence against the source, and run the same pr
 Every phase passes on sample 1, then on samples 2 and 3 with no code change between. Sample 4
 runs once, at the end. Keys and briefs are in `samples/README.md`.
 
+From issue #167 on, the gate is the three practice rooms, Avid, MRI and Sensar, plus one sealed
+room, which is issue #170. The three samples score 100 on every stage and every run and show
+nothing new, so they get no model run; their pytest tests over pinned artefacts stay.
+
 | # | Name | Documents | Planted truth | Source |
 |---|---|---|---|---|
 | 1 | `atlas` | 100, six formats, eight folders | one matter across six functions, five decoys; answer key, expected findings, 100-point rubric | brainqub3/synthetic-dataRoom, MIT |
@@ -229,6 +233,20 @@ subscription. Notes cost about 2.30 to 2.70 per 100-document room on GLM 5.3 Fla
 What follows: the writer keeps its default until the model configuration issue (#161) lands, since the
 Docker image has no Claude Code; the founder will open a separate experiment on more general
 questions.
+
+### 4e. Issue #167, coverage after the writer
+
+Why: the writer dropped findings it was handed. On the 16 key facts that the Claude runs of #160
+missed, the notes lost 0, choosing what the writer sees lost 3, and the writer dropped 10; the
+other 3 are totals that no stage computes. A coverage step now runs after the writer. Code lists
+the tree.json findings that the report body does not carry, and one model call writes them as
+added paragraphs under "### Further findings" at the end of the lesser issues. Code then lists
+whatever is still missing under a "## Left out" section placed before the Evidence section. The
+calls are capped at $3.50 in all, enforced by code, and booked on LEDGER.md as phase 8 rows
+whose sample ends in -coverage. The free check, `python -m rlm.coverage <run_dir> --check`,
+found these findings uncarried in the pinned reports: Avid 77 of 235, MRI 69 of 260, Sensar 123
+of 282. From here the gate is the three practice rooms plus the sealed room of #170, while the
+three samples run by pytest only.
 
 ## 5. Models
 
