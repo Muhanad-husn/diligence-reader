@@ -482,8 +482,13 @@ class ClaudeCode:
             reply = None
         if code != 0 or not isinstance(reply, dict) or reply.get("is_error"):
             raise ClaudeCodeError(f"claude exited {code}: {(err or out or '').strip()[:300]}")
-        named = sorted(reply.get("modelUsage") or {})
-        if not named or not all(CLAUDE_CODE_REPLY[model].match(name) for name in named):
+        used = reply.get("modelUsage") or {}
+        named = sorted(used)
+        # Headless Claude Code may add a small side call on another model (Haiku). The asked model
+        # must be named and must have written the most output; ties go to the asked model.
+        wrote = {name: int((used[name] or {}).get("outputTokens") or 0) for name in named}
+        asked = [name for name in named if CLAUDE_CODE_REPLY[model].match(name)]
+        if not asked or max(wrote[name] for name in asked) < max(wrote.values()):
             raise WrongModel(f"the reply for {model} came from {named or 'no model named'}")
         usage = reply.get("usage") or {}
         tokens_in = sum(int(usage.get(name) or 0) for name in

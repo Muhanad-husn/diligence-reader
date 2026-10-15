@@ -35,7 +35,7 @@ HAIKU = "claude-code/claude-haiku-5-5"
 REPO = Path(__file__).resolve().parents[1]
 
 
-def cli_reply(result, model="claude-sonnet-5-5", inputs=(900, 50, 50), output=120, is_error=False, turns=None) -> str:
+def cli_reply(result, model="claude-sonnet-5-5", inputs=(900, 50, 50), output=120, is_error=False, turns=None, side=None) -> str:
     fresh, read, created = inputs
     reply = {
         "type": "result",
@@ -45,6 +45,8 @@ def cli_reply(result, model="claude-sonnet-5-5", inputs=(900, 50, 50), output=12
                   "cache_creation_input_tokens": created, "output_tokens": output},
         "modelUsage": {model: {"inputTokens": fresh, "outputTokens": output}},
     }
+    for name, written in (side or {}).items():
+        reply["modelUsage"][name] = {"inputTokens": 10, "outputTokens": written}
     if turns is not None:
         reply["num_turns"] = turns
     return json.dumps(reply)
@@ -161,6 +163,18 @@ def test_a_reply_continued_past_its_cap_is_a_cut_off_no_reply():
 
 def test_a_reply_from_any_model_but_sonnet_5_5_is_refused():
     runner = FakeRunner(lambda args, stdin: cli_reply("{}", model="claude-haiku-4-5"))
+    with pytest.raises(WrongModel):
+        gateway_with(runner).complete(SONNET, MESSAGES, max_tokens=1000)
+
+
+def test_a_side_call_of_another_model_is_allowed_when_the_asked_model_wrote_the_most():
+    runner = FakeRunner(lambda args, stdin: cli_reply('{"a": 1}', output=120, side={"claude-haiku-5-5": 8}))
+    completion = gateway_with(runner).complete(SONNET, MESSAGES, max_tokens=1000)
+    assert completion.model == SONNET and completion.text == '{"a": 1}'
+
+
+def test_a_reply_where_another_model_wrote_more_than_the_asked_one_is_refused():
+    runner = FakeRunner(lambda args, stdin: cli_reply("{}", output=20, side={"claude-haiku-5-5": 90}))
     with pytest.raises(WrongModel):
         gateway_with(runner).complete(SONNET, MESSAGES, max_tokens=1000)
 
