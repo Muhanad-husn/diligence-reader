@@ -72,10 +72,14 @@ the gap is fixed in its own phase and every later phase reruns.
 | 6 Widen | same artefacts under `runs/<sample>-<knob>/` | Phases 1 to 5 hold when a knob is turned on the fixture: names spelled inconsistently, the matter named nowhere and linked only by dates and numbers, a second matter, twice the documents. Each knob is one generated variant of sample 1 with its own key. A failure names the phase that dropped the fact. Closed 2026-09-09: `control` holds; `names` was dropped by phase 3, whose map linked documents by the surface of a name, fixed by #113; `unnamed`, `second` and `twice` were dropped by phase 3, whose map read the room from one seed and returned one matter, fixed by #115. Five known misses stand, each a knob taking away what tied a document to the matter | as chosen in 2 and 5 | $15 |
 | 7 Compare | `runs/yahoo/` | Our tool once on sample 4, an open corpus with no planted facts, against the public record | as chosen | $4 |
 | 8 Product | `runs/<sample>/` written by a run started from the web interface, with `report.docx`, `report.pdf`, `evidence.csv` beside `report.md` | A run started from the web interface on samples 1, 2 and 3 gives the same planted-fact recall as the command line, 100 / 100 / 100, and every planted fact reads out of the docx, the PDF and the CSV. Spread over two runs printed | as chosen in 2 and 5 | $9, $3 from the reserve on 2026-10-04 and $6 on 2026-10-05 for #160 |
+| 9 Sealed room | `runs/<room>/` written by one run on a room the tool has never seen, 70 contracts, on the code frozen by #167 | The report body holds at least 85% of the key facts, set before the result is read; run once, nothing fixed after reading it | Haiku 5.5 notes, Sonnet 5.5 selection and writer, on the Anthropic API key | $10.50 from the reserve for #170 |
 
 Reserve: $5 of the $50, $15 less the $1 phase 5 borrowed on 2026-09-09, the $3 phase 8
 borrowed on 2026-10-04 and the $6 phase 8 borrowed on 2026-10-05 for #160. Nothing borrows from
 it without the reason written in `LEDGER.md` first.
+
+Phase 9's $10.50 is more than the reserve now holds. It is allowed by the founder's approval of
+#170, and the ledger's balance check still refuses any call that would take the total past $50.
 
 **The bar for phase 5.** Planted-fact recall 100% (the key is by construction). Rubric score: 85
 on sample 1, the rubric's own floor for "excellent", proposed here and set by the founder.
@@ -103,6 +107,7 @@ rubric are on sample 1's variants; its dollars are every phase 6 row of `LEDGER.
 | 7 Compare | Phase 7 | done | sample 4 recall 86.4 | 0.26 | one run | 2026-09-09 |
 | 8 Product | Phase 8 | done | 100 / 87.5 / 100 | 2.51 | 1.9 / 6.3 / 0 | 2026-10-04 |
 | 8 #160 new room | Phase 8 | done | sensar 74, mri 81, avid 84 (Claude) | 8.30 | one run | 2026-10-06 |
+| 9 #170 sealed room | Phase 9 | failed, bar 85 | meadowbrook 25 (6/24); notes lost 0, tree 4, writer 14 | 4.74 | one run | 2026-10-15 |
 
 Phase 5's row was restated on 2026-09-09 by the phase 6 gate, which rewrote the three gate
 samples' reports after PR #119 changed the map under them: rubric 90 to 100, spread 4 / 0 / 0
