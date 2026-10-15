@@ -1,7 +1,8 @@
 """Reads a written report back against the room it was written from, and says where it fails.
 
 Five checks run on the five sections the model wrote. The schedule under `## Evidence` is
-built by code out of the dossier and is not read here.
+built by code out of the dossier, and the list under `## Left out` by code out of the tree, and
+neither is read here.
 
 check_citations asks that every citation parses with rlm.sections.parse_anchor, that the
 anchor's path is a document of index.jsonl, that the anchor is one a record of sections.jsonl
@@ -69,6 +70,7 @@ from rlm.write import (
     CITATION_TEXT,
     EVIDENCE_HEADING,
     HEADINGS,
+    LEFT_OUT_HEADING,
     _CITATION,
     body_lines,
     citations,
@@ -184,7 +186,7 @@ def index_documents(records: list[dict]) -> set[str]:
 def narrative_blocks(report: str) -> list[tuple[str, str]]:
     """Each section the model wrote, as its heading and its lines, in file order.
 
-    The schedule of evidence is written by code out of the dossier, so it is left out.
+    The schedule of evidence and the left out list are written by code, so they are left out.
     """
     blocks: list[tuple[str, str]] = []
     heading: str | None = None
@@ -200,7 +202,7 @@ def narrative_blocks(report: str) -> list[tuple[str, str]]:
             lines.append(line)
     if heading is not None:
         blocks.append((heading, "\n".join(lines)))
-    return [(name, text) for name, text in blocks if name != EVIDENCE_HEADING]
+    return [(name, text) for name, text in blocks if name not in (EVIDENCE_HEADING, LEFT_OUT_HEADING)]
 
 
 def strip_citations(text: str) -> str:

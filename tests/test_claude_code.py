@@ -324,9 +324,9 @@ def test_the_command_runs_both_levels_on_sonnet(tmp_path):
     code = cli.main(argv, gateway=gateway, ledger=ledger)
 
     assert code == 0, (run_dir / "run.json").read_text(encoding="utf-8")
-    assert len(runner.calls) == 3  # the group call, then the writer's two
+    assert len(runner.calls) == 4  # the group call, the writer's two, then the coverage call
     sonnet_rows = [row for row in ledger.rows() if row["model"] == SONNET]
-    assert len(sonnet_rows) == 2
+    assert len(sonnet_rows) == 3
     assert all(float(row["dollars"]) == 0.0 for row in sonnet_rows)
     written = json.loads((run_dir / tree.TREE_FILE).read_text(encoding="utf-8"))
     assert written["model"] == SONNET

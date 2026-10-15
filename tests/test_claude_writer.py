@@ -135,7 +135,7 @@ REPORT = FIRST + "\n" + TAIL + "\n" + OPEN
 def run_both(tmp_path, replies, model=SONNET):
     room, run_dir = both_room(tmp_path)
     gateway = Recorder(replies)
-    argv = [str(room), str(run_dir), "--both", "--tree-first", "--phase", "8"]
+    argv = [str(room), str(run_dir), "--both", "--tree-first", "--phase", "8", "--no-coverage"]
     if model:
         argv += ["--model", model]
     code = write.main(argv, gateway=gateway, ledger=write_ledger(tmp_path / "L.md"))

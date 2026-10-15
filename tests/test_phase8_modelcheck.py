@@ -49,7 +49,9 @@ def test_every_task_module_with_a_default_model_is_checked():
 
     assert found["rlm.notes"] == notes.DEFAULT_MODEL
     assert found["rlm.write"] == write.DEFAULT_MODEL
-    assert all(model in PRICES for model in found.values())
+    # coverage's Sonnet is priced at the listed rate when it runs, so PRICES does not carry it
+    assert all(model in PRICES for module, model in found.items() if module != "rlm.coverage")
+    assert found["rlm.coverage"] not in PRICES
 
 
 def test_the_list_as_priced_passes(monkeypatch, capsys):
