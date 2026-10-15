@@ -48,8 +48,8 @@ from rlm.gateway import (
     priced,
     register_listing,
 )
-from rlm.verify import check_citations, check_numbers, read_jsonl
-from rlm.write import EVIDENCE_HEADING, HEADINGS, LEFT_OUT_HEADING, citations
+from rlm.verify import check_citations, check_numbers, read_jsonl, strip_citations
+from rlm.write import EVIDENCE_HEADING, HEADINGS, LEFT_OUT_HEADING, citations, is_cited, split_sentences
 
 PHASE = 8
 
@@ -226,6 +226,44 @@ def parse_paragraphs(text: str) -> list[dict] | None:
     ]
 
 
+def cite_every_sentence(paragraph: str, finding: dict) -> str:
+    """The paragraph with the finding's citation at the end of every sentence that ends in none.
+
+    A paragraph is about one finding, and a model writes two or three sentences and cites once
+    at the end. The sentences are split the way the verifier splits them, so the repair and the
+    check agree. A paragraph that holds no citation at all is left as it is: it cites nothing,
+    and that is the failure it is dropped for.
+    """
+    if not citations(paragraph):
+        return paragraph
+    cite = citation_of(finding)
+    repaired = []
+    for sentence in split_sentences(paragraph):
+        if repaired and not re.sub(r"[\s.!?]", "", strip_citations(sentence)):
+            # A citation left alone after the last full stop belongs to the sentence before it.
+            continue
+        if not is_cited(sentence):
+            body = sentence.rstrip()
+            stop = ""
+            while body and body[-1] in ".!?":
+                stop = body[-1] + stop
+                body = body[:-1]
+            sentence = f"{body.rstrip()} {cite}{stop or '.'}"
+        repaired.append(sentence)
+    return " ".join(repaired)
+
+
+def read_replay(path: Path) -> list[dict]:
+    """The anchor and paragraph pairs of a saved coverage.json, its added items then its dropped."""
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    return [
+        {"anchor": item["anchor"], "paragraph": flat(item["paragraph"])}
+        for key in ("added", "dropped")
+        for item in data.get(key, [])
+        if isinstance(item, dict) and isinstance(item.get("anchor"), str) and isinstance(item.get("paragraph"), str)
+    ]
+
+
 def paragraph_failure(
     paragraph: str, finding: dict, sections: list[dict], index: list[dict], dossier: str
 ) -> str | None:
@@ -289,17 +327,19 @@ def listed(finding: dict) -> dict:
 
 def cover(
     run_dir: Path,
-    gateway: Gateway,
-    ledger: Ledger,
+    gateway: Gateway | None,
+    ledger: Ledger | None,
     model: str = DEFAULT_MODEL,
     sample: str | None = None,
     out_dir: Path | None = None,
+    from_json: Path | None = None,
 ) -> dict:
     """Covers one written report and returns what coverage.json records.
 
     The room is read from run_dir: tree.json, sections.jsonl and index.jsonl. The report, its
     digest and the files written are in out_dir, run_dir by default: report.md rewritten,
-    report-pre-coverage.md and coverage.json.
+    report-pre-coverage.md and coverage.json. With from_json the paragraphs are read from a
+    saved coverage.json, no model is called and nothing is booked.
     """
     run_dir = Path(run_dir)
     out_dir = Path(out_dir) if out_dir is not None else run_dir
@@ -324,7 +364,9 @@ def cover(
     }
 
     replies: list[dict] | None = None
-    if missing:
+    if from_json is not None:
+        replies = read_replay(from_json)
+    elif missing:
         messages = coverage_messages(missing)
         cap = reply_cap(len(missing))
         estimated_in = estimate_tokens("\n".join(message["content"] for message in messages))
@@ -371,6 +413,7 @@ def cover(
             if finding is None:
                 reason = f"{item['anchor']} is no uncarried finding still open"
             else:
+                item = {**item, "paragraph": cite_every_sentence(item["paragraph"], finding)}
                 reason = paragraph_failure(item["paragraph"], finding, sections, index, dossier)
             if reason is None:
                 open_findings.remove(finding)
@@ -411,6 +454,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("run_dirs", nargs="+", metavar="run_dir")
     parser.add_argument("--check", action="store_true", help="count the uncarried findings, with no model call")
     parser.add_argument("--model", default=DEFAULT_MODEL)
+    parser.add_argument("--from-json", default=None, metavar="coverage.json",
+                        help="take the paragraphs from a saved coverage.json: no model call, nothing booked")
     parser.add_argument("--sample", default=None, help="the sample name the ledger row books under")
     return parser.parse_args(argv)
 
@@ -436,6 +481,12 @@ def main(argv: list[str], gateway: Gateway | None = None, ledger: Ledger | None 
         if not (run_dir / name).exists():
             print(f"no {name} at {run_dir / name}")
             return 2
+    if args.from_json:
+        if not Path(args.from_json).exists():
+            print(f"no such file: {args.from_json}")
+            return 2
+        cover(run_dir, None, None, args.model, args.sample, from_json=Path(args.from_json))
+        return 0
     if gateway is None:
         gateway = Gateway()
     if not priced(args.model):

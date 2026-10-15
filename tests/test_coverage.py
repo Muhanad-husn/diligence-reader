@@ -423,7 +423,6 @@ def test_a_paragraph_of_two_sentences_with_one_trailing_citation_is_kept_and_cit
     assert record["dropped"] == []
     report = (run_dir / "report.md").read_text(encoding="utf-8")
     further = section(report, "Lesser issues").split("### Further findings", 1)[1]
-    sentences = write.split_sentences(further.strip().split("\n", 1)[1].strip() if "\n" in further.strip() else further)
     paragraph = [line for line in further.splitlines() if line.startswith("3. ")][0][3:]
     parts = write.split_sentences(paragraph)
     assert len(parts) == 2
