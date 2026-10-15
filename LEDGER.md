@@ -455,3 +455,7 @@ Rows below this line book the cost the gateway reported for the call (#160), not
 | 2026-10-15 | avid-coverage | 8 | anthropic/claude-sonnet-5-5 | 30358 | 17953 | 0.2402 | 19.6978 |
 | 2026-10-15 | mri-coverage | 8 | anthropic/claude-sonnet-5-5 | 25558 | 15418 | 0.2053 | 19.4925 |
 | 2026-10-15 | sensar-coverage | 8 | anthropic/claude-sonnet-5-5 | 45969 | 30046 | 0.3924 | 19.1001 |
+| 2026-10-15 | room | 5 | claude-code/claude-sonnet-5-5 | 919569 | 105338 | 0.0000 | 19.1001 |
+| 2026-10-15 | room-coverage | 8 | claude-code/claude-sonnet-5-5 | 24816 | 16401 | 0.0000 | 19.1001 |
+| 2026-10-15 | room | 5 | claude-code/claude-sonnet-5-5 | 935800 | 110446 | 0.0000 | 19.1001 |
+| 2026-10-15 | room-coverage | 8 | claude-code/claude-sonnet-5-5 | 34712 | 22063 | 0.0000 | 19.1001 |
