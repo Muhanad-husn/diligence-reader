@@ -13,7 +13,7 @@ dependencies = [
     "html2text==2025.4.15",
     "pypandoc-binary==1.17",
     "typst==0.15.0",
-    "fastapi>=0.142.2,<0.143",
+    "fastapi>=0.142.4,<0.143",
     "uvicorn>=0.54,<0.55",
     "ag-ui-protocol==1.0.0",
     "python-multipart>=0.0.32,<0.1",
