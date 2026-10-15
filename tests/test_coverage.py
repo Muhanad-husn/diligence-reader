@@ -406,3 +406,68 @@ def test_the_check_command_reads_the_pinned_runs(room, capsys):
     out = capsys.readouterr().out
     assert re.search(rf"findings {PINNED[room][1]}\b", out)
     assert re.search(rf"uncarried {PINNED[room][2]}\b", out)
+
+
+# ---------------------------------------------------------------- one trailing citation, and the replay
+
+
+TWO_SENTENCES = (
+    "The office lease charges a monthly rent of $10. The rent is paid every month. [b.txt | b.txt#l1]"
+)
+
+
+def test_a_paragraph_of_two_sentences_with_one_trailing_citation_is_kept_and_cited_throughout(tmp_path):
+    gateway = FakeGateway(paragraphs_reply([("b.txt#l1", TWO_SENTENCES)]))
+    run_dir, record = run_cover(tmp_path, gateway)
+    assert anchors(record["added"]) == ["b.txt#l1"]
+    assert record["dropped"] == []
+    report = (run_dir / "report.md").read_text(encoding="utf-8")
+    further = section(report, "Lesser issues").split("### Further findings", 1)[1]
+    sentences = write.split_sentences(further.strip().split("\n", 1)[1].strip() if "\n" in further.strip() else further)
+    paragraph = [line for line in further.splitlines() if line.startswith("3. ")][0][3:]
+    parts = write.split_sentences(paragraph)
+    assert len(parts) == 2
+    assert all(part.rstrip(".").endswith("[b.txt | b.txt#l1]") for part in parts)
+    assert verify.check_citations(report, *_room_records(run_dir)) == []
+
+
+def _room_records(run_dir: Path):
+    return verify.read_jsonl(run_dir / "sections.jsonl"), verify.read_jsonl(run_dir / "index.jsonl")
+
+
+def test_a_paragraph_citing_another_anchor_in_one_sentence_is_still_dropped_after_the_repair(tmp_path):
+    text = "The office lease charges a monthly rent of $10 [a.txt | a.txt#l1]. The rent is paid every month."
+    run_dir, record = run_cover(tmp_path, FakeGateway(paragraphs_reply([("b.txt#l1", text)])))
+    assert anchors(record["dropped"]) == ["b.txt#l1"]
+    assert "a.txt#l1" in record["dropped"][0]["reason"]
+
+
+def test_the_replay_takes_the_paragraphs_from_a_file_calls_no_model_and_books_nothing(tmp_path):
+    run_dir = covered_room(tmp_path)
+    saved = {
+        "added": [{"anchor": "b.txt#l1", "paragraph": TWO_SENTENCES}],
+        "dropped": [{"anchor": "c.txt#l1", "paragraph": WRONG_ANCHOR_BONUS, "reason": "x"}],
+    }
+    source = tmp_path / "saved-coverage.json"
+    source.write_text(json.dumps(saved), encoding="utf-8")
+    ledger = write_ledger(tmp_path / "LEDGER.md")
+    before = ledger.path.read_text(encoding="utf-8")
+    gateway = FakeGateway(error=AssertionError("no call"))
+    record = coverage.cover(run_dir, gateway=gateway, ledger=ledger, model=MODEL, sample="small", from_json=source)
+    assert gateway.calls == []
+    assert ledger.path.read_text(encoding="utf-8") == before
+    assert anchors(record["added"]) == ["b.txt#l1"]
+    assert anchors(record["dropped"]) == ["c.txt#l1"]
+    assert record["dollars"] == 0.0 and record["tokens_in"] == 0
+    assert (run_dir / "coverage.json").exists()
+    assert (run_dir / "report-pre-coverage.md").read_text(encoding="utf-8") == REPORT
+    assert "### Further findings" in (run_dir / "report.md").read_text(encoding="utf-8")
+
+
+def test_the_replay_flag_runs_from_the_command_line(tmp_path, capsys):
+    run_dir = covered_room(tmp_path)
+    source = tmp_path / "saved.json"
+    source.write_text(json.dumps({"added": [{"anchor": "b.txt#l1", "paragraph": GOOD_LEASE}]}), encoding="utf-8")
+    code = coverage.main([str(run_dir), "--from-json", str(source)], gateway=FakeGateway(error=AssertionError("no")))
+    assert code == 0
+    assert "added 1" in capsys.readouterr().out
