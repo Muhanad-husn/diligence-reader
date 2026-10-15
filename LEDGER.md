@@ -452,3 +452,6 @@ Rows below this line book the cost the gateway reported for the call (#160), not
 | 2026-10-09 | northstar-dental | 8 | claude-code/claude-haiku-5-5 | 70031 | 51233 | 0.0000 | 19.9380 |
 | 2026-10-09 | northstar-dental | 8 | claude-code/claude-haiku-5-5 | 67783 | 58413 | 0.0000 | 19.9380 |
 | 2026-10-09 | northstar-dental | 8 | claude-code/claude-haiku-5-5 | 67486 | 51967 | 0.0000 | 19.9380 |
+| 2026-10-15 | avid-coverage | 8 | anthropic/claude-sonnet-5-5 | 30358 | 17953 | 0.2402 | 19.6978 |
+| 2026-10-15 | mri-coverage | 8 | anthropic/claude-sonnet-5-5 | 25558 | 15418 | 0.2053 | 19.4925 |
+| 2026-10-15 | sensar-coverage | 8 | anthropic/claude-sonnet-5-5 | 45969 | 30046 | 0.3924 | 19.1001 |
