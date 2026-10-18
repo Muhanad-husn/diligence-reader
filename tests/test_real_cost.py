@@ -107,10 +107,10 @@ def test_the_estimate_and_the_cap_still_use_the_table(tmp_path, capsys):
 
 
 def test_the_table_is_the_dearest_provider_the_gateway_may_route_to():
-    # OpenRouter's endpoints for each model on 2026-10-05, Wafer and GMICloud left out: the
+    # OpenRouter's endpoints for each model on 2026-10-05 (GLM 5.3 Flash again on 2026-10-18), Wafer and GMICloud left out: the
     # highest input rate and the highest output rate over the rest.
     assert PRICES["z-ai/glm-5.3"] == (2.8, 12.0)
-    assert PRICES["z-ai/glm-5.3-flash"] == (0.3, 1.0)
+    assert PRICES["z-ai/glm-5.3-flash"] == (0.25, 1.6)
 
 
 def test_the_model_check_fails_only_where_the_list_is_dearer_than_the_table():

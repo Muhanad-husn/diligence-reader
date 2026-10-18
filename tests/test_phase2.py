@@ -184,7 +184,7 @@ def test_gateway_price_table_is_plan_section_5():
         "deepseek/deepseek-v4-flash-0731": (0.0152, 1.280),
         "deepseek/deepseek-v4-pro": (0.2088, 0.4176),
         "z-ai/glm-5.3": (2.800, 12.000),
-        "z-ai/glm-5.3-flash": (0.300, 1.000),
+        "z-ai/glm-5.3-flash": (0.250, 1.600),
         "typesafe/jev-1.13.0": (0.042, 0.0),
     }
     assert OFF_GATEWAY == {"typesafe/jev-1.13.0"}
@@ -199,6 +199,13 @@ def test_gateway_price_table_is_plan_section_5():
 def test_gateway_past_prices_keep_the_older_tables():
     """A ledger row written before a price moved still reconciles, so the old table is kept."""
     assert PAST_PRICES == (
+        {
+            "openai/gpt-5.6-luna": (0.200, 1.200),
+            "deepseek/deepseek-v4-flash-0731": (0.0152, 1.280),
+            "deepseek/deepseek-v4-pro": (0.2088, 0.4176),
+            "z-ai/glm-5.3": (2.800, 12.000),
+            "z-ai/glm-5.3-flash": (0.300, 1.000),
+        },
         {
             "openai/gpt-5.6-luna": (0.200, 1.200),
             "deepseek/deepseek-v4-flash-0731": (0.0152, 1.280),
@@ -3221,8 +3228,9 @@ def test_bakeoff_slug_and_the_tiers_run_in_price_order():
     assert bakeoff.slug(GLM) == "glm-5.3"
 
     # The order inside a tier is the price of one pass, so it moved when GLM 5.3 Flash went to
-    # its dearest provider's rates on 2026-10-05.
-    assert bakeoff.TIERS["flash"] == (DS_FLASH, GLM_FLASH, LUNA)
+    # its dearest provider's rates on 2026-10-05, and again when its output rate reached 1.6 on
+    # 2026-10-18, above Luna's.
+    assert bakeoff.TIERS["flash"] == (DS_FLASH, LUNA, GLM_FLASH)
     assert bakeoff.TIERS["pro"] == (DS_PRO, GLM)
     assert set(bakeoff.TIERS["flash"]) | set(bakeoff.TIERS["pro"]) == set(PRICES) - OFF_GATEWAY
     for tier in bakeoff.TIERS.values():
@@ -3412,7 +3420,7 @@ def test_bakeoff_two_passes_on_two_samples_fill_one_row_and_name_the_winner(tmp_
     assert table["samples"] == ["northwind", "northstar-dental"]
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", table["date"])
     assert set(table["prices"]) == set(PRICES) - OFF_GATEWAY
-    assert table["prices"][GLM_FLASH] == [0.300, 1.000]
+    assert table["prices"][GLM_FLASH] == [0.250, 1.600]
     assert (runs_root / "northwind" / "bakeoff.json").read_text(encoding="utf-8").endswith("}\n")
 
     row = row_of(table, GLM_FLASH)
