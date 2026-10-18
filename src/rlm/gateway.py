@@ -73,7 +73,7 @@ PRICES: dict[str, tuple[float, float]] = {
     "deepseek/deepseek-v4-flash-0731": (0.0152, 1.280),
     "deepseek/deepseek-v4-pro": (0.2088, 0.4176),
     "z-ai/glm-5.3": (2.800, 12.000),
-    "z-ai/glm-5.3-flash": (0.300, 1.000),
+    "z-ai/glm-5.3-flash": (0.250, 1.600),
     # TypeSafe's Jev on TypeSafe's own API, not the gateway: input tokens only, output free.
     "typesafe/jev-1.13.0": (0.042, 0.0),
 }
@@ -112,6 +112,13 @@ CLAUDE_CODE_REPLY = {
 # The tables the repository has priced a call at before, newest first. A ledger row written
 # before a price moved reconciles at one of these, so it is kept here.
 PAST_PRICES: tuple[dict[str, tuple[float, float]], ...] = (
+    {
+        "openai/gpt-5.6-luna": (0.200, 1.200),
+        "deepseek/deepseek-v4-flash-0731": (0.0152, 1.280),
+        "deepseek/deepseek-v4-pro": (0.2088, 0.4176),
+        "z-ai/glm-5.3": (2.800, 12.000),
+        "z-ai/glm-5.3-flash": (0.300, 1.000),
+    },
     {
         "openai/gpt-5.6-luna": (0.200, 1.200),
         "deepseek/deepseek-v4-flash-0731": (0.0152, 1.280),

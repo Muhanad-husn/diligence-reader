@@ -257,7 +257,9 @@ three samples run by pytest only.
 
 Five candidates, chosen per task by the bake-off tables in phases 2 and 5, never by preference.
 Prices reread from the gateway on 2026-10-04, when the weekly model check found GLM 5.3 Flash
-doubled, per million tokens, prompt then completion. The table of 2026-09-08, the day of the
+doubled, per million tokens, prompt then completion. The two GLM rows are the dearest provider the
+gateway may route to (2026-10-05); GLM 5.3 Flash was reread on 2026-10-18, when the check found it
+listed at 1.2 out. The table of 2026-09-08, the day of the
 phase 5 bake-off, is kept in `PAST_PRICES` in `src/rlm/gateway.py`.
 
 | Model | Id | In | Out |
@@ -265,8 +267,8 @@ phase 5 bake-off, is kept in `PAST_PRICES` in `src/rlm/gateway.py`.
 | Luna | `openai/gpt-5.6-luna` | 0.200 | 1.200 |
 | DeepSeek V4 Flash | `deepseek/deepseek-v4-flash-0731` | 0.0152 | 1.280 |
 | DeepSeek V4 Pro | `deepseek/deepseek-v4-pro` | 0.2088 | 0.4176 |
-| GLM 5.3 | `z-ai/glm-5.3` | 1.400 | 4.400 |
-| GLM 5.3 Flash | `z-ai/glm-5.3-flash` | 0.150 | 0.500 |
+| GLM 5.3 | `z-ai/glm-5.3` | 2.800 | 12.000 |
+| GLM 5.3 Flash | `z-ai/glm-5.3-flash` | 0.250 | 1.600 |
 
 No Gemini. No model from outside this table without the founder's word. Prices are reread and
 rewritten here the day a bake-off runs, and the day the weekly model check finds a task model's
