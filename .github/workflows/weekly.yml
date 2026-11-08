@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: astral-sh/setup-uv@v10.3.3
       - run: uv pip install --system -e .
       - run: python -m rlm.modelcheck
 
@@ -36,7 +36,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: astral-sh/setup-uv@v10.3.3
       - run: uv pip install --system -e ".[dev]"
       - run: python -m playwright install chromium
       - run: pytest -q -W error::DeprecationWarning
@@ -76,7 +76,7 @@ jobs:
           push: false
           tags: diligence-reader:dev
           cache-from: type=gha,scope=image
-      - uses: helm/kind-action@v1.15.1
+      - uses: helm/kind-action@v1.15.2
         with:
           cluster_name: weekly
       - uses: azure/setup-helm@v5
